@@ -20,9 +20,9 @@
 ## 1단계 — 기획 (Week 1)
 
 ### 1.1 프로젝트 초기 설정
-- [ ] GitLab 레포지토리 생성 및 브랜치 전략 초안 작성
-- [ ] 디렉토리 구조 생성 (`backend/`, `frontend/`, `docs/`)
-- [ ] README 초안 작성
+- [x] GitLab 레포지토리 생성 및 브랜치 전략 초안 작성  -2026.05.15
+- [x] 디렉토리 구조 생성 (`backend/`, `frontend/`, `docs/`) -2026.05.15
+- [x] README 초안 작성  -2026.05.15
 - [ ] 팀 내 역할 분담 확정
 
 ### 1.2 요구사항 정의
@@ -31,8 +31,8 @@
 - [ ] 기능 우선순위 최종 확인 (Phase 1 / Phase 2)
 
 ### 1.3 WBS 작성
-- [ ] WBS 및 Gantt Chart 작성 (`docs/01_planning/wbs.md`)
-- [ ] 주차별 마일스톤 확정
+- [x] WBS 및 Gantt Chart 작성 (`docs/01_planning/wbs.md`) -2026.05.15
+- [x] 주차별 마일스톤 확정  -2026.05.15
 
 ---
 
@@ -40,7 +40,7 @@
 
 ### 2.1 아키텍처 설계
 - [ ] 시스템 전체 구조도 작성
-- [ ] Use-case Diagram 작성 (`docs/02_design/usecase-diagram.md`)
+- [x] Use-case Diagram 작성 (`docs/02_design/usecase-diagram.md`) -2026.05.15
 
 ### 2.2 데이터베이스 설계
 - [ ] ERD 초안 작성
@@ -68,7 +68,7 @@
   - 회원가입 / 로그인 화면
 
 ### 2.5 개발 환경 및 컨벤션 확정
-- [ ] 코딩 컨벤션 문서 작성 (`docs/03_dev/conventions.md`)
+- [x] 코딩 컨벤션 문서 작성 (`docs/03_dev/conventions.md`) -2026.05.15
   - Java 패키지 구조 및 네이밍 규칙
   - Vue.js 컴포넌트 구조
   - Git 커밋 메시지 규칙
