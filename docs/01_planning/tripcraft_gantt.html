@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TripCraft — WBS Gantt Chart</title>
+<title>TripCraft — WBS Gantt Chart (6주)</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -124,7 +124,7 @@
     padding-top: 12px;
     border-top: 0.5px solid #d3d1c7;
     display: grid;
-    grid-template-columns: 200px repeat(8, 1fr);
+    grid-template-columns: 200px repeat(6, 1fr);
     gap: 0;
     align-items: start;
   }
@@ -192,7 +192,7 @@
     <h1>TripCraft</h1>
     <span class="badge">WBS v0.1</span>
   </div>
-  <p class="meta">8주 개발 일정 · 2인 팀 · 2026.05 초안</p>
+  <p class="meta">6주 개발 일정 · 2인 팀 · 2026.05 초안</p>
 
   <table class="gc-table" id="gantt"></table>
 
@@ -211,44 +211,55 @@
 </div>
 
 <script>
-const WEEKS = 8;
-const WEEK_LABELS = ["W1 기획","W2 설계","W3 개발","W4 개발","W5 개발","W6 개발","W7 개발","W8 QA"];
+const WEEKS = 6;
+const WEEK_LABELS = ["W1 기획","W2 설계","W3 개발","W4 개발","W5 개발","W6 QA·배포"];
 
 const tasks = [
+  /* ── 1단계: 기획 ── */
   { name: "1단계 — 기획", type: "phase", start: 1, end: 1, color: "#534AB7", bg: "#CECBF6" },
   { name: "요구사항 정의", type: "sub", start: 1, end: 1, color: "#534AB7", bg: "#EEEDFE" },
   { name: "WBS 작성", type: "sub", start: 1, end: 1, color: "#534AB7", bg: "#EEEDFE" },
   { name: "GitLab / 환경 세팅", type: "sub", start: 1, end: 1, color: "#534AB7", bg: "#EEEDFE" },
 
+  /* ── 2단계: 설계 ── */
   { name: "2단계 — 설계", type: "phase", start: 2, end: 2, color: "#0F6E56", bg: "#9FE1CB" },
   { name: "ERD 설계", type: "sub", start: 2, end: 2, color: "#0F6E56", bg: "#E1F5EE" },
   { name: "API 명세", type: "sub", start: 2, end: 2, color: "#0F6E56", bg: "#E1F5EE" },
   { name: "UI 와이어프레임", type: "sub", start: 2, end: 2, color: "#0F6E56", bg: "#E1F5EE" },
-  { name: "코딩 컨벤션", type: "sub", start: 2, end: 2, color: "#0F6E56", bg: "#E1F5EE" },
+  { name: "개발 환경 세팅 (BE+FE)", type: "sub", start: 2, end: 2, color: "#0F6E56", bg: "#E1F5EE" },
 
-  { name: "3단계 — 개발", type: "phase", start: 3, end: 7, color: "#185FA5", bg: "#B5D4F4" },
+  /* ── 3단계: 개발 ── */
+  { name: "3단계 — 개발", type: "phase", start: 3, end: 5, color: "#185FA5", bg: "#B5D4F4" },
+
+  /* W3: 회원 + 관광지 기반 */
   { name: "F10 회원 관리 (BE)", type: "sub", start: 3, end: 3, color: "#185FA5", bg: "#E6F1FB" },
   { name: "F10 회원 관리 (FE)", type: "sub", start: 3, end: 3, color: "#993556", bg: "#FBEAF0" },
-  { name: "F01-03 관광지 DB (BE)", type: "sub", start: 4, end: 4, color: "#185FA5", bg: "#E6F1FB" },
-  { name: "F01-03 관광지 조회 (FE)", type: "sub", start: 4, end: 4, color: "#993556", bg: "#FBEAF0" },
-  { name: "F04 즐겨찾기 (BE+FE)", type: "sub", start: 4, end: 4, color: "#185FA5", bg: "#E6F1FB" },
-  { name: "F05-07 일정 (BE)", type: "sub", start: 5, end: 6, color: "#185FA5", bg: "#E6F1FB" },
-  { name: "F05-07 일정 (FE)", type: "sub", start: 5, end: 6, color: "#993556", bg: "#FBEAF0" },
-  { name: "F06 ODsay 이동시간 연동", type: "sub", start: 5, end: 5, color: "#185FA5", bg: "#E6F1FB" },
-  { name: "F08-09 커뮤니티 (BE)", type: "sub", start: 7, end: 7, color: "#185FA5", bg: "#E6F1FB" },
-  { name: "F08-09 커뮤니티 (FE)", type: "sub", start: 7, end: 7, color: "#993556", bg: "#FBEAF0" },
+  { name: "F01-03 관광지 DB 구축 (BE)", type: "sub", start: 3, end: 3, color: "#185FA5", bg: "#E6F1FB" },
+  { name: "F01-03 관광지 조회 (FE)", type: "sub", start: 3, end: 3, color: "#993556", bg: "#FBEAF0" },
+  { name: "F04 즐겨찾기 (BE+FE)", type: "sub", start: 3, end: 3, color: "#185FA5", bg: "#E6F1FB" },
 
-  { name: "4단계 — QA·배포", type: "phase", start: 8, end: 8, color: "#854F0B", bg: "#FAC775" },
-  { name: "통합 테스트·버그수정", type: "sub", start: 8, end: 8, color: "#854F0B", bg: "#FAEEDA" },
-  { name: "배포 및 문서 마무리", type: "sub", start: 8, end: 8, color: "#854F0B", bg: "#FAEEDA" },
+  /* W4: 일정 기능 */
+  { name: "F05-07 일정 블록·저장 (BE)", type: "sub", start: 4, end: 4, color: "#185FA5", bg: "#E6F1FB" },
+  { name: "F05-07 일정 블록·저장 (FE)", type: "sub", start: 4, end: 4, color: "#993556", bg: "#FBEAF0" },
+  { name: "F06 ODsay 이동시간 연동", type: "sub", start: 4, end: 4, color: "#185FA5", bg: "#E6F1FB" },
+
+  /* W5: 커뮤니티 + 버퍼 */
+  { name: "F08-09 커뮤니티 (BE)", type: "sub", start: 5, end: 5, color: "#185FA5", bg: "#E6F1FB" },
+  { name: "F08-09 커뮤니티 (FE)", type: "sub", start: 5, end: 5, color: "#993556", bg: "#FBEAF0" },
+  { name: "기능 연결·버그 버퍼", type: "sub", start: 5, end: 5, color: "#185FA5", bg: "#E6F1FB" },
+
+  /* ── 4단계: QA·배포 ── */
+  { name: "4단계 — QA·배포", type: "phase", start: 6, end: 6, color: "#854F0B", bg: "#FAC775" },
+  { name: "통합 테스트·버그수정", type: "sub", start: 6, end: 6, color: "#854F0B", bg: "#FAEEDA" },
+  { name: "배포 및 문서 마무리", type: "sub", start: 6, end: 6, color: "#854F0B", bg: "#FAEEDA" },
 ];
 
 const milestones = [
   { week: 2, color: "#534AB7", label: "M1\n설계완료" },
-  { week: 4, color: "#0F6E56", label: "M2\n회원·관광지" },
-  { week: 6, color: "#185FA5", label: "M3\n일정완성" },
-  { week: 7, color: "#993556", label: "M4\nMVP완성" },
-  { week: 8, color: "#854F0B", label: "M5\n배포완료" },
+  { week: 3, color: "#0F6E56", label: "M2\n회원·관광지" },
+  { week: 4, color: "#185FA5", label: "M3\n일정완성" },
+  { week: 5, color: "#993556", label: "M4\nMVP완성" },
+  { week: 6, color: "#854F0B", label: "M5\n배포완료" },
 ];
 
 // Build header
