@@ -34,14 +34,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public TokenResponse signup(SignupRequest request, HttpServletResponse response) {
+    public void signup(SignupRequest request) {
         memberMapper.findByEmail(request.getEmail()).ifPresent(m -> {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
         });
 
-        Member member = buildMember(request);
-        memberMapper.insert(member);
-        return issueTokens(member, response);
+        memberMapper.insert(buildMember(request));
     }
 
     @Override

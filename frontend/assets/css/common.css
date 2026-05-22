@@ -54,6 +54,10 @@ a { text-decoration: none; }
 .nav-link:hover { color: var(--text-primary); background: var(--bg-page); }
 .nav-link.active { color: var(--purple-900); background: var(--purple-50); }
 .gnb-spacer { flex: 1; }
+.gnb-user {
+  font-size: var(--font-size-xs);
+  color: var(--gray-dark);
+}
 
 /* ── 공통 버튼 ── */
 .btn-ghost {
