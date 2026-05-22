@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.community.mapper.PostMapper">
+
+    <resultMap id="postMap" type="com.tripcraft.community.domain.Post">
+        <id column="id" property="id"/>
+        <result column="member_id" property="memberId"/>
+        <result column="trip_id" property="tripId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findById" parameterType="long" resultMap="postMap">
+        SELECT * FROM post WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="postMap">
+        SELECT * FROM post ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM post
+    </select>
+
+    <update id="incrementViewCount" parameterType="long">
+        UPDATE post SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <insert id="insert" parameterType="com.tripcraft.community.domain.Post" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post (member_id, trip_id, title, content)
+        VALUES (#{memberId}, #{tripId}, #{title}, #{content})
+    </insert>
+
+    <update id="update" parameterType="com.tripcraft.community.domain.Post">
+        UPDATE post
+        SET title = #{title}, content = #{content}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM post WHERE id = #{id}
+    </delete>
+
+</mapper>

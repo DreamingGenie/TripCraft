@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.attraction.mapper.AttractionMapper">
+
+    <resultMap id="attractionMap" type="com.tripcraft.attraction.domain.Attraction">
+        <id column="id" property="id"/>
+        <result column="content_id" property="contentId"/>
+        <result column="content_type_id" property="contentTypeId"/>
+        <result column="title" property="title"/>
+        <result column="addr1" property="addr1"/>
+        <result column="addr2" property="addr2"/>
+        <result column="zipcode" property="zipcode"/>
+        <result column="tel" property="tel"/>
+        <result column="firstimage" property="firstimage"/>
+        <result column="firstimage2" property="firstimage2"/>
+        <result column="mapx" property="mapx"/>
+        <result column="mapy" property="mapy"/>
+        <result column="sigungu_code" property="sigunguCode"/>
+        <result column="area_code" property="areaCode"/>
+        <result column="overview" property="overview"/>
+        <result column="api_modified_at" property="apiModifiedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findById" parameterType="long" resultMap="attractionMap">
+        SELECT * FROM attraction WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="attractionMap">
+        SELECT * FROM attraction ORDER BY id
+    </select>
+
+    <select id="findByCondition" parameterType="com.tripcraft.attraction.mapper.AttractionSearchCondition"
+            resultMap="attractionMap">
+        SELECT * FROM attraction
+        <where>
+            <if test="areaCodes != null and !areaCodes.isEmpty()">
+                AND area_code IN
+                <foreach item="code" collection="areaCodes" open="(" separator="," close=")">
+                    #{code}
+                </foreach>
+            </if>
+            <if test="sigunguCodes != null and !sigunguCodes.isEmpty()">
+                AND sigungu_code IN
+                <foreach item="code" collection="sigunguCodes" open="(" separator="," close=")">
+                    #{code}
+                </foreach>
+            </if>
+            <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
+                AND content_type_id IN
+                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <insert id="insertAll" parameterType="list">
+        INSERT INTO attraction (content_id, content_type_id, title, addr1, addr2, zipcode,
+                                tel, firstimage, firstimage2, mapx, mapy, sigungu_code, area_code, overview, api_modified_at)
+        VALUES
+        <foreach item="a" collection="list" separator=",">
+            (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.addr1}, #{a.addr2}, #{a.zipcode},
+             #{a.tel}, #{a.firstimage}, #{a.firstimage2}, #{a.mapx}, #{a.mapy}, #{a.sigunguCode}, #{a.areaCode},
+             #{a.overview}, #{a.apiModifiedAt})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title), addr1 = VALUES(addr1), overview = VALUES(overview),
+            api_modified_at = VALUES(api_modified_at), updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <update id="update" parameterType="com.tripcraft.attraction.domain.Attraction">
+        UPDATE attraction
+        SET title = #{title}, addr1 = #{addr1}, addr2 = #{addr2}, overview = #{overview},
+            api_modified_at = #{apiModifiedAt}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

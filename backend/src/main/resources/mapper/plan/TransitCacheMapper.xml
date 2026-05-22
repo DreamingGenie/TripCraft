@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.plan.mapper.TransitCacheMapper">
+
+    <resultMap id="cacheMap" type="com.tripcraft.plan.domain.TransitCache">
+        <id column="id" property="id"/>
+        <result column="from_attraction_id" property="fromAttractionId"/>
+        <result column="to_attraction_id" property="toAttractionId"/>
+        <result column="departure_hour" property="departureHour"/>
+        <result column="transport_type" property="transportType"/>
+        <result column="duration_minutes" property="durationMinutes"/>
+        <result column="transport_mode" property="transportMode"/>
+        <result column="cached_at" property="cachedAt"/>
+    </resultMap>
+
+    <select id="findByKey" resultMap="cacheMap">
+        SELECT * FROM transit_cache
+        WHERE from_attraction_id = #{fromAttractionId}
+          AND to_attraction_id   = #{toAttractionId}
+          AND departure_hour     = #{departureHour}
+          AND transport_type     = #{transportType}
+    </select>
+
+    <insert id="insert" parameterType="com.tripcraft.plan.domain.TransitCache" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transit_cache (from_attraction_id, to_attraction_id, departure_hour,
+                                   transport_type, duration_minutes, transport_mode)
+        VALUES (#{fromAttractionId}, #{toAttractionId}, #{departureHour},
+                #{transportType}, #{durationMinutes}, #{transportMode})
+        ON DUPLICATE KEY UPDATE
+            duration_minutes = VALUES(duration_minutes),
+            transport_mode   = VALUES(transport_mode),
+            cached_at        = CURRENT_TIMESTAMP
+    </insert>
+
+</mapper>
