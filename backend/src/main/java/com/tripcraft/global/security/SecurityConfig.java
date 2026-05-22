@@ -37,8 +37,10 @@ public class SecurityConfig {
                 .accessDeniedHandler(accessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
                 // 인증 불필요
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**").permitAll()
+                // Swagger UI
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // 관리자 전용
                 .requestMatchers("/api/admin/**", "/api/notices/**").hasRole("ADMIN")
                 // 나머지 인증 필요
