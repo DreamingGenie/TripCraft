@@ -69,8 +69,42 @@ function createSchedule() {
   }, 800);
 }
 
+/* ── GNB 인증 영역 ── */
+function initGnb() {
+  const area = document.getElementById('gnb-auth');
+  if (!area) return;
+  const token    = localStorage.getItem('tripcraft_token');
+  const nickname = localStorage.getItem('tripcraft_nickname');
+  if (token) {
+    area.innerHTML =
+      `<span class="gnb-user">${nickname ? nickname + '님' : '회원님'}</span>` +
+      `<button class="btn-ghost" onclick="logout()">로그아웃</button>`;
+  } else {
+    area.innerHTML =
+      `<button class="btn-ghost" onclick="window.location.href='auth.html'">로그인</button>` +
+      `<button class="btn-primary" onclick="window.location.href='auth.html'">회원가입</button>`;
+  }
+}
+
+async function logout() {
+  const token = localStorage.getItem('tripcraft_token');
+  try {
+    await fetch('http://localhost:8080/api/auth/logout', {
+      method:      'POST',
+      credentials: 'include',
+      headers:     token ? { 'Authorization': 'Bearer ' + token } : {},
+    });
+  } catch (e) { /* 네트워크 에러 무시 */ }
+  localStorage.removeItem('tripcraft_token');
+  localStorage.removeItem('tripcraft_nickname');
+  showToast('로그아웃됐어요.');
+  setTimeout(() => { window.location.href = 'auth.html'; }, 800);
+}
+
 /* ── 모달 외부 클릭 닫기 ── */
 document.addEventListener('DOMContentLoaded', () => {
+  initGnb();
+
   const overlay = document.getElementById('modal-overlay');
   if (overlay) {
     overlay.addEventListener('click', (e) => {

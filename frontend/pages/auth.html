@@ -41,25 +41,24 @@
     <!-- 로그인 필드 -->
     <div id="login-fields">
       <label class="field-label">이메일</label>
-      <input class="field-input" type="email" placeholder="hello@example.com" />
+      <input class="field-input" id="login-email" type="email" placeholder="hello@example.com" autocomplete="email" />
       <label class="field-label">비밀번호</label>
-      <input class="field-input" type="password" placeholder="••••••••" />
+      <input class="field-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" />
     </div>
 
     <!-- 회원가입 필드 -->
     <div id="signup-fields" style="display:none">
-      <label class="field-label">이름</label>
-      <input class="field-input" type="text" placeholder="홍길동" />
+      <label class="field-label">이름 (닉네임)</label>
+      <input class="field-input" id="signup-nickname" type="text" placeholder="홍길동" />
       <label class="field-label">이메일</label>
-      <input class="field-input" type="email" placeholder="hello@example.com" />
+      <input class="field-input" id="signup-email" type="email" placeholder="hello@example.com" autocomplete="email" />
       <label class="field-label">비밀번호</label>
-      <input class="field-input" type="password" placeholder="•••••••• (8자 이상)" />
+      <input class="field-input" id="signup-password" type="password" placeholder="•••••••• (8자 이상)" autocomplete="new-password" />
       <label class="field-label">비밀번호 확인</label>
-      <input class="field-input" type="password" placeholder="••••••••" />
+      <input class="field-input" id="signup-password-confirm" type="password" placeholder="••••••••" autocomplete="new-password" />
     </div>
 
-    <button class="submit-btn" id="d-submit"
-            onclick="window.location.href='explore.html'">로그인</button>
+    <button class="submit-btn" id="d-submit" onclick="handleSubmit()">로그인</button>
 
     <div class="divider">
       <div class="divider-line"></div>
@@ -81,6 +80,7 @@
 <div id="toast"></div>
 
 <script src="../assets/js/common.js"></script>
+<script src="../assets/js/auth.js"></script>
 <script>
   function authSwitch(tab) {
     document.getElementById('tab-login').classList.toggle('active', tab === 'login');

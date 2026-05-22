@@ -59,7 +59,8 @@
   font-weight: 500;
   cursor: pointer;
 }
-.submit-btn:hover { opacity: 0.9; }
+.submit-btn:hover:not(:disabled) { opacity: 0.9; }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .divider { display: flex; align-items: center; gap: 8px; margin: 14px 0; }
 .divider-line { flex: 1; height: 0.5px; background: var(--gray-border); }

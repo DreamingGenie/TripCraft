@@ -23,11 +23,10 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<TokenResponse>> signup(
-            @Valid @RequestBody SignupRequest request,
-            HttpServletResponse response) {
-        TokenResponse token = authService.signup(request, response);
-        return ResponseEntity.status(201).body(ApiResponse.ok(token));
+    public ResponseEntity<ApiResponse<Void>> signup(
+            @Valid @RequestBody SignupRequest request) {
+        authService.signup(request);
+        return ResponseEntity.status(201).body(ApiResponse.ok());
     }
 
     @PostMapping("/login")
