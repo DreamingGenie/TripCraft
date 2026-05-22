@@ -1,0 +1,51 @@
+/* ============================================================
+   TripCraft — variables.css
+   디자인 토큰 (CSS 변수). 모든 페이지에서 가장 먼저 로드.
+   ============================================================ */
+:root {
+  /* ── 브랜드 ── */
+  --purple-900: #534AB7;
+  --purple-100: #CECBF6;
+  --purple-50:  #EEEDFE;
+
+  /* ── 카테고리 ── */
+  --teal-600:  #0F6E56;
+  --teal-100:  #A3D9C7;
+  --teal-50:   #E1F5EE;
+
+  --pink-600:  #993556;
+  --pink-100:  #F7C3D4;
+  --pink-50:   #FBEAF0;
+
+  --blue-600:  #185FA5;
+  --blue-100:  #B3D1EF;
+  --blue-50:   #E6F1FB;
+
+  --amber-600: #854F0B;
+  --amber-100: #F0D5A5;
+  --amber-50:  #FAEEDA;
+  --amber-star:#FAC775;
+
+  /* ── 중립 ── */
+  --gray-border: #D3D1C7;
+  --gray-muted:  #888780;
+  --gray-dark:   #5F5E5A;
+  --text-primary:#2C2C2A;
+  --bg-page:     #F5F4F0;
+  --bg-surface:  #FFFFFF;
+
+  /* ── 타이포그래피 ── */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+  --font-size-xs:   10px;
+  --font-size-sm:   11px;
+  --font-size-base: 12px;
+  --font-size-md:   13px;
+  --font-size-lg:   14px;
+
+  /* ── 간격 ── */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  12px;
+  --radius-full:20px;
+}
