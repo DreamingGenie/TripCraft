@@ -7,19 +7,19 @@
     <resultMap id="tokenMap" type="com.tripcraft.member.domain.MemberToken">
         <id column="id" property="id"/>
         <result column="member_id" property="memberId"/>
-        <result column="token" property="token"/>
+        <result column="refresh_token" property="token"/>
         <result column="expires_at" property="expiresAt"/>
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
     <select id="findByToken" parameterType="string" resultMap="tokenMap">
-        SELECT id, member_id, token, expires_at, created_at
+        SELECT id, member_id, refresh_token, expires_at, created_at
         FROM member_token
-        WHERE token = #{token}
+        WHERE refresh_token = #{token}
     </select>
 
     <insert id="insert" parameterType="com.tripcraft.member.domain.MemberToken" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO member_token (member_id, token, expires_at)
+        INSERT INTO member_token (member_id, refresh_token, expires_at)
         VALUES (#{memberId}, #{token}, #{expiresAt})
     </insert>
 
@@ -28,7 +28,7 @@
     </delete>
 
     <delete id="deleteByToken" parameterType="string">
-        DELETE FROM member_token WHERE token = #{token}
+        DELETE FROM member_token WHERE refresh_token = #{token}
     </delete>
 
 </mapper>
