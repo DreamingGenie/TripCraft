@@ -1,10 +1,12 @@
 package com.tripcraft.member.domain;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 public class Member {
 
     private Long id;

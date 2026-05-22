@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.community.mapper.NoticeMapper">
+
+    <resultMap id="noticeMap" type="com.tripcraft.community.domain.Notice">
+        <id column="id" property="id"/>
+        <result column="member_id" property="memberId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="findById" parameterType="long" resultMap="noticeMap">
+        SELECT * FROM notice WHERE id = #{id}
+    </select>
+
+    <select id="findLatest" resultMap="noticeMap">
+        SELECT * FROM notice ORDER BY created_at DESC LIMIT #{limit}
+    </select>
+
+    <insert id="insert" parameterType="com.tripcraft.community.domain.Notice" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notice (member_id, title, content)
+        VALUES (#{memberId}, #{title}, #{content})
+    </insert>
+
+    <update id="update" parameterType="com.tripcraft.community.domain.Notice">
+        UPDATE notice
+        SET title = #{title}, content = #{content}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM notice WHERE id = #{id}
+    </delete>
+
+</mapper>
