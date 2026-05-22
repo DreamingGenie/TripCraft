@@ -1,0 +1,281 @@
+/* ============================================================
+   TripCraft — schedule.css  (v2)
+   내 일정 페이지 — 날짜별 좌우 배치 시간표 (Google Calendar 형)
+   Layout: [후보군 사이드바] | [툴바 + 시간표 그리드]
+   ============================================================ */
+
+/* 1px per minute, 60px per hour → 24h = 1440px */
+:root { --px-per-min: 1px; --hour-h: 60px; --day-min-w: 160px; --time-axis-w: 52px; }
+
+#screen-schedule { display: flex; flex: 1; overflow: hidden; }
+
+/* ================================================================
+   후보군 사이드바 (왼쪽) — 기존과 동일
+   ================================================================ */
+.candidate-sidebar {
+  width: 220px; min-width: 220px;
+  background: var(--bg-surface);
+  border-right: 0.5px solid var(--gray-border);
+  padding: 12px;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+}
+.schedule-header-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 0.5px solid var(--gray-border);
+}
+.schedule-name {
+  font-size: var(--font-size-sm); font-weight: 500;
+  color: var(--purple-900); flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.schedule-switch-btn { background: none; border: none; color: var(--gray-muted); font-size: var(--font-size-xs); }
+
+.city-group { margin-bottom: 8px; }
+.city-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 0 4px; border-bottom: 0.5px solid var(--gray-border);
+  background: none; width: 100%; text-align: left; cursor: pointer;
+}
+.city-pin { font-size: var(--font-size-sm); color: var(--purple-900); }
+.city-name { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-primary); flex: 1; }
+.city-count { font-size: var(--font-size-xs); color: var(--gray-muted); }
+.city-chevron { font-size: var(--font-size-xs); color: var(--gray-muted); }
+
+.cand-card {
+  border: 0.5px solid var(--gray-border); border-radius: var(--radius-md);
+  padding: 8px 10px; background: var(--bg-surface);
+  display: flex; align-items: center; gap: 8px;
+  cursor: grab; margin-bottom: 4px;
+  transition: border-color .12s, box-shadow .12s;
+  user-select: none;
+}
+.cand-card:hover:not(.placed) { border-color: var(--purple-100); box-shadow: 0 1px 4px rgba(83,74,183,.1); }
+.cand-card:active:not(.placed) { cursor: grabbing; opacity: .7; }
+.cand-card.placed { opacity: .4; cursor: default; }
+.cand-bar { width: 3px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
+.cand-info { flex: 1; min-width: 0; }
+.cand-name { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cand-name.placed { text-decoration: line-through; }
+.cand-cat { font-size: var(--font-size-xs); color: var(--gray-muted); }
+
+.btn-add-from-explore {
+  border: 0.5px dashed var(--gray-border); border-radius: var(--radius-md);
+  padding: 8px; font-size: var(--font-size-xs); color: var(--gray-muted);
+  text-align: center; background: none; width: 100%; margin-top: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.btn-add-from-explore:hover { border-color: var(--purple-100); color: var(--purple-900); background: var(--purple-50); }
+
+/* ================================================================
+   시간표 메인 (오른쪽)
+   ================================================================ */
+.timetable-main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-page);
+  min-width: 0;
+}
+
+/* ── 툴바 ── */
+.timeline-toolbar {
+  height: 40px; padding: 0 14px;
+  border-bottom: 0.5px solid var(--gray-border);
+  background: var(--bg-surface);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0; z-index: 1;
+}
+.toolbar-trip-name { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-primary); }
+.toolbar-trip-meta { font-size: var(--font-size-xs); color: var(--gray-muted); }
+.toolbar-spacer { flex: 1; }
+.btn-new-trip {
+  font-size: var(--font-size-xs);
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border: 0.5px solid var(--purple-100);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+}
+.btn-new-trip:hover { background: var(--purple-100); }
+.btn-save-schedule {
+  background: none; border: none;
+  font-size: var(--font-size-xs); color: var(--gray-muted);
+  display: flex; align-items: center; gap: 4px;
+}
+.btn-save-schedule:hover { color: var(--text-primary); }
+
+/* ── 힌트 바 ── */
+.hint-bar {
+  padding: 7px 14px; font-size: var(--font-size-xs);
+  color: var(--purple-900); background: var(--purple-50);
+  border-bottom: 0.5px solid var(--purple-100);
+  text-align: center; flex-shrink: 0;
+}
+
+/* ================================================================
+   시간표 그리드 래퍼
+   ================================================================ */
+.timetable-wrapper {
+  flex: 1;
+  overflow: auto;       /* 상하 + 좌우 스크롤 */
+  position: relative;
+  background: var(--bg-surface);
+}
+
+/* ── 날짜 헤더 행 (sticky top) ── */
+.timetable-header {
+  display: flex;
+  position: sticky; top: 0; z-index: 15;
+  background: var(--bg-surface);
+  border-bottom: 0.5px solid var(--gray-border);
+  min-width: max-content;  /* 가로 스크롤 시 함께 움직이지 않도록 */
+}
+.th-gutter {
+  width: var(--time-axis-w); flex-shrink: 0;
+  position: sticky; left: 0; z-index: 20;
+  background: var(--bg-surface);
+  border-right: 0.5px solid var(--gray-border);
+}
+.th-day {
+  min-width: var(--day-min-w);
+  flex: 1;
+  padding: 8px 10px;
+  border-left: 0.5px solid var(--gray-border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+}
+.th-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 10px; background: var(--purple-900); color: #fff;
+  border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: 500;
+}
+.th-date { font-size: var(--font-size-xs); color: var(--gray-muted); }
+
+/* ── 그리드 바디 ── */
+.timetable-body {
+  display: flex;
+  height: calc(var(--hour-h) * 24);  /* 1440px */
+  min-width: max-content;
+  position: relative;
+}
+
+/* ── 시간 축 (sticky left) ── */
+.time-axis {
+  width: var(--time-axis-w);
+  flex-shrink: 0;
+  position: sticky; left: 0; z-index: 10;
+  background: var(--bg-surface);
+  border-right: 0.5px solid var(--gray-border);
+  /* 높이는 부모(timetable-body)에 따라 */
+}
+.time-mark {
+  position: absolute;
+  right: 6px;
+  font-size: 9px;
+  color: var(--gray-muted);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  line-height: 1;
+}
+/* 정각 레이블: 굵게 / 30분 레이블: 연하게 */
+.time-mark.half { opacity: 0.45; font-size: 8px; }
+
+/* ── 날짜 컬럼 컨테이너 ── */
+.day-cols {
+  flex: 1; display: flex;
+}
+
+/* ── 개별 날짜 컬럼 ── */
+.day-col {
+  min-width: var(--day-min-w);
+  flex: 1;
+  position: relative;
+  border-left: 0.5px solid var(--gray-border);
+
+  /* 배경 격자: 30분 연선 + 1시간 실선 */
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 29.5px,
+      rgba(211, 209, 199, 0.5) 29.5px,  /* 30분 선 */
+      rgba(211, 209, 199, 0.5) 30px,
+      transparent 30px,
+      transparent 59.5px,
+      var(--gray-border) 59.5px,          /* 1시간 선 */
+      var(--gray-border) 60px
+    );
+}
+
+/* 드래그 오버 시 컬럼 강조 */
+.day-col.drag-over {
+  background-color: rgba(83, 74, 183, 0.04);
+}
+
+/* 드롭 위치 미리보기 */
+.drop-preview {
+  position: absolute;
+  left: 4px; right: 4px;
+  height: 120px;  /* 기본 2시간 */
+  border-radius: var(--radius-md);
+  background: rgba(83, 74, 183, 0.15);
+  border: 1.5px dashed var(--purple-900);
+  pointer-events: none;
+  z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--font-size-xs); color: var(--purple-900); font-weight: 500;
+}
+
+/* ── 이벤트 블록 ── */
+.event-block {
+  position: absolute;
+  left: 4px; right: 4px;
+  border-radius: var(--radius-md);
+  border-left: 3px solid;
+  padding: 4px 7px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  transition: box-shadow .12s;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.event-block:hover {
+  box-shadow: 0 3px 8px rgba(0,0,0,.14);
+  z-index: 4;
+}
+
+/* 색상 테마별 */
+.event-block[data-color="purple"] { background: #EEEDFE; border-color: #534AB7; }
+.event-block[data-color="pink"]   { background: #FBEAF0; border-color: #993556; }
+.event-block[data-color="teal"]   { background: #E1F5EE; border-color: #0F6E56; }
+.event-block[data-color="blue"]   { background: #E6F1FB; border-color: #185FA5; }
+.event-block[data-color="amber"]  { background: #FAEEDA; border-color: #854F0B; }
+
+.event-name { font-size: var(--font-size-xs); font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-time { font-size: 9px; color: var(--gray-muted); }
+
+.event-del {
+  position: absolute; top: 3px; right: 4px;
+  background: none; border: none;
+  font-size: 10px; color: var(--gray-muted);
+  opacity: 0; transition: opacity .12s;
+  padding: 0; cursor: pointer; line-height: 1;
+}
+.event-block:hover .event-del { opacity: 1; }
+
+/* 이동 시간 블록 */
+.transit-block {
+  position: absolute;
+  left: 4px; right: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent, transparent 3px,
+    rgba(136, 135, 128, 0.12) 3px, rgba(136, 135, 128, 0.12) 6px
+  );
+  border-radius: 2px;
+  display: flex; align-items: center; padding: 0 6px;
+  font-size: 9px; color: var(--gray-muted);
+  pointer-events: none; z-index: 1;
+}

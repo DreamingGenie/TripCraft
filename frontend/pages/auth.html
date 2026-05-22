@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripCraft — 로그인</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/variables.css" />
+  <link rel="stylesheet" href="../assets/css/common.css" />
+  <link rel="stylesheet" href="../assets/css/auth.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     GNB
+     ════════════════════════════════ -->
+<header id="gnb">
+  <a class="logo" href="explore.html">TripCraft</a>
+  <a class="nav-link" href="explore.html">관광지 탐색</a>
+  <a class="nav-link" href="schedule.html">내 일정</a>
+  <a class="nav-link" href="community.html">커뮤니티</a>
+  <span class="gnb-spacer"></span>
+</header>
+
+<main id="main">
+<section id="screen-auth">
+
+  <div class="auth-card">
+    <div class="auth-logo">
+      <p class="auth-logo-text">TripCraft</p>
+      <p class="auth-slogan">나만의 여행을 설계하세요</p>
+    </div>
+
+    <!-- 로그인 / 회원가입 탭 -->
+    <div class="tab-switcher">
+      <button class="auth-tab active" id="tab-login"  onclick="authSwitch('login')">로그인</button>
+      <button class="auth-tab"        id="tab-signup" onclick="authSwitch('signup')">회원가입</button>
+    </div>
+
+    <!-- 로그인 필드 -->
+    <div id="login-fields">
+      <label class="field-label">이메일</label>
+      <input class="field-input" type="email" placeholder="hello@example.com" />
+      <label class="field-label">비밀번호</label>
+      <input class="field-input" type="password" placeholder="••••••••" />
+    </div>
+
+    <!-- 회원가입 필드 -->
+    <div id="signup-fields" style="display:none">
+      <label class="field-label">이름</label>
+      <input class="field-input" type="text" placeholder="홍길동" />
+      <label class="field-label">이메일</label>
+      <input class="field-input" type="email" placeholder="hello@example.com" />
+      <label class="field-label">비밀번호</label>
+      <input class="field-input" type="password" placeholder="•••••••• (8자 이상)" />
+      <label class="field-label">비밀번호 확인</label>
+      <input class="field-input" type="password" placeholder="••••••••" />
+    </div>
+
+    <button class="submit-btn" id="d-submit"
+            onclick="window.location.href='explore.html'">로그인</button>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <span class="divider-text">또는</span>
+      <div class="divider-line"></div>
+    </div>
+
+    <button class="kakao-btn">💬 카카오로 로그인</button>
+
+    <p class="switch-link" id="switch-text">
+      아직 계정이 없으신가요?
+      <a onclick="authSwitch('signup')">회원가입</a>
+    </p>
+  </div>
+
+</section>
+</main>
+
+<div id="toast"></div>
+
+<script src="../assets/js/common.js"></script>
+<script>
+  function authSwitch(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('login-fields').style.display  = tab === 'login'  ? '' : 'none';
+    document.getElementById('signup-fields').style.display = tab === 'signup' ? '' : 'none';
+    document.getElementById('d-submit').textContent = tab === 'login' ? '로그인' : '회원가입';
+    document.getElementById('switch-text').innerHTML =
+      tab === 'login'
+        ? '아직 계정이 없으신가요? <a onclick="authSwitch(\'signup\')">회원가입</a>'
+        : '이미 계정이 있으신가요? <a onclick="authSwitch(\'login\')">로그인</a>';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripCraft — 커뮤니티</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/variables.css" />
+  <link rel="stylesheet" href="../assets/css/common.css" />
+  <link rel="stylesheet" href="../assets/css/community.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     GNB
+     ════════════════════════════════ -->
+<header id="gnb">
+  <a class="logo" href="explore.html">TripCraft</a>
+  <a class="nav-link" href="explore.html">관광지 탐색</a>
+  <a class="nav-link" href="schedule.html">내 일정</a>
+  <a class="nav-link active" href="community.html">커뮤니티</a>
+  <span class="gnb-spacer"></span>
+  <button class="btn-ghost" onclick="window.location.href='auth.html'">로그인</button>
+  <button class="btn-primary" onclick="window.location.href='auth.html'">회원가입</button>
+</header>
+
+<main id="main">
+<section id="screen-community">
+
+  <!-- ── 게시글 목록 ── -->
+  <div class="community-main">
+    <div class="community-header">
+      <span class="community-title">여행 일정 공유게시판</span>
+      <button class="btn-share">✏️ 일정 공유</button>
+    </div>
+
+    <div class="posts-list">
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="avatar">김</div>
+          <div>
+            <p class="post-author">여행러버김지수</p>
+            <p style="font-size:10px;color:var(--gray-muted)">2박 3일</p>
+          </div>
+          <span class="post-date">2026.05.10</span>
+        </div>
+        <p class="post-title">경주 2박 3일 완벽 코스 공유해요 ✨</p>
+        <div class="mini-blocks">
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">불국사</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">석굴암</span>
+          <span class="mini-block" style="border-color:#A3D9C7;background:#E1F5EE;color:#0F6E56">첨성대</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">동궁과월지</span>
+          <span class="mini-block" style="border-color:#F7C3D4;background:#FBEAF0;color:#993556">교동쌈밥집</span>
+        </div>
+        <div class="post-stats"><span>♥ 142</span><span>💬 28</span><span>👁 1,847</span></div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="avatar" style="background:#0F6E56">제</div>
+          <div>
+            <p class="post-author">제주도민추천</p>
+            <p style="font-size:10px;color:var(--gray-muted)">3박 4일</p>
+          </div>
+          <span class="post-date">2026.05.08</span>
+        </div>
+        <p class="post-title">제주도 3박 4일, 렌트카 없이도 가능한 코스</p>
+        <div class="mini-blocks">
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">성산일출봉</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">우도</span>
+          <span class="mini-block" style="border-color:#F7C3D4;background:#FBEAF0;color:#993556">흑돼지거리</span>
+          <span class="mini-block" style="border-color:#F0D5A5;background:#FAEEDA;color:#854F0B">한림해수욕장</span>
+        </div>
+        <div class="post-stats"><span>♥ 89</span><span>💬 15</span><span>👁 1,203</span></div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="avatar" style="background:#993556">부</div>
+          <div>
+            <p class="post-author">부산여행가이드</p>
+            <p style="font-size:10px;color:var(--gray-muted)">당일치기</p>
+          </div>
+          <span class="post-date">2026.05.06</span>
+        </div>
+        <p class="post-title">부산 당일치기 핵심 관광지 베스트</p>
+        <div class="mini-blocks">
+          <span class="mini-block" style="border-color:#F0D5A5;background:#FAEEDA;color:#854F0B">해운대</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">광안리</span>
+          <span class="mini-block" style="border-color:#F7C3D4;background:#FBEAF0;color:#993556">자갈치시장</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">감천문화마을</span>
+        </div>
+        <div class="post-stats"><span>♥ 67</span><span>💬 11</span><span>👁 932</span></div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="avatar" style="background:#185FA5">서</div>
+          <div>
+            <p class="post-author">서울구석구석</p>
+            <p style="font-size:10px;color:var(--gray-muted)">1박 2일</p>
+          </div>
+          <span class="post-date">2026.05.03</span>
+        </div>
+        <p class="post-title">서울 외국인 친구와 함께하는 1박 2일</p>
+        <div class="mini-blocks">
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">경복궁</span>
+          <span class="mini-block" style="border-color:#A3D9C7;background:#E1F5EE;color:#0F6E56">인사동</span>
+          <span class="mini-block" style="border-color:#CECBF6;background:#EEEDFE;color:#534AB7">남산타워</span>
+          <span class="mini-block" style="border-color:#F7C3D4;background:#FBEAF0;color:#993556">광장시장</span>
+        </div>
+        <div class="post-stats"><span>♥ 54</span><span>💬 9</span><span>👁 784</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 사이드바 ── -->
+  <aside class="community-sidebar">
+    <div>
+      <span class="sidebar-section-title">공지사항 🔔</span>
+      <div class="notice-item">
+        <span class="notice-badge">공지</span>
+        <span class="notice-text">여름 성수기 숙박 예약 팁 공유</span>
+      </div>
+      <div class="notice-item">
+        <span class="notice-badge">공지</span>
+        <span class="notice-text">커뮤니티 이용 규칙 업데이트</span>
+      </div>
+      <div class="notice-item">
+        <span class="notice-badge">공지</span>
+        <span class="notice-text">신규 기능: 일정 공유 출시</span>
+      </div>
+    </div>
+    <div>
+      <span class="sidebar-section-title">인기 여행지</span>
+      <div class="chip-group">
+        <button class="chip">제주도</button><button class="chip">경주</button>
+        <button class="chip">부산</button><button class="chip">강릉</button>
+        <button class="chip">전주</button><button class="chip">여수</button>
+        <button class="chip">서울</button><button class="chip">속초</button>
+      </div>
+    </div>
+    <div>
+      <span class="sidebar-section-title">이번 주 인기</span>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hot-item"><span class="hot-rank">1</span><span class="hot-title">경주 3일 완벽 투어</span></div>
+        <div class="hot-item"><span class="hot-rank">2</span><span class="hot-title">제주 숨은 명소 코스</span></div>
+        <div class="hot-item"><span class="hot-rank">3</span><span class="hot-title">부산 먹방 여행</span></div>
+        <div class="hot-item"><span class="hot-rank">4</span><span class="hot-title">서울 역사 탐방</span></div>
+        <div class="hot-item"><span class="hot-rank">5</span><span class="hot-title">강릉 바다 여행</span></div>
+      </div>
+    </div>
+  </aside>
+
+</section>
+</main>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<script src="../assets/js/common.js"></script>
+<script>
+  // 커뮤니티 칩 토글
+  document.querySelectorAll('.chip').forEach(c =>
+    c.addEventListener('click', () => c.classList.toggle('sel'))
+  );
+</script>
+</body>
+</html>
