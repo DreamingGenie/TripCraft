@@ -71,12 +71,13 @@
 
     <insert id="insertAll" parameterType="list">
         INSERT INTO attraction (content_id, content_type_id, title, sido_code, sigungu_code,
-                                addr1, addr2, latitude, longitude, tel, overview, first_image, api_modified_at)
+                                addr1, addr2, latitude, longitude, tel, overview, first_image,
+                                api_created_at, api_modified_at)
         VALUES
         <foreach item="a" collection="list" separator=",">
             (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.sidoCode}, #{a.sigunguCode},
              #{a.addr1}, #{a.addr2}, #{a.latitude}, #{a.longitude}, #{a.tel}, #{a.overview},
-             #{a.firstImage}, #{a.apiModifiedAt})
+             #{a.firstImage}, #{a.apiCreatedAt}, #{a.apiModifiedAt})
         </foreach>
         ON DUPLICATE KEY UPDATE
             title = VALUES(title), addr1 = VALUES(addr1), overview = VALUES(overview),

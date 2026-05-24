@@ -3,44 +3,52 @@
   <section id="screen-schedule">
 
     <!-- 후보군 사이드바 -->
-    <aside class="candidate-sidebar">
-      <div class="schedule-header-row">
-        <select v-if="trips.length" v-model="activeTripId" @change="loadTrip"
-                style="border:none;background:transparent;font-weight:600;cursor:pointer;font-size:14px;color:var(--text-primary)">
-          <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
-        </select>
-        <span v-else class="schedule-name">일정 없음</span>
-      </div>
+    <aside class="candidate-sidebar"
+           :class="{ 'drop-delete-zone': sidebarDropActive }"
+           @dragover.prevent="onSidebarDragOver"
+           @dragleave="sidebarDragOver = false"
+           @drop="onDropSidebar">
+      <div v-if="sidebarDragOver" class="sidebar-delete-hint">여기에 놓으면 삭제</div>
 
-      <div v-if="!activeTrip" style="padding:20px;color:var(--gray-muted);font-size:12px">
-        {{ tripsLoading ? '로딩 중...' : '일정을 선택하세요' }}
-      </div>
+      <template v-if="!sidebarDragOver">
+        <div class="schedule-header-row">
+          <select v-if="trips.length" v-model="activeTripId" @change="loadTrip"
+                  style="border:none;background:transparent;font-weight:600;cursor:pointer;font-size:14px;color:var(--text-primary)">
+            <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+          </select>
+          <span v-else class="schedule-name">일정 없음</span>
+        </div>
 
-      <template v-else>
-        <div v-for="group in cityGroups" :key="group.city" class="city-group">
-          <button class="city-header">
-            <span class="city-pin">📍</span>
-            <span class="city-name">{{ group.city }}</span>
-            <span class="city-count">{{ group.candidates.length }}개</span>
-            <span class="city-chevron">▾</span>
-          </button>
-          <div v-for="c in group.candidates" :key="c.id"
-               class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
-               :draggable="!c.placed"
-               @dragstart="onDragStart($event, c)"
-               @dragend="onDragEnd(c)">
-            <div class="cand-bar" style="background:#534AB7"></div>
-            <div class="cand-info">
-              <p class="cand-name" :class="{ placed: c.placed }">{{ c.attractionName }}</p>
-              <p class="cand-cat">{{ c.category }}</p>
+        <div v-if="!activeTrip" style="padding:20px;color:var(--gray-muted);font-size:12px">
+          {{ tripsLoading ? '로딩 중...' : '일정을 선택하세요' }}
+        </div>
+
+        <template v-else>
+          <div v-for="group in cityGroups" :key="group.city" class="city-group">
+            <button class="city-header">
+              <span class="city-pin">📍</span>
+              <span class="city-name">{{ group.city }}</span>
+              <span class="city-count">{{ group.candidates.length }}개</span>
+              <span class="city-chevron">▾</span>
+            </button>
+            <div v-for="c in group.candidates" :key="c.id"
+                 class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
+                 draggable="true"
+                 @dragstart="onCandDragStart($event, c)"
+                 @dragend="onDragEnd">
+              <div class="cand-bar" style="background:#534AB7"></div>
+              <div class="cand-info">
+                <p class="cand-name">{{ c.attractionName }}</p>
+                <p class="cand-cat">{{ c.category }}</p>
+              </div>
             </div>
           </div>
-        </div>
-      </template>
+        </template>
 
-      <button class="btn-add-from-explore" @click="$router.push('/explore')">
-        + 관광지 탐색으로 추가하기
-      </button>
+        <button class="btn-add-from-explore" @click="$router.push('/explore')">
+          + 관광지 탐색으로 추가하기
+        </button>
+      </template>
     </aside>
 
     <!-- 시간표 -->
@@ -84,10 +92,15 @@
               </div>
               <div v-for="ev in d.events" :key="ev.id"
                    class="event-block" :data-color="ev.color"
-                   :style="{ top: ev.top + 'px', height: ev.height + 'px' }">
+                   :class="{ 'event-dragging': ev.dragging }"
+                   draggable="true"
+                   :style="{ top: ev.top + 'px', height: ev.height + 'px' }"
+                   @dragstart="onEventDragStart($event, ev, d)"
+                   @dragend="onDragEnd">
                 <span class="event-name">{{ ev.name }}</span>
                 <span class="event-time">{{ ev.timeLabel }}</span>
-                <button class="event-del" @click="removeEvent(d, ev)">✕</button>
+                <button class="event-del" @click.stop="removeEvent(d, ev)">✕</button>
+                <div class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
               </div>
             </div>
           </div>
@@ -100,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
 
@@ -117,6 +130,12 @@ const activeTripId = ref(null)
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
+
+// drag state
+let dragState = null // { type: 'candidate'|'event', data, fromDay? }
+const dragPreview = ref(null)
+const sidebarDragOver = ref(false)
+const sidebarDropActive = computed(() => sidebarDragOver.value && dragState?.type === 'event')
 
 const SIDO_NAME = {
   1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
@@ -154,9 +173,7 @@ function topToTime(top) {
 }
 
 function addMins(timeStr, mins) {
-  const parts = timeStr.split(':')
-  const h = parseInt(parts[0])
-  const m = parseInt(parts[1])
+  const [h, m] = timeStr.split(':').map(Number)
   const total = h * 60 + m + (mins || 120)
   return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
 }
@@ -181,21 +198,29 @@ function buildDays(trip) {
       dragOver: false,
       events: dayBlocks.map(b => {
         const cand = trip.candidates.find(c => c.id === b.candidateId)
-        return {
-          id: b.id,
-          candidateId: b.candidateId,
-          name: cand?.attractionName || '',
-          color: 'purple',
-          top: timeToTop(b.startTime),
-          height: b.durationMinutes || 120,
-          timeLabel: b.startTime ? `${b.startTime.slice(0,5)} – ${addMins(b.startTime, b.durationMinutes)}` : '',
-          blockId: b.id,
-        }
+        return buildEvent(b, cand)
       }),
-      transits: [],
     })
   }
   return result
+}
+
+function buildEvent(b, cand) {
+  const top = timeToTop(b.startTime)
+  const height = b.durationMinutes || 120
+  const startStr = b.startTime ? b.startTime.slice(0, 5) : topToTime(top)
+  return {
+    id: b.id,
+    candidateId: b.candidateId,
+    tripDate: b.tripDate,
+    displayOrder: b.displayOrder ?? 1,
+    name: cand?.attractionName || '',
+    color: 'purple',
+    top,
+    height,
+    timeLabel: `${startStr} – ${addMins(startStr, height)}`,
+    dragging: false,
+  }
 }
 
 async function loadTrip() {
@@ -205,7 +230,7 @@ async function loadTrip() {
     activeTrip.value = trip
     candidates.value = trip.candidates.map(c => ({
       ...c,
-      placed: c.blocks && c.blocks.length > 0,
+      placed: (c.blocks?.length ?? 0) > 0,
       dragging: false,
     }))
     days.value = buildDays(trip)
@@ -214,42 +239,96 @@ async function loadTrip() {
   }
 }
 
-let dragging = null
-const dragPreview = ref(null)
-
-function onDragStart(e, candidate) {
-  dragging = candidate
+// ── 드래그 시작 ──
+function onCandDragStart(e, candidate) {
+  dragState = { type: 'candidate', data: candidate }
   candidate.dragging = true
   e.dataTransfer.effectAllowed = 'move'
 }
 
-function onDragEnd(candidate) {
-  candidate.dragging = false
-  days.value.forEach(d => { d.dragOver = false })
-  dragPreview.value = null
+function onEventDragStart(e, ev, day) {
+  if (resizeState) { e.preventDefault(); return }
+  dragState = { type: 'event', data: ev, fromDay: day }
+  ev.dragging = true
+  e.dataTransfer.effectAllowed = 'move'
 }
 
+// ── 리사이즈 (체류 시간 조정) ──
+let resizeState = null // { ev, startY, startHeight }
+
+function onResizeStart(e, ev) {
+  resizeState = { ev, startY: e.clientY, startHeight: ev.height }
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+}
+
+function onResizeMove(e) {
+  if (!resizeState) return
+  const { ev, startY, startHeight } = resizeState
+  const delta = e.clientY - startY
+  ev.height = Math.max(SNAP, Math.round((startHeight + delta) / SNAP) * SNAP)
+  const startStr = topToTime(ev.top)
+  ev.timeLabel = `${startStr} – ${addMins(startStr, ev.height)}`
+}
+
+async function onResizeEnd() {
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+  if (!resizeState) return
+  const { ev } = resizeState
+  resizeState = null
+  try {
+    await tripApi.updateBlock(activeTripId.value, ev.id, {
+      tripDate: ev.tripDate,
+      startTime: topToTime(ev.top) + ':00',
+      durationMinutes: ev.height,
+      displayOrder: ev.displayOrder ?? 1,
+    })
+  } catch (err) {
+    toast.show(err.message || '체류 시간 수정 실패')
+  }
+}
+
+function onDragEnd() {
+  if (dragState?.type === 'candidate') dragState.data.dragging = false
+  if (dragState?.type === 'event') dragState.data.dragging = false
+  days.value.forEach(d => { d.dragOver = false })
+  sidebarDragOver.value = false
+  dragPreview.value = null
+  dragState = null
+}
+
+// ── 타임라인 드래그오버 ──
 function onDragOver(e, day) {
-  if (!dragging) return
+  if (!dragState) return
   day.dragOver = true
-  const col = e.currentTarget
-  const wrapper = wrapperEl.value
-  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop
+  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top + wrapperEl.value.scrollTop
   dragPreview.value = { top: Math.round(relY / SNAP) * SNAP }
 }
 
+// ── 타임라인 드롭 ──
 async function onDrop(e, day) {
-  if (!dragging) return
+  if (!dragState) return
   day.dragOver = false
-  const col = e.currentTarget
-  const wrapper = wrapperEl.value
-  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop
+  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top + wrapperEl.value.scrollTop
   const top = Math.round(relY / SNAP) * SNAP
   const startTime = topToTime(top)
 
+  if (dragState.type === 'candidate') {
+    await dropCandidate(day, top, startTime)
+  } else {
+    await moveEvent(day, top, startTime)
+  }
+
+  dragPreview.value = null
+  dragState = null
+}
+
+async function dropCandidate(day, top, startTime) {
+  const candidate = dragState.data
   try {
     const blockId = await tripApi.placeBlock(activeTripId.value, {
-      candidateId: dragging.id,
+      candidateId: candidate.id,
       tripDate: day.isoDate,
       startTime: startTime + ':00',
       durationMinutes: 120,
@@ -257,38 +336,86 @@ async function onDrop(e, day) {
     })
     day.events.push({
       id: blockId,
-      candidateId: dragging.id,
-      name: dragging.attractionName,
+      candidateId: candidate.id,
+      tripDate: day.isoDate,
+      displayOrder: day.events.length + 1,
+      name: candidate.attractionName,
       color: 'purple',
       top,
       height: 120,
-      timeLabel: `${startTime} – ${addMins(startTime + ':00', 120)}`,
-      blockId,
+      timeLabel: `${startTime} – ${addMins(startTime, 120)}`,
+      dragging: false,
     })
-    dragging.placed = true
-    toast.show(`"${dragging.attractionName}" 일정에 추가됐어요`)
-  } catch (e) {
-    toast.show(e.message || '추가 실패')
+    candidate.placed = true
+    toast.show(`"${candidate.attractionName}" 추가됐어요`)
+  } catch (err) {
+    toast.show(err.message || '추가 실패')
   }
-  dragPreview.value = null
-  dragging = null
 }
 
-async function removeEvent(day, ev) {
+async function moveEvent(day, top, startTime) {
+  const { data: ev, fromDay } = dragState
+  if (fromDay === day && top === ev.top) return
   try {
-    await tripApi.removeBlock(activeTripId.value, ev.blockId || ev.id)
+    await tripApi.updateBlock(activeTripId.value, ev.id, {
+      tripDate: day.isoDate,
+      startTime: startTime + ':00',
+      durationMinutes: ev.height,
+      displayOrder: fromDay === day ? ev.displayOrder ?? 1 : day.events.length + 1,
+    })
+    // UI 업데이트
+    const fromIdx = fromDay.events.indexOf(ev)
+    if (fromIdx !== -1) fromDay.events.splice(fromIdx, 1)
+    day.events.push({
+      ...ev,
+      tripDate: day.isoDate,
+      displayOrder: fromDay === day ? ev.displayOrder : day.events.length + 1,
+      top,
+      timeLabel: `${startTime} – ${addMins(startTime, ev.height)}`,
+      dragging: false,
+    })
+  } catch (err) {
+    toast.show(err.message || '이동 실패')
+  }
+}
+
+// ── 사이드바 드롭 (이벤트 삭제) ──
+function onSidebarDragOver() {
+  sidebarDragOver.value = dragState?.type === 'event'
+}
+
+async function onDropSidebar() {
+  if (dragState?.type !== 'event') { sidebarDragOver.value = false; return }
+  const { data: ev, fromDay } = dragState
+  sidebarDragOver.value = false
+  await removeEventFrom(fromDay, ev)
+  dragState = null
+}
+
+// ── 이벤트 삭제 공통 ──
+async function removeEventFrom(day, ev) {
+  try {
+    await tripApi.removeBlock(activeTripId.value, ev.id)
     const idx = day.events.indexOf(ev)
     if (idx !== -1) day.events.splice(idx, 1)
     const cand = candidates.value.find(c => c.id === ev.candidateId)
     if (cand) {
-      const hasOtherBlocks = days.value.some(d => d.events.some(e => e.candidateId === ev.candidateId && e.id !== ev.id))
-      if (!hasOtherBlocks) cand.placed = false
+      cand.placed = days.value.some(d => d.events.some(e => e.candidateId === ev.candidateId))
     }
-    toast.show('장소가 삭제됐어요')
-  } catch (e) {
-    toast.show(e.message || '삭제 실패')
+    toast.show('장소를 일정에서 제거했어요')
+  } catch (err) {
+    toast.show(err.message || '삭제 실패')
   }
 }
+
+async function removeEvent(day, ev) {
+  await removeEventFrom(day, ev)
+}
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+})
 
 onMounted(async () => {
   tripsLoading.value = true

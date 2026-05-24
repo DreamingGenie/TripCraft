@@ -52,14 +52,29 @@
   transition: border-color .12s, box-shadow .12s;
   user-select: none;
 }
-.cand-card:hover:not(.placed) { border-color: var(--purple-100); box-shadow: 0 1px 4px rgba(83,74,183,.1); }
-.cand-card:active:not(.placed) { cursor: grabbing; opacity: .7; }
-.cand-card.placed { opacity: .4; cursor: default; }
+.cand-card:hover { border-color: var(--purple-100); box-shadow: 0 1px 4px rgba(83,74,183,.1); }
+.cand-card:active { cursor: grabbing; opacity: .7; }
+.cand-card.placed { opacity: .55; }
 .cand-bar { width: 3px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
 .cand-info { flex: 1; min-width: 0; }
 .cand-name { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cand-name.placed { text-decoration: line-through; }
 .cand-cat { font-size: var(--font-size-xs); color: var(--gray-muted); }
+
+/* 사이드바 드롭 삭제 존 */
+.candidate-sidebar.drop-delete-zone {
+  background: #fff5f5;
+  border-right-color: #fca5a5;
+}
+.sidebar-delete-hint {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--font-size-sm); font-weight: 600;
+  color: #dc2626;
+  border: 2px dashed #fca5a5;
+  border-radius: var(--radius-md);
+  margin: 12px;
+  pointer-events: none;
+}
 
 .btn-add-from-explore {
   border: 0.5px dashed var(--gray-border); border-radius: var(--radius-md);
@@ -235,16 +250,18 @@
   border-left: 3px solid;
   padding: 4px 7px;
   overflow: hidden;
-  cursor: pointer;
+  cursor: grab;
   z-index: 2;
   box-shadow: 0 1px 3px rgba(0,0,0,.08);
-  transition: box-shadow .12s;
+  transition: box-shadow .12s, opacity .12s;
   display: flex; flex-direction: column; gap: 1px;
+  user-select: none;
 }
 .event-block:hover {
   box-shadow: 0 3px 8px rgba(0,0,0,.14);
   z-index: 4;
 }
+.event-block.event-dragging { opacity: .4; cursor: grabbing; }
 
 /* 색상 테마별 */
 .event-block[data-color="purple"] { background: #EEEDFE; border-color: #534AB7; }
@@ -264,6 +281,16 @@
   padding: 0; cursor: pointer; line-height: 1;
 }
 .event-block:hover .event-del { opacity: 1; }
+
+.resize-handle {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 7px;
+  cursor: ns-resize;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  opacity: 0; transition: opacity .12s;
+  background: rgba(83, 74, 183, 0.25);
+}
+.event-block:hover .resize-handle { opacity: 1; }
 
 /* 이동 시간 블록 */
 .transit-block {
