@@ -1,15 +1,14 @@
-package com.tripcraft.plan.domain;
+package com.tripcraft.plan.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Getter
-@Setter
-public class TripBlock {
+@AllArgsConstructor
+public class BlockItem {
 
     private Long id;
     private Long candidateId;
@@ -17,8 +16,4 @@ public class TripBlock {
     private Integer displayOrder;
     private LocalTime startTime;
     private Integer durationMinutes;
-    private Integer transportPreference;
-    private String memo;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }
