@@ -53,6 +53,8 @@ a { text-decoration: none; }
 }
 .nav-link:hover { color: var(--text-primary); background: var(--bg-page); }
 .nav-link.active { color: var(--purple-900); background: var(--purple-50); }
+.nav-admin { color: #dc2626 !important; font-weight: 600; }
+.nav-admin.active { color: #dc2626 !important; background: #fef2f2 !important; }
 .gnb-spacer { flex: 1; }
 .gnb-user {
   font-size: var(--font-size-xs);

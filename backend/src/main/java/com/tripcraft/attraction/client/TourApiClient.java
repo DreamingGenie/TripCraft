@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.net.URI;
 import java.util.List;
 
 @Slf4j
@@ -29,7 +30,7 @@ public class TourApiClient {
     public List<TourApiItem> fetchAreaList(int areaCode, int contentTypeId, int pageNo, int numOfRows) {
         String url = buildUrl(areaCode, contentTypeId, pageNo, numOfRows);
         try {
-            String response = restClient.get().uri(url).retrieve().body(String.class);
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
             return parseItems(response);
         } catch (Exception e) {
             log.error("TourAPI 호출 실패 areaCode={} contentTypeId={} pageNo={}: {}", areaCode, contentTypeId, pageNo, e.getMessage());
@@ -38,7 +39,7 @@ public class TourApiClient {
     }
 
     private String buildUrl(int areaCode, int contentTypeId, int pageNo, int numOfRows) {
-        return baseUrl + "/areaBasedList1"
+        return baseUrl + "/areaBasedList2"
             + "?serviceKey=" + serviceKey
             + "&MobileOS=ETC"
             + "&MobileApp=TripCraft"
@@ -50,7 +51,15 @@ public class TourApiClient {
     }
 
     private List<TourApiItem> parseItems(String json) throws Exception {
-        JsonNode body = objectMapper.readTree(json).path("response").path("body");
+        JsonNode root = objectMapper.readTree(json).path("response");
+        JsonNode header = root.path("header");
+        String resultCode = header.path("resultCode").asText("unknown");
+        if (!"0000".equals(resultCode)) {
+            log.warn("TourAPI 오류 응답 resultCode={} resultMsg={}", resultCode, header.path("resultMsg").asText());
+            return List.of();
+        }
+
+        JsonNode body = root.path("body");
         JsonNode itemsNode = body.path("items");
 
         // items가 빈 문자열 "" 인 경우 (결과 없음)

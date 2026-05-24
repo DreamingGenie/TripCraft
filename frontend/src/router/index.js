@@ -11,6 +11,11 @@ const routes = [
     meta: { requiresAuth: true },
   },
   { path: '/community', component: () => import('@/views/CommunityView.vue') },
+  {
+    path: '/admin',
+    component: () => import('@/views/AdminView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ]
 
 const router = createRouter({
@@ -24,6 +29,9 @@ router.beforeEach(async (to) => {
     if (!auth.isLoggedIn) {
       await auth.fetchMe()
       if (!auth.isLoggedIn) return { path: '/auth' }
+    }
+    if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
+      return { path: '/explore' }
     }
   }
 })

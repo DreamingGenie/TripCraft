@@ -17,7 +17,7 @@ public class TripBlock {
     private Integer displayOrder;
     private LocalTime startTime;
     private Integer durationMinutes;
-    private Integer transportPreference;
+    private Integer transportPreference = 0;
     private String memo;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

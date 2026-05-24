@@ -4,6 +4,7 @@
     <RouterLink class="nav-link" to="/explore" active-class="active">관광지 탐색</RouterLink>
     <RouterLink class="nav-link" to="/schedule" active-class="active">내 일정</RouterLink>
     <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
+    <RouterLink v-if="auth.user?.role === 'ADMIN'" class="nav-link nav-admin" to="/admin" active-class="active">관리자</RouterLink>
     <span class="gnb-spacer"></span>
     <template v-if="auth.isLoggedIn">
       <span class="gnb-user">{{ auth.user?.nickname }}님</span>
