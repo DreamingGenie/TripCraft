@@ -3,7 +3,6 @@ package com.tripcraft.member.controller;
 import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.member.dto.LoginRequest;
 import com.tripcraft.member.dto.SignupRequest;
-import com.tripcraft.member.dto.TokenResponse;
 import com.tripcraft.member.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,18 +29,20 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<TokenResponse>> login(
+    public ResponseEntity<ApiResponse<Void>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.login(request, response)));
+        authService.login(request, response);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
+    public ResponseEntity<ApiResponse<Void>> refresh(
             HttpServletRequest request,
             HttpServletResponse response) {
         String refreshToken = resolveRefreshCookie(request);
-        return ResponseEntity.ok(ApiResponse.ok(authService.refresh(refreshToken, response)));
+        authService.refresh(refreshToken, response);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping("/logout")

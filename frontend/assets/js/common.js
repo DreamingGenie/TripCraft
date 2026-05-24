@@ -69,15 +69,20 @@ function createSchedule() {
   }, 800);
 }
 
+/* ── 쿠키 읽기 유틸 ── */
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 /* ── GNB 인증 영역 ── */
 function initGnb() {
   const area = document.getElementById('gnb-auth');
   if (!area) return;
-  const token    = localStorage.getItem('tripcraft_token');
-  const nickname = localStorage.getItem('tripcraft_nickname');
-  if (token) {
+  const displayName = getCookie('display_name');
+  if (displayName) {
     area.innerHTML =
-      `<span class="gnb-user">${nickname ? nickname + '님' : '회원님'}</span>` +
+      `<span class="gnb-user">${displayName}님</span>` +
       `<button class="btn-ghost" onclick="logout()">로그아웃</button>`;
   } else {
     area.innerHTML =
@@ -87,16 +92,12 @@ function initGnb() {
 }
 
 async function logout() {
-  const token = localStorage.getItem('tripcraft_token');
   try {
     await fetch('http://localhost:8080/api/auth/logout', {
       method:      'POST',
       credentials: 'include',
-      headers:     token ? { 'Authorization': 'Bearer ' + token } : {},
     });
   } catch (e) { /* 네트워크 에러 무시 */ }
-  localStorage.removeItem('tripcraft_token');
-  localStorage.removeItem('tripcraft_nickname');
   showToast('로그아웃됐어요.');
   setTimeout(() => { window.location.href = 'auth.html'; }, 800);
 }
