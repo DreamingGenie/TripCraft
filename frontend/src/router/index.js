@@ -1,0 +1,31 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const routes = [
+  { path: '/', redirect: '/explore' },
+  { path: '/auth', component: () => import('@/views/AuthView.vue') },
+  { path: '/explore', component: () => import('@/views/ExploreView.vue') },
+  {
+    path: '/schedule',
+    component: () => import('@/views/ScheduleView.vue'),
+    meta: { requiresAuth: true },
+  },
+  { path: '/community', component: () => import('@/views/CommunityView.vue') },
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+router.beforeEach(async (to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isLoggedIn) {
+      await auth.fetchMe()
+      if (!auth.isLoggedIn) return { path: '/auth' }
+    }
+  }
+})
+
+export default router

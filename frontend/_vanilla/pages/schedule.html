@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripCraft — 내 일정</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/variables.css" />
+  <link rel="stylesheet" href="../assets/css/common.css" />
+  <link rel="stylesheet" href="../assets/css/schedule.css" />
+</head>
+<body>
+
+<!-- GNB -->
+<header id="gnb">
+  <a class="logo" href="explore.html">TripCraft</a>
+  <a class="nav-link" href="explore.html">관광지 탐색</a>
+  <a class="nav-link active" href="schedule.html">내 일정</a>
+  <a class="nav-link" href="community.html">커뮤니티</a>
+  <span class="gnb-spacer"></span>
+  <div id="gnb-auth" style="display:flex;align-items:center;gap:6px;"></div>
+</header>
+
+<main id="main">
+<section id="screen-schedule">
+
+  <!-- ════════════════════════════════
+       왼쪽: 후보군 사이드바
+       ════════════════════════════════ -->
+  <aside class="candidate-sidebar">
+
+    <div class="schedule-header-row">
+      <span class="schedule-name">제주 여름 여행</span>
+      <button class="schedule-switch-btn">▾</button>
+    </div>
+
+    <!-- 서울 -->
+    <div class="city-group">
+      <button class="city-header">
+        <span class="city-pin">📍</span>
+        <span class="city-name">서울</span>
+        <span class="city-count">3개</span>
+        <span class="city-chevron">▾</span>
+      </button>
+      <div class="cand-card" draggable="true"
+           data-name="경복궁" data-cat="관광지 · 서울" data-color="purple" data-bar="#534AB7">
+        <div class="cand-bar" style="background:#534AB7"></div>
+        <div class="cand-info">
+          <p class="cand-name">경복궁</p>
+          <p class="cand-cat">관광지 · 서울</p>
+        </div>
+        <span class="star" style="font-size:11px">★</span>
+      </div>
+      <div class="cand-card placed"
+           data-name="광장시장" data-cat="음식점 · 서울" data-color="pink" data-bar="#993556">
+        <div class="cand-bar" style="background:#993556"></div>
+        <div class="cand-info">
+          <p class="cand-name placed">광장시장</p>
+          <p class="cand-cat">음식점 · 서울</p>
+        </div>
+      </div>
+      <div class="cand-card" draggable="true"
+           data-name="남산서울타워" data-cat="관광지 · 서울" data-color="purple" data-bar="#534AB7">
+        <div class="cand-bar" style="background:#534AB7"></div>
+        <div class="cand-info">
+          <p class="cand-name">남산서울타워</p>
+          <p class="cand-cat">관광지 · 서울</p>
+        </div>
+        <span class="star" style="font-size:11px">★</span>
+      </div>
+    </div>
+
+    <!-- 경주 -->
+    <div class="city-group">
+      <button class="city-header">
+        <span class="city-pin">📍</span>
+        <span class="city-name">경주</span>
+        <span class="city-count">4개</span>
+        <span class="city-chevron">▾</span>
+      </button>
+      <div class="cand-card placed"
+           data-name="불국사" data-cat="관광지 · 경주" data-color="purple" data-bar="#534AB7">
+        <div class="cand-bar" style="background:#534AB7"></div>
+        <div class="cand-info">
+          <p class="cand-name placed">불국사</p>
+          <p class="cand-cat">관광지 · 경주</p>
+        </div>
+        <span class="star" style="font-size:11px">★</span>
+      </div>
+      <div class="cand-card" draggable="true"
+           data-name="석굴암" data-cat="관광지 · 경주" data-color="purple" data-bar="#534AB7">
+        <div class="cand-bar" style="background:#534AB7"></div>
+        <div class="cand-info">
+          <p class="cand-name">석굴암</p>
+          <p class="cand-cat">관광지 · 경주</p>
+        </div>
+      </div>
+      <div class="cand-card placed"
+           data-name="첨성대" data-cat="문화시설 · 경주" data-color="teal" data-bar="#0F6E56">
+        <div class="cand-bar" style="background:#0F6E56"></div>
+        <div class="cand-info">
+          <p class="cand-name placed">첨성대</p>
+          <p class="cand-cat">문화시설 · 경주</p>
+        </div>
+      </div>
+      <div class="cand-card placed"
+           data-name="동궁과월지" data-cat="관광지 · 경주" data-color="purple" data-bar="#534AB7">
+        <div class="cand-bar" style="background:#534AB7"></div>
+        <div class="cand-info">
+          <p class="cand-name placed">동궁과월지</p>
+          <p class="cand-cat">관광지 · 경주</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-add-from-explore" onclick="window.location.href='explore.html'">
+      + 관광지 탐색으로 추가하기
+    </button>
+
+  </aside>
+
+  <!-- ════════════════════════════════
+       오른쪽: 날짜별 시간표 그리드
+       ════════════════════════════════ -->
+  <div class="timetable-main">
+
+    <!-- 툴바 (새 일정 만들기 버튼 여기에) -->
+    <div class="timeline-toolbar">
+      <span class="toolbar-trip-name">제주 여름 여행</span>
+      <span class="toolbar-trip-meta">3박 4일 · 2명</span>
+      <span class="toolbar-spacer"></span>
+      <button class="btn-new-trip" onclick="openScheduleModal()">+ 새 일정 만들기</button>
+      <button class="btn-save-schedule">💾 저장</button>
+    </div>
+
+    <!-- 힌트 바 -->
+    <div class="hint-bar">
+      왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요
+    </div>
+
+    <!-- ════ 시간표 그리드 ════ -->
+    <div class="timetable-wrapper" id="timetable-wrapper">
+
+      <!-- 날짜 헤더 (sticky top) -->
+      <div class="timetable-header">
+        <div class="th-gutter"></div>
+        <div class="th-day">
+          <span class="th-badge">Day 1</span>
+          <span class="th-date">07.10 목</span>
+        </div>
+        <div class="th-day">
+          <span class="th-badge">Day 2</span>
+          <span class="th-date">07.11 금</span>
+        </div>
+        <div class="th-day">
+          <span class="th-badge">Day 3</span>
+          <span class="th-date">07.12 토</span>
+        </div>
+        <div class="th-day">
+          <span class="th-badge">Day 4</span>
+          <span class="th-date">07.13 일</span>
+        </div>
+      </div>
+
+      <!-- 그리드 바디 (시간 축 + 날짜 컬럼) -->
+      <div class="timetable-body">
+
+        <!-- 시간 축 (sticky left) -->
+        <div class="time-axis" id="time-axis">
+          <!-- JS로 자동 생성 -->
+        </div>
+
+        <!-- 날짜 컬럼들 -->
+        <div class="day-cols">
+
+          <!-- Day 1 (07.10) - 불국사, 광장시장 배치됨 -->
+          <div class="day-col" data-day="1" id="day-col-1">
+            <!-- 불국사: 09:00–11:00 (top=540, height=120) -->
+            <div class="event-block" data-color="purple"
+                 style="top:540px; height:120px;">
+              <span class="event-name">불국사</span>
+              <span class="event-time">09:00 – 11:00</span>
+              <button class="event-del" onclick="removeEvent(this)">✕</button>
+            </div>
+            <!-- 이동 시간: 25분 버스 (top=660, height=25) -->
+            <div class="transit-block" style="top:660px; height:25px;">
+              🚌 버스 25분
+            </div>
+            <!-- 광장시장: 11:30–13:00 (top=690, height=90) -->
+            <div class="event-block" data-color="pink"
+                 style="top:690px; height:90px;">
+              <span class="event-name">광장시장</span>
+              <span class="event-time">11:30 – 13:00</span>
+              <button class="event-del" onclick="removeEvent(this)">✕</button>
+            </div>
+          </div>
+
+          <!-- Day 2 (07.11) - 첨성대, 동궁과월지 배치됨 -->
+          <div class="day-col" data-day="2" id="day-col-2">
+            <!-- 첨성대: 10:00–11:30 (top=600, height=90) -->
+            <div class="event-block" data-color="teal"
+                 style="top:600px; height:90px;">
+              <span class="event-name">첨성대</span>
+              <span class="event-time">10:00 – 11:30</span>
+              <button class="event-del" onclick="removeEvent(this)">✕</button>
+            </div>
+            <!-- 이동 시간: 15분 도보 (top=690, height=15) -->
+            <div class="transit-block" style="top:690px; height:15px;">
+              🚶 도보 15분
+            </div>
+            <!-- 동궁과월지: 14:00–16:00 (top=840, height=120) -->
+            <div class="event-block" data-color="purple"
+                 style="top:840px; height:120px;">
+              <span class="event-name">동궁과월지</span>
+              <span class="event-time">14:00 – 16:00</span>
+              <button class="event-del" onclick="removeEvent(this)">✕</button>
+            </div>
+          </div>
+
+          <!-- Day 3 (07.12) - 비어있음 -->
+          <div class="day-col" data-day="3" id="day-col-3"></div>
+
+          <!-- Day 4 (07.13) - 비어있음 -->
+          <div class="day-col" data-day="4" id="day-col-4"></div>
+
+        </div><!-- /day-cols -->
+      </div><!-- /timetable-body -->
+    </div><!-- /timetable-wrapper -->
+
+  </div><!-- /timetable-main -->
+
+</section>
+</main>
+
+<!-- ════ 일정 생성 모달 ════ -->
+<div id="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <span class="modal-title">새 여행 일정 만들기</span>
+      <button class="modal-close" onclick="closeScheduleModal()">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <label class="modal-label">여행 이름 <span style="color:#993556">*</span></label>
+      <input class="modal-input" type="text" id="m-title"
+             placeholder="ex. 제주 여름 여행"
+             oninput="checkModalForm()" maxlength="30" />
+      <div style="text-align:right;font-size:10px;color:var(--gray-muted);margin-top:2px"
+           id="m-title-count">0/30</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label class="modal-label">여행 기간 <span style="color:#993556">*</span></label>
+      <div class="modal-date-row">
+        <input class="modal-input" type="date" id="m-start"
+               oninput="calcNights();checkModalForm()" />
+        <span style="color:var(--gray-muted);font-size:12px">—</span>
+        <input class="modal-input" type="date" id="m-end"
+               oninput="calcNights();checkModalForm()" />
+      </div>
+      <p style="font-size:10px;color:var(--gray-muted);margin-top:4px" id="m-nights"></p>
+    </div>
+    <div style="margin-bottom:20px">
+      <label class="modal-label">여행 인원 (선택)</label>
+      <div class="count-row">
+        <button class="count-btn" onclick="adjustPersonCount(-1)">−</button>
+        <span class="count-val" id="m-count">2명</span>
+        <button class="count-btn" onclick="adjustPersonCount(1)">+</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeScheduleModal()">취소</button>
+      <button class="btn-create" id="m-create" disabled onclick="createSchedule()">만들기</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/schedule.js"></script>
+</body>
+</html>
