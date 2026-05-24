@@ -36,7 +36,7 @@
 
       <div class="modal-btns">
         <button class="btn-cancel" @click="$emit('close')">취소</button>
-        <button class="btn-create" :disabled="!isValid" @click="create">만들기</button>
+        <button class="btn-create" :disabled="!isValid || creating" @click="create">만들기</button>
       </div>
     </div>
   </div>
@@ -46,6 +46,7 @@
 import { reactive, ref, computed } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { useRouter } from 'vue-router'
+import { tripApi } from '@/api/trip'
 
 const emit = defineEmits(['close'])
 const toast = useToastStore()
@@ -53,6 +54,7 @@ const router = useRouter()
 
 const form = reactive({ title: '', start: '', end: '' })
 const count = ref(2)
+const creating = ref(false)
 
 const isValid = computed(() => {
   if (!form.title.trim() || !form.start || !form.end) return false
@@ -65,9 +67,23 @@ const nightsText = computed(() => {
   return n >= 0 ? `총 ${n}박 ${n + 1}일` : ''
 })
 
-function create() {
-  toast.show('새 일정이 생성됐어요!')
-  emit('close')
-  router.push('/schedule')
+async function create() {
+  if (creating.value) return
+  creating.value = true
+  try {
+    await tripApi.create({
+      title: form.title,
+      startDate: form.start,
+      endDate: form.end,
+      memberCount: count.value,
+    })
+    toast.show('새 일정이 생성됐어요!')
+    emit('close')
+    router.push('/schedule')
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : (e.message || '오류가 발생했습니다.'))
+  } finally {
+    creating.value = false
+  }
 }
 </script>

@@ -5,30 +5,38 @@
     <!-- 후보군 사이드바 -->
     <aside class="candidate-sidebar">
       <div class="schedule-header-row">
-        <span class="schedule-name">제주 여름 여행</span>
-        <button class="schedule-switch-btn">▾</button>
+        <select v-if="trips.length" v-model="activeTripId" @change="loadTrip"
+                style="border:none;background:transparent;font-weight:600;cursor:pointer;font-size:14px;color:var(--text-primary)">
+          <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+        </select>
+        <span v-else class="schedule-name">일정 없음</span>
       </div>
 
-      <div v-for="group in cityGroups" :key="group.city" class="city-group">
-        <button class="city-header">
-          <span class="city-pin">📍</span>
-          <span class="city-name">{{ group.city }}</span>
-          <span class="city-count">{{ group.candidates.length }}개</span>
-          <span class="city-chevron">▾</span>
-        </button>
-        <div v-for="c in group.candidates" :key="c.id"
-             class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
-             :draggable="!c.placed"
-             @dragstart="onDragStart($event, c)"
-             @dragend="onDragEnd(c)">
-          <div class="cand-bar" :style="{ background: c.color }"></div>
-          <div class="cand-info">
-            <p class="cand-name" :class="{ placed: c.placed }">{{ c.name }}</p>
-            <p class="cand-cat">{{ c.category }}</p>
-          </div>
-          <span v-if="c.favorited" class="star" style="font-size:11px">★</span>
-        </div>
+      <div v-if="!activeTrip" style="padding:20px;color:var(--gray-muted);font-size:12px">
+        {{ tripsLoading ? '로딩 중...' : '일정을 선택하세요' }}
       </div>
+
+      <template v-else>
+        <div v-for="group in cityGroups" :key="group.city" class="city-group">
+          <button class="city-header">
+            <span class="city-pin">📍</span>
+            <span class="city-name">{{ group.city }}</span>
+            <span class="city-count">{{ group.candidates.length }}개</span>
+            <span class="city-chevron">▾</span>
+          </button>
+          <div v-for="c in group.candidates" :key="c.id"
+               class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
+               :draggable="!c.placed"
+               @dragstart="onDragStart($event, c)"
+               @dragend="onDragEnd(c)">
+            <div class="cand-bar" style="background:#534AB7"></div>
+            <div class="cand-info">
+              <p class="cand-name" :class="{ placed: c.placed }">{{ c.attractionName }}</p>
+              <p class="cand-cat">{{ c.category }}</p>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <button class="btn-add-from-explore" @click="$router.push('/explore')">
         + 관광지 탐색으로 추가하기
@@ -38,11 +46,11 @@
     <!-- 시간표 -->
     <div class="timetable-main">
       <div class="timeline-toolbar">
-        <span class="toolbar-trip-name">제주 여름 여행</span>
-        <span class="toolbar-trip-meta">3박 4일 · 2명</span>
+        <span class="toolbar-trip-name">{{ activeTrip?.title || '일정을 선택하세요' }}</span>
+        <span v-if="activeTrip" class="toolbar-trip-meta">{{ nightsLabel }} · {{ activeTrip.memberCount }}명</span>
         <span class="toolbar-spacer"></span>
         <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정 만들기</button>
-        <button class="btn-save-schedule" @click="toast.show('일정이 저장됐어요.')">💾 저장</button>
+        <button class="btn-save-schedule" @click="toast.show('자동 저장됩니다.')">💾 저장</button>
       </div>
 
       <div class="hint-bar">왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
@@ -72,7 +80,7 @@
                  @drop="onDrop($event, d)">
               <div v-if="d.dragOver && dragPreview" class="drop-preview"
                    :style="{ top: dragPreview.top + 'px', height: '120px' }">
-                {{ dragging?.name }}
+                {{ dragging?.attractionName }}
               </div>
               <div v-for="ev in d.events" :key="ev.id"
                    class="event-block" :data-color="ev.color"
@@ -80,10 +88,6 @@
                 <span class="event-name">{{ ev.name }}</span>
                 <span class="event-time">{{ ev.timeLabel }}</span>
                 <button class="event-del" @click="removeEvent(d, ev)">✕</button>
-              </div>
-              <div v-for="tr in d.transits" :key="tr.id"
-                   class="transit-block" :style="{ top: tr.top + 'px', height: tr.height + 'px' }">
-                {{ tr.label }}
               </div>
             </div>
           </div>
@@ -96,8 +100,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
+import { tripApi } from '@/api/trip'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
@@ -106,37 +111,111 @@ const wrapperEl = ref(null)
 const HOUR_PX = 60
 const SNAP = 30
 
-const days = reactive([
-  { label: 'Day 1', date: '07.10 목', dragOver: false, events: [
-    { id: 1, name: '불국사',   color: 'purple', top: 540, height: 120, timeLabel: '09:00 – 11:00' },
-    { id: 2, name: '광장시장', color: 'pink',   top: 690, height: 90,  timeLabel: '11:30 – 13:00' },
-  ], transits: [{ id: 1, top: 660, height: 25, label: '🚌 버스 25분' }] },
-  { label: 'Day 2', date: '07.11 금', dragOver: false, events: [
-    { id: 3, name: '첨성대',   color: 'teal',   top: 600, height: 90,  timeLabel: '10:00 – 11:30' },
-    { id: 4, name: '동궁과월지',color: 'purple', top: 840, height: 120, timeLabel: '14:00 – 16:00' },
-  ], transits: [{ id: 2, top: 690, height: 15, label: '🚶 도보 15분' }] },
-  { label: 'Day 3', date: '07.12 토', dragOver: false, events: [], transits: [] },
-  { label: 'Day 4', date: '07.13 일', dragOver: false, events: [], transits: [] },
-])
+const trips = ref([])
+const tripsLoading = ref(false)
+const activeTripId = ref(null)
+const activeTrip = ref(null)
+const candidates = ref([])
+const days = ref([])
 
-const cityGroups = reactive([
-  { city: '서울', candidates: [
-    { id: 1, name: '경복궁',       category: '관광지 · 서울', color: '#534AB7', favorited: true,  placed: false, dragging: false },
-    { id: 2, name: '광장시장',     category: '음식점 · 서울', color: '#993556', favorited: false, placed: true,  dragging: false },
-    { id: 3, name: '남산서울타워', category: '관광지 · 서울', color: '#534AB7', favorited: true,  placed: false, dragging: false },
-  ]},
-  { city: '경주', candidates: [
-    { id: 4, name: '불국사',       category: '관광지 · 경주', color: '#534AB7', favorited: true,  placed: true,  dragging: false },
-    { id: 5, name: '석굴암',       category: '관광지 · 경주', color: '#534AB7', favorited: false, placed: false, dragging: false },
-    { id: 6, name: '첨성대',       category: '문화시설 · 경주',color: '#0F6E56', favorited: false, placed: true,  dragging: false },
-    { id: 7, name: '동궁과월지',   category: '관광지 · 경주', color: '#534AB7', favorited: false, placed: true,  dragging: false },
-  ]},
-])
+const SIDO_NAME = {
+  1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
+  31:'경기', 32:'강원', 33:'충북', 34:'충남', 35:'경북', 36:'경남', 37:'전북', 38:'전남', 39:'제주',
+}
+
+const cityGroups = computed(() => {
+  const groups = {}
+  for (const c of candidates.value) {
+    const city = c.cityName || SIDO_NAME[c.cityCode] || '기타'
+    if (!groups[city]) groups[city] = []
+    groups[city].push(c)
+  }
+  return Object.entries(groups).map(([city, cands]) => ({ city, candidates: cands }))
+})
+
+const nightsLabel = computed(() => {
+  if (!activeTrip.value) return ''
+  const s = new Date(activeTrip.value.startDate + 'T00:00:00')
+  const e = new Date(activeTrip.value.endDate + 'T00:00:00')
+  const nights = Math.round((e - s) / 86400000)
+  return `${nights}박 ${nights + 1}일`
+})
+
+function timeToTop(timeStr) {
+  if (!timeStr) return 540
+  const [h, m] = timeStr.split(':').map(Number)
+  return h * 60 + m
+}
+
+function topToTime(top) {
+  const h = Math.floor(top / 60) % 24
+  const m = top % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+}
+
+function addMins(timeStr, mins) {
+  const parts = timeStr.split(':')
+  const h = parseInt(parts[0])
+  const m = parseInt(parts[1])
+  const total = h * 60 + m + (mins || 120)
+  return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
+}
+
+function buildDays(trip) {
+  const start = new Date(trip.startDate + 'T00:00:00')
+  const end = new Date(trip.endDate + 'T00:00:00')
+  const result = []
+  const allBlocks = trip.candidates.flatMap(c => c.blocks || [])
+  const DAY_NAMES = ['일','월','화','수','목','금','토']
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const dayNum = result.length + 1
+    const dateLabel = `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${DAY_NAMES[d.getDay()]}`
+    const dayBlocks = allBlocks.filter(b => b.tripDate === dateStr)
+
+    result.push({
+      label: `Day ${dayNum}`,
+      date: dateLabel,
+      isoDate: dateStr,
+      dragOver: false,
+      events: dayBlocks.map(b => {
+        const cand = trip.candidates.find(c => c.id === b.candidateId)
+        return {
+          id: b.id,
+          candidateId: b.candidateId,
+          name: cand?.attractionName || '',
+          color: 'purple',
+          top: timeToTop(b.startTime),
+          height: b.durationMinutes || 120,
+          timeLabel: b.startTime ? `${b.startTime.slice(0,5)} – ${addMins(b.startTime, b.durationMinutes)}` : '',
+          blockId: b.id,
+        }
+      }),
+      transits: [],
+    })
+  }
+  return result
+}
+
+async function loadTrip() {
+  if (!activeTripId.value) return
+  try {
+    const trip = await tripApi.get(activeTripId.value)
+    activeTrip.value = trip
+    candidates.value = trip.candidates.map(c => ({
+      ...c,
+      placed: c.blocks && c.blocks.length > 0,
+      dragging: false,
+    }))
+    days.value = buildDays(trip)
+  } catch {
+    toast.show('일정 로드 실패')
+  }
+}
 
 let dragging = null
 const dragPreview = ref(null)
-
-const colorMap = { '#534AB7': 'purple', '#993556': 'pink', '#0F6E56': 'teal', '#185FA5': 'blue', '#854F0B': 'amber' }
 
 function onDragStart(e, candidate) {
   dragging = candidate
@@ -146,7 +225,7 @@ function onDragStart(e, candidate) {
 
 function onDragEnd(candidate) {
   candidate.dragging = false
-  days.forEach(d => { d.dragOver = false })
+  days.value.forEach(d => { d.dragOver = false })
   dragPreview.value = null
 }
 
@@ -154,47 +233,76 @@ function onDragOver(e, day) {
   if (!dragging) return
   day.dragOver = true
   const col = e.currentTarget
-  const body = col.closest('.timetable-body')
   const wrapper = wrapperEl.value
-  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop - body.offsetTop
-  const snapped = Math.round(relY / SNAP) * SNAP
-  dragPreview.value = { top: snapped }
+  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop
+  dragPreview.value = { top: Math.round(relY / SNAP) * SNAP }
 }
 
-function onDrop(e, day) {
+async function onDrop(e, day) {
   if (!dragging) return
   day.dragOver = false
   const col = e.currentTarget
-  const body = col.closest('.timetable-body')
   const wrapper = wrapperEl.value
-  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop - body.offsetTop
+  const relY = e.clientY - col.getBoundingClientRect().top + wrapper.scrollTop
   const top = Math.round(relY / SNAP) * SNAP
-  const startMin = top
-  const endMin = startMin + 120
-  day.events.push({
-    id: Date.now(), name: dragging.name,
-    color: colorMap[dragging.color] || 'purple',
-    top, height: 120,
-    timeLabel: `${minsToTime(startMin)} – ${minsToTime(endMin)}`,
-  })
-  dragging.placed = true
-  toast.show(`"${dragging.name}" 일정에 추가됐어요`)
+  const startTime = topToTime(top)
+
+  try {
+    const blockId = await tripApi.placeBlock(activeTripId.value, {
+      candidateId: dragging.id,
+      tripDate: day.isoDate,
+      startTime: startTime + ':00',
+      durationMinutes: 120,
+      displayOrder: day.events.length + 1,
+    })
+    day.events.push({
+      id: blockId,
+      candidateId: dragging.id,
+      name: dragging.attractionName,
+      color: 'purple',
+      top,
+      height: 120,
+      timeLabel: `${startTime} – ${addMins(startTime + ':00', 120)}`,
+      blockId,
+    })
+    dragging.placed = true
+    toast.show(`"${dragging.attractionName}" 일정에 추가됐어요`)
+  } catch (e) {
+    toast.show(e.message || '추가 실패')
+  }
   dragPreview.value = null
   dragging = null
 }
 
-function removeEvent(day, ev) {
-  const idx = day.events.indexOf(ev)
-  if (idx !== -1) { day.events.splice(idx, 1); toast.show('장소가 삭제됐어요') }
+async function removeEvent(day, ev) {
+  try {
+    await tripApi.removeBlock(activeTripId.value, ev.blockId || ev.id)
+    const idx = day.events.indexOf(ev)
+    if (idx !== -1) day.events.splice(idx, 1)
+    const cand = candidates.value.find(c => c.id === ev.candidateId)
+    if (cand) {
+      const hasOtherBlocks = days.value.some(d => d.events.some(e => e.candidateId === ev.candidateId && e.id !== ev.id))
+      if (!hasOtherBlocks) cand.placed = false
+    }
+    toast.show('장소가 삭제됐어요')
+  } catch (e) {
+    toast.show(e.message || '삭제 실패')
+  }
 }
 
-function minsToTime(px) {
-  const h = Math.floor(px / 60) % 24
-  const m = px % 60
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
-}
-
-onMounted(() => {
+onMounted(async () => {
+  tripsLoading.value = true
+  try {
+    trips.value = await tripApi.list()
+    if (trips.value.length) {
+      activeTripId.value = trips.value[0].id
+      await loadTrip()
+    }
+  } catch {
+    // 비로그인
+  } finally {
+    tripsLoading.value = false
+  }
   if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
 })
 </script>
