@@ -17,8 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @Service
@@ -103,7 +101,6 @@ public class AuthServiceImpl implements AuthService {
 
         setAccessCookie(response, accessToken);
         setRefreshCookie(response, refreshToken);
-        setDisplayNameCookie(response, member.getNickname());
     }
 
     private void setAccessCookie(HttpServletResponse response, String token) {
@@ -124,16 +121,6 @@ public class AuthServiceImpl implements AuthService {
         response.addCookie(cookie);
     }
 
-    private void setDisplayNameCookie(HttpServletResponse response, String nickname) {
-        String encoded = URLEncoder.encode(nickname, StandardCharsets.UTF_8);
-        Cookie cookie = new Cookie("display_name", encoded);
-        cookie.setHttpOnly(false);
-        cookie.setSecure(true);
-        cookie.setPath("/");
-        cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
-        response.addCookie(cookie);
-    }
-
     private void clearAllCookies(HttpServletResponse response) {
         Cookie access = new Cookie("access_token", null);
         access.setHttpOnly(true);
@@ -146,11 +133,6 @@ public class AuthServiceImpl implements AuthService {
         refresh.setPath("/api/auth/refresh");
         refresh.setMaxAge(0);
         response.addCookie(refresh);
-
-        Cookie display = new Cookie("display_name", null);
-        display.setPath("/");
-        display.setMaxAge(0);
-        response.addCookie(display);
     }
 
     private Member buildMember(SignupRequest request) {

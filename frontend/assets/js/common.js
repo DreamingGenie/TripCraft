@@ -69,26 +69,29 @@ function createSchedule() {
   }, 800);
 }
 
-/* ── 쿠키 읽기 유틸 ── */
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
 /* ── GNB 인증 영역 ── */
-function initGnb() {
+async function initGnb() {
   const area = document.getElementById('gnb-auth');
   if (!area) return;
-  const displayName = getCookie('display_name');
-  if (displayName) {
-    area.innerHTML =
-      `<span class="gnb-user">${displayName}님</span>` +
-      `<button class="btn-ghost" onclick="logout()">로그아웃</button>`;
-  } else {
-    area.innerHTML =
-      `<button class="btn-ghost" onclick="window.location.href='auth.html'">로그인</button>` +
-      `<button class="btn-primary" onclick="window.location.href='auth.html'">회원가입</button>`;
+  try {
+    const res = await fetch('http://localhost:8080/api/auth/me', {
+      credentials: 'include',
+    });
+    if (res.ok) {
+      area.innerHTML =
+        `<button class="btn-ghost" onclick="logout()">로그아웃</button>`;
+    } else {
+      renderGnbGuest(area);
+    }
+  } catch (e) {
+    renderGnbGuest(area);
   }
+}
+
+function renderGnbGuest(area) {
+  area.innerHTML =
+    `<button class="btn-ghost" onclick="window.location.href='auth.html'">로그인</button>` +
+    `<button class="btn-primary" onclick="window.location.href='auth.html'">회원가입</button>`;
 }
 
 async function logout() {
