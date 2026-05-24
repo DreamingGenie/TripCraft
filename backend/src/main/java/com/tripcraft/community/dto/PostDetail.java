@@ -1,21 +1,24 @@
-package com.tripcraft.community.domain;
+package com.tripcraft.community.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-public class Post {
+@NoArgsConstructor
+@AllArgsConstructor
+public class PostDetail {
 
     private Long id;
     private Long memberId;
-    private Long tripId;
     private String title;
     private String content;
+    private String authorNickname;
     private Integer viewCount;
     private Integer likeCount;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private boolean liked;
+    private boolean mine;
 }

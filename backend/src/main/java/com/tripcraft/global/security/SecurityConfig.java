@@ -46,12 +46,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 인증 불필요
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**", "/api/notices/**").permitAll()
                 // Swagger UI
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                         "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                 // 관리자 전용
-                .requestMatchers("/api/admin/**", "/api/notices/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/notices/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")
                 // 나머지 인증 필요
                 .anyRequest().authenticated())
             .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),

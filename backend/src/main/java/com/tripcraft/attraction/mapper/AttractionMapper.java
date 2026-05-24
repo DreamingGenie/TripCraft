@@ -15,6 +15,8 @@ public interface AttractionMapper {
 
     List<Attraction> findByCondition(AttractionSearchCondition condition);
 
+    int countByCondition(AttractionSearchCondition condition);
+
     void insertAll(List<Attraction> attractions);
 
     void update(Attraction attraction);

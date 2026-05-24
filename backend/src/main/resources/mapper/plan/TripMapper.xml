@@ -10,17 +10,19 @@
         <result column="title" property="title"/>
         <result column="start_date" property="startDate"/>
         <result column="end_date" property="endDate"/>
+        <result column="member_count" property="memberCount"/>
+        <result column="is_public" property="isPublic"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="tripMap">
-        SELECT id, member_id, title, start_date, end_date, created_at, updated_at
+        SELECT id, member_id, title, start_date, end_date, member_count, is_public, created_at, updated_at
         FROM trip WHERE id = #{id}
     </select>
 
     <select id="findByMemberId" parameterType="long" resultMap="tripMap">
-        SELECT id, member_id, title, start_date, end_date, created_at, updated_at
+        SELECT id, member_id, title, start_date, end_date, member_count, is_public, created_at, updated_at
         FROM trip WHERE member_id = #{memberId}
         ORDER BY created_at DESC
     </select>
@@ -30,13 +32,14 @@
     </select>
 
     <insert id="insert" parameterType="com.tripcraft.plan.domain.Trip" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO trip (member_id, title, start_date, end_date)
-        VALUES (#{memberId}, #{title}, #{startDate}, #{endDate})
+        INSERT INTO trip (member_id, title, start_date, end_date, member_count, is_public)
+        VALUES (#{memberId}, #{title}, #{startDate}, #{endDate}, #{memberCount}, #{isPublic})
     </insert>
 
     <update id="update" parameterType="com.tripcraft.plan.domain.Trip">
         UPDATE trip
         SET title = #{title}, start_date = #{startDate}, end_date = #{endDate},
+            member_count = #{memberCount}, is_public = #{isPublic},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
