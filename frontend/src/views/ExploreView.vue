@@ -9,32 +9,27 @@
         <RouterLink to="/schedule" class="btn-goto-schedule">관리 →</RouterLink>
       </div>
       <div class="schedule-cards">
-        <div v-for="s in schedules" :key="s.id"
-             class="schedule-card" :class="{ active: activeScheduleId === s.id }"
-             @click="activeScheduleId = s.id">
+        <div v-for="s in trips" :key="s.id"
+             class="schedule-card" :class="{ active: activeTrip === s.id }"
+             @click="activeTrip = s.id">
           <div class="schedule-card-top">
-            <span class="schedule-card-name">{{ s.name }}</span>
-            <button class="schedule-select-btn">{{ activeScheduleId === s.id ? '✓ 선택됨' : '선택' }}</button>
+            <span class="schedule-card-name">{{ s.title }}</span>
+            <button class="schedule-select-btn">{{ activeTrip === s.id ? '✓ 선택됨' : '선택' }}</button>
           </div>
           <div class="schedule-card-meta">
-            <span>👥 {{ s.people }}명</span>
-            <span class="schedule-dates">{{ s.dates }}</span>
+            <span>👥 {{ s.memberCount }}명</span>
+            <span class="schedule-dates">{{ s.startDate }} ~ {{ s.endDate }}</span>
           </div>
           <div class="schedule-regions">
-            <div v-for="r in s.regions" :key="r.name" class="schedule-region">
-              <span class="region-name">📍 {{ r.name }}</span>
-              <div class="region-places">
-                <span v-for="p in r.places.slice(0, 2)" :key="p" class="place-chip">{{ p }}</span>
-                <span v-if="r.places.length > 2" class="place-chip more">+{{ r.places.length - 2 }}</span>
-              </div>
-            </div>
+            <span style="font-size:11px;color:var(--gray-muted)">{{ s.candidateCount }}개 장소</span>
           </div>
         </div>
 
-        <div v-if="!schedules.length" class="schedule-empty">
+        <div v-if="!tripsLoading && !trips.length" class="schedule-empty">
           <p>일정이 없습니다</p>
           <button @click="openScheduleModal()">+ 새 일정 만들기</button>
         </div>
+        <div v-if="tripsLoading" style="padding:12px;color:var(--gray-muted);font-size:12px">로딩 중...</div>
       </div>
     </aside>
 
@@ -42,23 +37,24 @@
     <div class="attr-list">
       <div class="search-bar">
         <span class="search-icon">🔍</span>
-        <input type="text" v-model="searchQuery" placeholder="장소, 도시 검색" />
+        <input type="text" v-model="searchQuery" placeholder="장소, 도시 검색"
+               @keydown.enter="applyFilters" />
       </div>
 
       <div class="filter-bar">
-        <button class="filter-toggle-btn" :class="{ open: filterOpen, 'has-selection': selectedRegions.length }"
+        <button class="filter-toggle-btn" :class="{ open: filterOpen, 'has-selection': selectedRegion }"
                 @click="filterOpen = !filterOpen">
           지역
-          <span v-if="selectedRegions.length" class="filter-count-badge">{{ selectedRegions.length }}</span>
+          <span v-if="selectedRegion" class="filter-count-badge">1</span>
           <span class="filter-arrow">▾</span>
         </button>
-        <button class="filter-toggle-btn" :class="{ open: filterOpen, 'has-selection': selectedCats.length }"
+        <button class="filter-toggle-btn" :class="{ open: filterOpen, 'has-selection': selectedCat }"
                 @click="filterOpen = !filterOpen">
           카테고리
-          <span v-if="selectedCats.length" class="filter-count-badge">{{ selectedCats.length }}</span>
+          <span v-if="selectedCat" class="filter-count-badge">1</span>
           <span class="filter-arrow">▾</span>
         </button>
-        <button v-if="selectedRegions.length || selectedCats.length"
+        <button v-if="selectedRegion || selectedCat"
                 class="filter-clear-btn" @click="clearFilters">초기화</button>
       </div>
 
@@ -67,52 +63,69 @@
           <span class="filter-panel-label">지역</span>
           <div class="chip-group">
             <button v-for="r in regions" :key="r"
-                    class="chip" :class="{ sel: selectedRegions.includes(r) }"
-                    @click="toggleFilter(selectedRegions, r)">{{ r }}</button>
+                    class="chip" :class="{ sel: selectedRegion === r }"
+                    @click="selectedRegion = selectedRegion === r ? '' : r">{{ r }}</button>
           </div>
         </div>
         <div class="filter-panel-section">
           <span class="filter-panel-label">카테고리</span>
           <div class="chip-group">
             <button v-for="c in categories" :key="c"
-                    class="chip" :class="{ sel: selectedCats.includes(c) }"
-                    @click="toggleFilter(selectedCats, c)">{{ c }}</button>
+                    class="chip" :class="{ sel: selectedCat === c }"
+                    @click="selectedCat = selectedCat === c ? '' : c">{{ c }}</button>
           </div>
         </div>
         <div class="filter-panel-actions">
-          <button class="btn-apply-filter" @click="filterOpen = false">필터 적용</button>
+          <button class="btn-apply-filter" @click="applyFilters(); filterOpen = false">필터 적용</button>
         </div>
       </div>
 
-      <p class="result-count">{{ filteredAttractions.length }}개의 장소</p>
+      <p class="result-count">{{ total }}개의 장소</p>
 
-      <div class="cards-grid">
-        <div v-for="a in filteredAttractions" :key="a.id"
-             class="attr-card" :class="{ candidate: a.added }">
-          <div v-if="a.added" class="candidate-badge">✓</div>
-          <div class="card-img" :style="{ background: a.color }">{{ a.emoji }}</div>
+      <div v-if="loading" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
+      <div v-else class="cards-grid">
+        <div v-for="a in attractions" :key="a.id"
+             class="attr-card" :class="{ candidate: addedIds.has(a.id) }">
+          <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
+          <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
+            <img v-if="a.firstImage" :src="a.firstImage" style="width:100%;height:100%;object-fit:cover" />
+            <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+          </div>
           <div class="card-info">
-            <div class="card-name">{{ a.name }} <span :class="a.favorited ? 'star' : ''" style="color:var(--gray-border)">{{ a.favorited ? '★' : '☆' }}</span></div>
+            <div class="card-name">{{ a.title }} <span style="color:var(--gray-border)">{{ a.favorited ? '★' : '☆' }}</span></div>
             <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
-            <button class="card-add" :class="{ added: a.added }" @click="!a.added && addToSchedule(a)">
-              {{ a.added ? '✓ 추가됨' : '+ 일정에 추가' }}
+            <button class="card-add" :class="{ added: addedIds.has(a.id) }"
+                    @click="addToTrip(a)">
+              {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
             </button>
           </div>
         </div>
       </div>
+
+      <div v-if="totalPages > 1" class="pagination" style="margin-top:12px">
+        <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+        <button v-for="p in totalPages" :key="p"
+                class="page-btn" :class="{ active: page === p - 1 }"
+                @click="goPage(p - 1)">{{ p }}</button>
+        <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+      </div>
     </div>
 
-    <!-- 오른쪽: 지도 (placeholder) -->
+    <!-- 오른쪽: 지도 -->
     <div class="map-area">
       <div class="map-label">대한민국</div>
       <svg class="map-grid" viewBox="0 0 100 100" preserveAspectRatio="none">
         <line v-for="n in 7" :key="'h'+n" :x1="0" :y1="n*12.5" :x2="100" :y2="n*12.5" stroke="#888780" stroke-width="0.3"/>
         <line v-for="n in 7" :key="'v'+n" :x1="n*12.5" :y1="0" :x2="n*12.5" :y2="100" stroke="#888780" stroke-width="0.3"/>
       </svg>
-      <div v-for="a in filteredAttractions" :key="'m'+a.id"
-           class="map-marker" :class="{ cand: a.added }"
-           :title="a.name"
-           :style="{ background: a.markerColor, left: a.mapX, top: a.mapY }">
+      <div v-for="a in attractions.filter(x => x.latitude && x.longitude)" :key="'m'+a.id"
+           class="map-marker" :class="{ cand: addedIds.has(a.id) }"
+           :title="a.title"
+           :style="{
+             background: addedIds.has(a.id) ? '#534AB7' : '#888',
+             left: mapX(a.longitude) + '%',
+             top: mapY(a.latitude) + '%'
+           }">
       </div>
       <div class="map-zoom">
         <button>+</button><button>−</button>
@@ -124,70 +137,111 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toast'
+import { searchAttractions } from '@/api/attraction'
+import { tripApi } from '@/api/trip'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
 
-const activeScheduleId = ref(1)
+const trips = ref([])
+const tripsLoading = ref(false)
+const activeTrip = ref(null)
+const addedIds = ref(new Set())
+
+const attractions = ref([])
+const total = ref(0)
+const page = ref(0)
+const loading = ref(false)
+
 const searchQuery = ref('')
 const filterOpen = ref(false)
-const selectedRegions = ref([])
-const selectedCats = ref([])
+const selectedRegion = ref('')
+const selectedCat = ref('')
 
 const regions = ['서울', '경기', '강원', '충청', '경상', '전라', '제주']
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
+const PAGE_SIZE = 20
 
-const schedules = ref([
-  { id: 1, name: '제주 여름 여행', people: 2, dates: '07.10 ~ 07.13',
-    regions: [
-      { name: '서울', places: ['경복궁', '남산서울타워', '인사동'] },
-      { name: '경주', places: ['불국사', '석굴암', '첨성대', '동궁과월지'] },
-    ]},
-  { id: 2, name: '경주 가을 여행', people: 3, dates: '09.20 ~ 09.22',
-    regions: [
-      { name: '경주', places: ['불국사', '동궁과월지'] },
-      { name: '부산', places: ['해운대', '광안리'] },
-    ]},
-])
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
-const attractions = ref([
-  { id: 1, name: '경복궁',       category: '관광지',  region: '서울', color: '#C8C5F5', markerColor: '#534AB7', emoji: '🏯', favorited: true,  added: true,  mapX: '22%', mapY: '24%' },
-  { id: 2, name: '광장시장',     category: '음식점',  region: '서울', color: '#F5C0D2', markerColor: '#993556', emoji: '🍜', favorited: false, added: false, mapX: '30%', mapY: '30%' },
-  { id: 3, name: '남산서울타워', category: '관광지',  region: '서울', color: '#C8C5F5', markerColor: '#534AB7', emoji: '🗼', favorited: true,  added: true,  mapX: '27%', mapY: '36%' },
-  { id: 4, name: '인사동 쌈지길',category: '문화시설',region: '서울', color: '#9BD4C0', markerColor: '#0F6E56', emoji: '🎨', favorited: false, added: false, mapX: '40%', mapY: '20%' },
-  { id: 5, name: '명동 칼국수',  category: '음식점',  region: '서울', color: '#F5C0D2', markerColor: '#993556', emoji: '🍲', favorited: false, added: false, mapX: '52%', mapY: '32%' },
-  { id: 6, name: '롯데호텔 서울',category: '숙박',    region: '서울', color: '#AFC9E8', markerColor: '#185FA5', emoji: '🏨', favorited: false, added: false, mapX: '62%', mapY: '24%' },
-  { id: 7, name: '불국사',       category: '관광지',  region: '경주', color: '#C8C5F5', markerColor: '#534AB7', emoji: '⛩️', favorited: true,  added: true,  mapX: '72%', mapY: '50%' },
-  { id: 8, name: '첨성대',       category: '문화시설',region: '경주', color: '#9BD4C0', markerColor: '#0F6E56', emoji: '🌙', favorited: false, added: false, mapX: '78%', mapY: '58%' },
-  { id: 9, name: '성산일출봉',   category: '관광지',  region: '제주', color: '#C8C5F5', markerColor: '#534AB7', emoji: '🌋', favorited: true,  added: true,  mapX: '58%', mapY: '78%' },
-  { id: 10, name: '흑돼지 거리', category: '음식점',  region: '제주', color: '#F5C0D2', markerColor: '#993556', emoji: '🐷', favorited: false, added: false, mapX: '46%', mapY: '82%' },
-])
+const COLORS = { 12: '#C8C5F5', 14: '#9BD4C0', 28: '#AFE8C0', 32: '#AFC9E8', 38: '#F5D0A9', 39: '#F5C0D2' }
+const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 39: '🍜' }
+function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
+function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
+function mapX(lng) { return ((lng - 124) / (132 - 124) * 100).toFixed(1) }
+function mapY(lat) { return ((39 - lat) / (39 - 33) * 100).toFixed(1) }
 
-const filteredAttractions = computed(() => {
-  return attractions.value.filter(a => {
-    if (searchQuery.value && !a.name.includes(searchQuery.value) && !a.region.includes(searchQuery.value)) return false
-    if (selectedRegions.value.length && !selectedRegions.value.includes(a.region)) return false
-    if (selectedCats.value.length && !selectedCats.value.includes(a.category)) return false
-    return true
-  })
-})
+async function loadTrips() {
+  tripsLoading.value = true
+  try {
+    trips.value = await tripApi.list()
+    if (trips.value.length) activeTrip.value = trips.value[0].id
+  } catch {
+    // 비로그인 상태
+  } finally {
+    tripsLoading.value = false
+  }
+}
 
-function toggleFilter(list, value) {
-  const idx = list.indexOf(value)
-  if (idx === -1) list.push(value)
-  else list.splice(idx, 1)
+async function loadAttractions() {
+  loading.value = true
+  try {
+    const data = await searchAttractions({
+      keyword: searchQuery.value || undefined,
+      region: selectedRegion.value || undefined,
+      category: selectedCat.value || undefined,
+      page: page.value,
+      size: PAGE_SIZE,
+    })
+    attractions.value = data.items
+    total.value = data.total
+  } catch {
+    toast.show('관광지 로드 실패')
+  } finally {
+    loading.value = false
+  }
+}
+
+function applyFilters() {
+  page.value = 0
+  loadAttractions()
 }
 
 function clearFilters() {
-  selectedRegions.value = []
-  selectedCats.value = []
+  selectedRegion.value = ''
+  selectedCat.value = ''
+  searchQuery.value = ''
+  page.value = 0
+  loadAttractions()
   toast.show('필터가 초기화됐어요')
 }
 
-function addToSchedule(attraction) {
-  attraction.added = true
-  toast.show(`"${attraction.name}" 후보군에 추가됐어요`)
+function goPage(p) {
+  page.value = p
+  loadAttractions()
 }
+
+async function addToTrip(attraction) {
+  if (addedIds.value.has(attraction.id)) return
+  if (!activeTrip.value) {
+    toast.show('먼저 일정을 선택해주세요.')
+    return
+  }
+  try {
+    await tripApi.addCandidate(activeTrip.value, attraction.id)
+    addedIds.value = new Set([...addedIds.value, attraction.id])
+    toast.show(`"${attraction.title}" 후보군에 추가됐어요`)
+    const t = trips.value.find(t => t.id === activeTrip.value)
+    if (t) t.candidateCount++
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : (e.message || '추가 실패'))
+  }
+}
+
+onMounted(() => {
+  loadTrips()
+  loadAttractions()
+})
 </script>
