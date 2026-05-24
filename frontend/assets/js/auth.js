@@ -38,8 +38,6 @@ async function doLogin() {
   }
 
   if (json.success) {
-    localStorage.setItem('tripcraft_token', json.data.accessToken);
-    localStorage.setItem('tripcraft_nickname', email.split('@')[0]);
     window.location.href = 'explore.html';
   } else {
     handleAuthError(res.status, json);

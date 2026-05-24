@@ -9,9 +9,9 @@ public interface AuthService {
 
     void signup(SignupRequest request);
 
-    TokenResponse login(LoginRequest request, HttpServletResponse response);
+    void login(LoginRequest request, HttpServletResponse response);
 
-    TokenResponse refresh(String refreshToken, HttpServletResponse response);
+    void refresh(String refreshToken, HttpServletResponse response);
 
     void logout(String refreshToken, HttpServletResponse response);
 }

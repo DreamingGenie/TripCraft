@@ -5,7 +5,6 @@ import com.tripcraft.member.domain.Member;
 import com.tripcraft.member.domain.MemberToken;
 import com.tripcraft.member.dto.LoginRequest;
 import com.tripcraft.member.dto.SignupRequest;
-import com.tripcraft.member.dto.TokenResponse;
 import com.tripcraft.member.mapper.MemberMapper;
 import com.tripcraft.member.mapper.MemberTokenMapper;
 import jakarta.servlet.http.Cookie;
@@ -18,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @Service
@@ -28,6 +29,9 @@ public class AuthServiceImpl implements AuthService {
     private final MemberTokenMapper memberTokenMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${jwt.access-token-expiry}")
+    private long accessTokenExpiry;
 
     @Value("${jwt.refresh-token-expiry}")
     private long refreshTokenExpiry;
@@ -44,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public TokenResponse login(LoginRequest request, HttpServletResponse response) {
+    public void login(LoginRequest request, HttpServletResponse response) {
         Member member = memberMapper.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."));
 
@@ -53,12 +57,12 @@ public class AuthServiceImpl implements AuthService {
         }
 
         memberTokenMapper.deleteByMemberId(member.getId());
-        return issueTokens(member, response);
+        issueTokens(member, response);
     }
 
     @Override
     @Transactional
-    public TokenResponse refresh(String refreshToken, HttpServletResponse response) {
+    public void refresh(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null || !jwtTokenProvider.validate(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다.");
         }
@@ -74,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
         Long memberId = jwtTokenProvider.getMemberId(refreshToken);
         String role = jwtTokenProvider.getRole(refreshToken);
         String newAccessToken = jwtTokenProvider.createAccessToken(memberId, role);
-        return new TokenResponse(newAccessToken);
+        setAccessCookie(response, newAccessToken);
     }
 
     @Override
@@ -83,12 +87,12 @@ public class AuthServiceImpl implements AuthService {
         if (refreshToken != null) {
             memberTokenMapper.deleteByToken(refreshToken);
         }
-        clearRefreshCookie(response);
+        clearAllCookies(response);
     }
 
-    private TokenResponse issueTokens(Member member, HttpServletResponse response) {
+    private void issueTokens(Member member, HttpServletResponse response) {
         String role = member.getRole().name();
-        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), role);
+        String accessToken  = jwtTokenProvider.createAccessToken(member.getId(), role);
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId(), role);
 
         MemberToken token = new MemberToken();
@@ -97,8 +101,18 @@ public class AuthServiceImpl implements AuthService {
         token.setExpiresAt(LocalDateTime.now().plusNanos(refreshTokenExpiry * 1_000_000L));
         memberTokenMapper.insert(token);
 
+        setAccessCookie(response, accessToken);
         setRefreshCookie(response, refreshToken);
-        return new TokenResponse(accessToken);
+        setDisplayNameCookie(response, member.getNickname());
+    }
+
+    private void setAccessCookie(HttpServletResponse response, String token) {
+        Cookie cookie = new Cookie("access_token", token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (accessTokenExpiry / 1000));
+        response.addCookie(cookie);
     }
 
     private void setRefreshCookie(HttpServletResponse response, String token) {
@@ -110,13 +124,33 @@ public class AuthServiceImpl implements AuthService {
         response.addCookie(cookie);
     }
 
-    private void clearRefreshCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie("refresh_token", null);
-        cookie.setHttpOnly(true);
+    private void setDisplayNameCookie(HttpServletResponse response, String nickname) {
+        String encoded = URLEncoder.encode(nickname, StandardCharsets.UTF_8);
+        Cookie cookie = new Cookie("display_name", encoded);
+        cookie.setHttpOnly(false);
         cookie.setSecure(true);
-        cookie.setPath("/api/auth/refresh");
-        cookie.setMaxAge(0);
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
         response.addCookie(cookie);
+    }
+
+    private void clearAllCookies(HttpServletResponse response) {
+        Cookie access = new Cookie("access_token", null);
+        access.setHttpOnly(true);
+        access.setPath("/");
+        access.setMaxAge(0);
+        response.addCookie(access);
+
+        Cookie refresh = new Cookie("refresh_token", null);
+        refresh.setHttpOnly(true);
+        refresh.setPath("/api/auth/refresh");
+        refresh.setMaxAge(0);
+        response.addCookie(refresh);
+
+        Cookie display = new Cookie("display_name", null);
+        display.setPath("/");
+        display.setMaxAge(0);
+        response.addCookie(display);
     }
 
     private Member buildMember(SignupRequest request) {
