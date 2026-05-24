@@ -8,14 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트
 
-**TripCraft** — 관광지 탐색 → 후보군 등록 → 드래그 앤 드롭 일정 확정 → ODsay 이동 시간 자동 계산 → 커뮤니티 공유. 개발 2인 (전진·송정기). 현재 백엔드 Auth API 구현 완료, 프론트엔드 UI 초안 작성 중.
+**TripCraft** — 관광지 탐색 → 후보군 등록 → 드래그 앤 드롭 일정 확정 → ODsay 이동 시간 자동 계산 → 커뮤니티 공유. 개발 2인 (전진·송정기). **현재 상태**: 백엔드 전 도메인 API 구현 완료(Auth·Attraction·Plan·Community), 프론트엔드 Vue 3 마이그레이션 및 API 연동 완료, TourAPI 관광지 DB 수집 완료.
 
 ## 기술 스택
 
 | Layer | 기술 |
 |-------|------|
 | Backend | Java 21 · Spring Boot 3.5.0 · MyBatis · MySQL 8.0 · Gradle (Kotlin DSL) |
-| Frontend | Vanilla HTML/CSS/JS (추후 Vue.js 3 + Vite 마이그레이션 예정) |
+| Frontend | Vue.js 3 + Vite · Pinia · Vue Router (마이그레이션 완료) |
 | Auth | Spring Security + JWT |
 | External API | 한국관광공사 TourAPI 4.0 · ODsay API · Kakao Maps |
 
