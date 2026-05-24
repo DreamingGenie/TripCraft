@@ -1,7 +1,10 @@
 package com.tripcraft.community.mapper;
 
 import com.tripcraft.community.domain.Post;
+import com.tripcraft.community.dto.PostDetail;
+import com.tripcraft.community.dto.PostListItem;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +18,15 @@ public interface PostMapper {
 
     int countAll();
 
+    List<PostListItem> findListItems(@Param("offset") int offset, @Param("limit") int limit, @Param("sort") String sort);
+
+    PostDetail findDetailById(@Param("id") Long id, @Param("memberId") Long memberId);
+
     void incrementViewCount(Long id);
+
+    void incrementLikeCount(Long id);
+
+    void decrementLikeCount(Long id);
 
     void insert(Post post);
 

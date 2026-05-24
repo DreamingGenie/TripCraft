@@ -8,20 +8,20 @@
         <id column="id" property="id"/>
         <result column="trip_id" property="tripId"/>
         <result column="attraction_id" property="attractionId"/>
-        <result column="sigungu_code" property="sigunguCode"/>
+        <result column="city_code" property="cityCode"/>
         <result column="source" property="source"/>
-        <result column="created_at" property="createdAt"/>
+        <result column="added_at" property="addedAt"/>
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="candidateMap">
-        SELECT id, trip_id, attraction_id, sigungu_code, source, created_at
+        SELECT id, trip_id, attraction_id, city_code, source, added_at
         FROM trip_candidate WHERE id = #{id}
     </select>
 
     <select id="findByTripId" parameterType="long" resultMap="candidateMap">
-        SELECT id, trip_id, attraction_id, sigungu_code, source, created_at
+        SELECT id, trip_id, attraction_id, city_code, source, added_at
         FROM trip_candidate WHERE trip_id = #{tripId}
-        ORDER BY created_at
+        ORDER BY added_at
     </select>
 
     <select id="existsBlockByCandidateId" parameterType="long" resultType="boolean">
@@ -29,8 +29,8 @@
     </select>
 
     <insert id="insert" parameterType="com.tripcraft.plan.domain.TripCandidate" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO trip_candidate (trip_id, attraction_id, sigungu_code, source)
-        VALUES (#{tripId}, #{attractionId}, #{sigunguCode}, #{source})
+        INSERT INTO trip_candidate (trip_id, attraction_id, city_code, source)
+        VALUES (#{tripId}, #{attractionId}, #{cityCode}, #{source})
     </insert>
 
     <delete id="deleteById" parameterType="long">

@@ -9,21 +9,19 @@ import java.time.LocalDateTime;
 public class Attraction {
 
     private Long id;
-    private Integer contentId;
+    private String contentId;
     private Integer contentTypeId;
     private String title;
+    private Integer sidoCode;
+    private Integer sigunguCode;
     private String addr1;
     private String addr2;
-    private String zipcode;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
     private String tel;
-    private String firstimage;
-    private String firstimage2;
-    private BigDecimal mapx;
-    private BigDecimal mapy;
-    private Integer sigunguCode;
-    private Integer areaCode;
     private String overview;
+    private String firstImage;
+    private LocalDateTime apiCreatedAt;
     private LocalDateTime apiModifiedAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime syncedAt;
 }
