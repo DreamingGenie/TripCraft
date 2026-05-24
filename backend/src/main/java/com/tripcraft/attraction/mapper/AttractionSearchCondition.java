@@ -9,10 +9,9 @@ import java.util.List;
 @Builder
 public class AttractionSearchCondition {
 
-    private List<Integer> areaCodes;
-    private List<Integer> sigunguCodes;
+    private List<Integer> sidoCodes;
     private List<Integer> contentTypeIds;
     private String keyword;
-    private Integer offset;
-    private Integer limit;
+    private int offset;
+    private int limit;
 }

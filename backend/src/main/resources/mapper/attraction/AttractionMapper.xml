@@ -9,20 +9,18 @@
         <result column="content_id" property="contentId"/>
         <result column="content_type_id" property="contentTypeId"/>
         <result column="title" property="title"/>
+        <result column="sido_code" property="sidoCode"/>
+        <result column="sigungu_code" property="sigunguCode"/>
         <result column="addr1" property="addr1"/>
         <result column="addr2" property="addr2"/>
-        <result column="zipcode" property="zipcode"/>
+        <result column="latitude" property="latitude"/>
+        <result column="longitude" property="longitude"/>
         <result column="tel" property="tel"/>
-        <result column="firstimage" property="firstimage"/>
-        <result column="firstimage2" property="firstimage2"/>
-        <result column="mapx" property="mapx"/>
-        <result column="mapy" property="mapy"/>
-        <result column="sigungu_code" property="sigunguCode"/>
-        <result column="area_code" property="areaCode"/>
         <result column="overview" property="overview"/>
+        <result column="first_image" property="firstImage"/>
+        <result column="api_created_at" property="apiCreatedAt"/>
         <result column="api_modified_at" property="apiModifiedAt"/>
-        <result column="created_at" property="createdAt"/>
-        <result column="updated_at" property="updatedAt"/>
+        <result column="synced_at" property="syncedAt"/>
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="attractionMap">
@@ -37,23 +35,13 @@
             resultMap="attractionMap">
         SELECT * FROM attraction
         <where>
-            <if test="areaCodes != null and !areaCodes.isEmpty()">
-                AND area_code IN
-                <foreach item="code" collection="areaCodes" open="(" separator="," close=")">
-                    #{code}
-                </foreach>
-            </if>
-            <if test="sigunguCodes != null and !sigunguCodes.isEmpty()">
-                AND sigungu_code IN
-                <foreach item="code" collection="sigunguCodes" open="(" separator="," close=")">
-                    #{code}
-                </foreach>
+            <if test="sidoCodes != null and !sidoCodes.isEmpty()">
+                AND sido_code IN
+                <foreach item="code" collection="sidoCodes" open="(" separator="," close=")">#{code}</foreach>
             </if>
             <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
                 AND content_type_id IN
-                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">
-                    #{id}
-                </foreach>
+                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">#{id}</foreach>
             </if>
             <if test="keyword != null and keyword != ''">
                 AND title LIKE CONCAT('%', #{keyword}, '%')
@@ -63,24 +51,42 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <select id="countByCondition" parameterType="com.tripcraft.attraction.mapper.AttractionSearchCondition"
+            resultType="int">
+        SELECT COUNT(*) FROM attraction
+        <where>
+            <if test="sidoCodes != null and !sidoCodes.isEmpty()">
+                AND sido_code IN
+                <foreach item="code" collection="sidoCodes" open="(" separator="," close=")">#{code}</foreach>
+            </if>
+            <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
+                AND content_type_id IN
+                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">#{id}</foreach>
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
     <insert id="insertAll" parameterType="list">
-        INSERT INTO attraction (content_id, content_type_id, title, addr1, addr2, zipcode,
-                                tel, firstimage, firstimage2, mapx, mapy, sigungu_code, area_code, overview, api_modified_at)
+        INSERT INTO attraction (content_id, content_type_id, title, sido_code, sigungu_code,
+                                addr1, addr2, latitude, longitude, tel, overview, first_image, api_modified_at)
         VALUES
         <foreach item="a" collection="list" separator=",">
-            (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.addr1}, #{a.addr2}, #{a.zipcode},
-             #{a.tel}, #{a.firstimage}, #{a.firstimage2}, #{a.mapx}, #{a.mapy}, #{a.sigunguCode}, #{a.areaCode},
-             #{a.overview}, #{a.apiModifiedAt})
+            (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.sidoCode}, #{a.sigunguCode},
+             #{a.addr1}, #{a.addr2}, #{a.latitude}, #{a.longitude}, #{a.tel}, #{a.overview},
+             #{a.firstImage}, #{a.apiModifiedAt})
         </foreach>
         ON DUPLICATE KEY UPDATE
             title = VALUES(title), addr1 = VALUES(addr1), overview = VALUES(overview),
-            api_modified_at = VALUES(api_modified_at), updated_at = CURRENT_TIMESTAMP
+            api_modified_at = VALUES(api_modified_at), synced_at = CURRENT_TIMESTAMP
     </insert>
 
     <update id="update" parameterType="com.tripcraft.attraction.domain.Attraction">
         UPDATE attraction
         SET title = #{title}, addr1 = #{addr1}, addr2 = #{addr2}, overview = #{overview},
-            api_modified_at = #{apiModifiedAt}, updated_at = CURRENT_TIMESTAMP
+            api_modified_at = #{apiModifiedAt}, synced_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 

@@ -1,0 +1,33 @@
+package com.tripcraft.attraction.controller;
+
+import com.tripcraft.attraction.dto.AttractionPageResponse;
+import com.tripcraft.attraction.service.AttractionService;
+import com.tripcraft.global.response.ApiResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/attractions")
+@RequiredArgsConstructor
+public class AttractionController {
+
+    private final AttractionService attractionService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<AttractionPageResponse>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Long memberId) {
+
+        AttractionPageResponse result = attractionService.search(keyword, region, category, page, size, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+}
