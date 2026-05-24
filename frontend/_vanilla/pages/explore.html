@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TripCraft — 관광지 탐색</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/variables.css" />
+  <link rel="stylesheet" href="../assets/css/common.css" />
+  <link rel="stylesheet" href="../assets/css/explore.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     GNB
+     ════════════════════════════════ -->
+<header id="gnb">
+  <a class="logo" href="explore.html">TripCraft</a>
+  <a class="nav-link active" href="explore.html">관광지 탐색</a>
+  <a class="nav-link" href="schedule.html">내 일정</a>
+  <a class="nav-link" href="community.html">커뮤니티</a>
+  <span class="gnb-spacer"></span>
+  <div id="gnb-auth" style="display:flex;align-items:center;gap:6px;"></div>
+</header>
+
+<main id="main">
+<section id="screen-explore">
+
+  <!-- ════════════════════════════════
+       왼쪽: 내 일정 목록 사이드바
+       (기존 지역/카테고리/즐겨찾기 자리)
+       ════════════════════════════════ -->
+  <aside class="schedule-list-sidebar">
+
+    <div class="schedule-list-header">
+      <span class="schedule-list-title">내 일정</span>
+      <a href="schedule.html" class="btn-goto-schedule">관리 →</a>
+    </div>
+
+    <div class="schedule-cards">
+
+      <!-- 일정 카드 1 -->
+      <div class="schedule-card active" id="schedule-1" onclick="selectSchedule('schedule-1')">
+        <div class="schedule-card-top">
+          <span class="schedule-card-name">제주 여름 여행</span>
+          <button class="schedule-select-btn">✓ 선택됨</button>
+        </div>
+        <div class="schedule-card-meta">
+          <span>👥 2명</span>
+          <span class="schedule-dates">07.10 ~ 07.13</span>
+        </div>
+        <div class="schedule-regions">
+          <div class="schedule-region">
+            <span class="region-name">📍 서울</span>
+            <div class="region-places" data-region="서울">
+              <span class="place-chip">경복궁</span>
+              <span class="place-chip">남산서울타워</span>
+              <span class="place-chip more">+1</span>
+            </div>
+          </div>
+          <div class="schedule-region">
+            <span class="region-name">📍 경주</span>
+            <div class="region-places" data-region="경주">
+              <span class="place-chip">불국사</span>
+              <span class="place-chip">석굴암</span>
+              <span class="place-chip more">+2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 일정 카드 2 -->
+      <div class="schedule-card" id="schedule-2" onclick="selectSchedule('schedule-2')">
+        <div class="schedule-card-top">
+          <span class="schedule-card-name">경주 가을 여행</span>
+          <button class="schedule-select-btn">선택</button>
+        </div>
+        <div class="schedule-card-meta">
+          <span>👥 3명</span>
+          <span class="schedule-dates">09.20 ~ 09.22</span>
+        </div>
+        <div class="schedule-regions">
+          <div class="schedule-region">
+            <span class="region-name">📍 경주</span>
+            <div class="region-places" data-region="경주">
+              <span class="place-chip">불국사</span>
+              <span class="place-chip">동궁과월지</span>
+            </div>
+          </div>
+          <div class="schedule-region">
+            <span class="region-name">📍 부산</span>
+            <div class="region-places" data-region="부산">
+              <span class="place-chip">해운대</span>
+              <span class="place-chip">광안리</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /schedule-cards -->
+  </aside>
+
+  <!-- ════════════════════════════════
+       중앙: 장소 검색 + 필터 + 카드 목록
+       ════════════════════════════════ -->
+  <div class="attr-list">
+
+    <!-- 검색창 -->
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="장소, 도시 검색" />
+    </div>
+
+    <!-- 필터 토글 버튼 바 -->
+    <div class="filter-bar">
+      <button class="filter-toggle-btn" id="btn-filter-region"
+              onclick="toggleFilterPanel()">
+        지역 <span class="filter-arrow">▾</span>
+      </button>
+      <button class="filter-toggle-btn" id="btn-filter-cat"
+              onclick="toggleFilterPanel()">
+        카테고리 <span class="filter-arrow">▾</span>
+      </button>
+      <button class="filter-clear-btn" id="btn-filter-clear"
+              onclick="clearFilters()" style="display:none">
+        초기화
+      </button>
+    </div>
+
+    <!-- 필터 패널 (토글) -->
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-panel-section">
+        <span class="filter-panel-label">지역</span>
+        <div class="chip-group" id="filter-region-chips">
+          <button class="chip sel" data-value="서울">서울</button>
+          <button class="chip" data-value="경기">경기</button>
+          <button class="chip" data-value="강원">강원</button>
+          <button class="chip" data-value="충청">충청</button>
+          <button class="chip" data-value="경상">경상</button>
+          <button class="chip" data-value="전라">전라</button>
+          <button class="chip" data-value="제주">제주</button>
+        </div>
+      </div>
+      <div class="filter-panel-section">
+        <span class="filter-panel-label">카테고리</span>
+        <div class="chip-group" id="filter-cat-chips">
+          <button class="chip sel" data-value="관광지">관광지</button>
+          <button class="chip" data-value="음식점">음식점</button>
+          <button class="chip" data-value="숙박">숙박</button>
+          <button class="chip" data-value="문화시설">문화시설</button>
+          <button class="chip" data-value="레포츠">레포츠</button>
+        </div>
+      </div>
+      <div class="filter-panel-actions">
+        <button class="btn-apply-filter" onclick="applyFilter()">필터 적용</button>
+      </div>
+    </div>
+
+    <!-- 결과 수 -->
+    <p class="result-count" id="result-count">20개의 장소</p>
+
+    <!-- 장소 카드 그리드 -->
+    <div class="cards-grid">
+
+      <div class="attr-card candidate">
+        <div class="candidate-badge">✓</div>
+        <div class="card-img" style="background:#C8C5F5">🏯</div>
+        <div class="card-info">
+          <div class="card-name">경복궁 <span class="star">★</span></div>
+          <p class="card-cat">관광지 · 서울</p>
+          <button class="card-add added">✓ 추가됨</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#F5C0D2">🍜</div>
+        <div class="card-info">
+          <div class="card-name">광장시장 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">음식점 · 서울</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+      <div class="attr-card candidate">
+        <div class="candidate-badge">✓</div>
+        <div class="card-img" style="background:#C8C5F5">🗼</div>
+        <div class="card-info">
+          <div class="card-name">남산서울타워 <span class="star">★</span></div>
+          <p class="card-cat">관광지 · 서울</p>
+          <button class="card-add added">✓ 추가됨</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#9BD4C0">🎨</div>
+        <div class="card-info">
+          <div class="card-name">인사동 쌈지길 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">문화시설 · 서울</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#F5C0D2">🍲</div>
+        <div class="card-info">
+          <div class="card-name">명동 칼국수 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">음식점 · 서울</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#AFC9E8">🏨</div>
+        <div class="card-info">
+          <div class="card-name">롯데호텔 서울 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">숙박 · 서울</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+      <div class="attr-card candidate">
+        <div class="candidate-badge">✓</div>
+        <div class="card-img" style="background:#C8C5F5">⛩️</div>
+        <div class="card-info">
+          <div class="card-name">불국사 <span class="star">★</span></div>
+          <p class="card-cat">관광지 · 경주</p>
+          <button class="card-add added">✓ 추가됨</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#9BD4C0">🌙</div>
+        <div class="card-info">
+          <div class="card-name">첨성대 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">문화시설 · 경주</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+      <div class="attr-card candidate">
+        <div class="candidate-badge">✓</div>
+        <div class="card-img" style="background:#C8C5F5">🌋</div>
+        <div class="card-info">
+          <div class="card-name">성산일출봉 <span class="star">★</span></div>
+          <p class="card-cat">관광지 · 제주</p>
+          <button class="card-add added">✓ 추가됨</button>
+        </div>
+      </div>
+
+      <div class="attr-card">
+        <div class="card-img" style="background:#F5C0D2">🐷</div>
+        <div class="card-info">
+          <div class="card-name">흑돼지 거리 <span style="color:var(--gray-border)">☆</span></div>
+          <p class="card-cat">음식점 · 제주</p>
+          <button class="card-add" onclick="addToSchedule(this)">+ 일정에 추가</button>
+        </div>
+      </div>
+
+    </div><!-- /cards-grid -->
+  </div><!-- /attr-list -->
+
+  <!-- ════════════════════════════════
+       오른쪽: 지도
+       ════════════════════════════════ -->
+  <div class="map-area">
+    <div class="map-label">대한민국</div>
+    <svg class="map-grid" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <line x1="0" y1="12.5" x2="100" y2="12.5" stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="25"   x2="100" y2="25"   stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="37.5" x2="100" y2="37.5" stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="50"   x2="100" y2="50"   stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="62.5" x2="100" y2="62.5" stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="75"   x2="100" y2="75"   stroke="#888780" stroke-width="0.3"/>
+      <line x1="0" y1="87.5" x2="100" y2="87.5" stroke="#888780" stroke-width="0.3"/>
+      <line x1="12.5" y1="0" x2="12.5" y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="25"   y1="0" x2="25"   y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="37.5" y1="0" x2="37.5" y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="50"   y1="0" x2="50"   y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="62.5" y1="0" x2="62.5" y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="75"   y1="0" x2="75"   y2="100" stroke="#888780" stroke-width="0.3"/>
+      <line x1="87.5" y1="0" x2="87.5" y2="100" stroke="#888780" stroke-width="0.3"/>
+    </svg>
+    <div class="map-marker cand" title="경복궁"      style="background:#534AB7;left:22%;top:24%"></div>
+    <div class="map-marker"      title="광장시장"    style="background:#993556;left:30%;top:30%"></div>
+    <div class="map-marker cand" title="남산서울타워" style="background:#534AB7;left:27%;top:36%"></div>
+    <div class="map-marker"      title="인사동"      style="background:#0F6E56;left:40%;top:20%"></div>
+    <div class="map-marker"      title="명동칼국수"  style="background:#993556;left:52%;top:32%"></div>
+    <div class="map-marker"      title="롯데호텔"    style="background:#185FA5;left:62%;top:24%"></div>
+    <div class="map-marker cand" title="불국사"      style="background:#534AB7;left:72%;top:50%"></div>
+    <div class="map-marker"      title="첨성대"      style="background:#0F6E56;left:78%;top:58%"></div>
+    <div class="map-marker cand" title="성산일출봉"  style="background:#534AB7;left:58%;top:78%"></div>
+    <div class="map-marker"      title="흑돼지거리"  style="background:#993556;left:46%;top:82%"></div>
+    <div class="map-zoom">
+      <button>+</button>
+      <button>−</button>
+    </div>
+  </div>
+
+</section>
+</main>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<script src="../assets/js/common.js"></script>
+<script src="../assets/js/explore.js"></script>
+</body>
+</html>

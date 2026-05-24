@@ -1,0 +1,87 @@
+/* ============================================================
+   TripCraft — auth.css
+   로그인 / 회원가입 페이지 전용 스타일
+   ============================================================ */
+
+#screen-auth {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-page);
+}
+
+.auth-card {
+  width: 340px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08);
+}
+.auth-logo { text-align: center; margin-bottom: 20px; }
+.auth-logo-text { font-size: 20px; font-weight: 500; color: var(--purple-900); letter-spacing: -.3px; }
+.auth-slogan { font-size: var(--font-size-xs); color: var(--gray-muted); margin-top: 2px; }
+
+.tab-switcher {
+  display: flex;
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.auth-tab { flex: 1; padding: 7px; border: none; background: none; font-size: var(--font-size-base); color: var(--gray-muted); cursor: pointer; }
+.auth-tab.active { background: var(--purple-900); color: #fff; }
+
+.field-label { display: block; font-size: var(--font-size-xs); color: var(--gray-muted); margin: 12px 0 4px; }
+.field-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-page);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+.field-input:focus { border-color: var(--purple-900); }
+
+.submit-btn {
+  width: 100%;
+  padding: 9px;
+  margin-top: 20px;
+  background: var(--purple-900);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  cursor: pointer;
+}
+.submit-btn:hover:not(:disabled) { opacity: 0.9; }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.divider { display: flex; align-items: center; gap: 8px; margin: 14px 0; }
+.divider-line { flex: 1; height: 0.5px; background: var(--gray-border); }
+.divider-text { font-size: var(--font-size-xs); color: var(--gray-muted); }
+
+.kakao-btn {
+  width: 100%;
+  padding: 9px;
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-page);
+  font-size: var(--font-size-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.kakao-btn:hover { background: #FEE500; border-color: #FEE500; }
+
+.switch-link { text-align: center; margin-top: 14px; font-size: var(--font-size-xs); color: var(--gray-muted); }
+.switch-link a { color: var(--purple-900); text-decoration: none; cursor: pointer; }
+.switch-link a:hover { text-decoration: underline; }

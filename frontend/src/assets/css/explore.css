@@ -1,0 +1,433 @@
+/* ============================================================
+   TripCraft — explore.css
+   관광지 탐색 페이지 전용 스타일
+   Layout: [내 일정 목록 사이드바] [장소 목록] [지도]
+   ============================================================ */
+
+/* ── 전체 레이아웃 ── */
+#screen-explore {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ================================================================
+   1. 내 일정 목록 사이드바 (왼쪽 패널 — 기존 지역/카테고리 자리)
+   ================================================================ */
+.schedule-list-sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-surface);
+  border-right: 0.5px solid var(--gray-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.schedule-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 0.5px solid var(--gray-border);
+  flex-shrink: 0;
+}
+.schedule-list-title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.btn-goto-schedule {
+  font-size: var(--font-size-xs);
+  color: var(--gray-muted);
+  background: none;
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  padding: 3px 8px;
+  text-decoration: none;
+}
+.btn-goto-schedule:hover { color: var(--purple-900); border-color: var(--purple-100); }
+
+.schedule-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── 일정 카드 ── */
+.schedule-card {
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.schedule-card:hover { border-color: var(--purple-100); }
+.schedule-card.active {
+  border-color: var(--purple-900);
+  background: var(--purple-50);
+}
+
+.schedule-card-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.schedule-card-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-select-btn {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: var(--purple-900);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.schedule-card.active .schedule-select-btn {
+  background: var(--teal-600);
+}
+
+.schedule-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.schedule-card-meta span {
+  font-size: var(--font-size-xs);
+  color: var(--gray-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.schedule-dates { margin-left: auto; }
+
+/* ── 지역별 장소 목록 ── */
+.schedule-regions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.schedule-region {}
+.region-name {
+  font-size: var(--font-size-xs);
+  color: var(--purple-900);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 3px;
+}
+.region-places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.place-chip {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--gray-border);
+  background: var(--bg-page);
+  color: var(--gray-dark);
+  white-space: nowrap;
+}
+.schedule-card.active .place-chip {
+  border-color: var(--purple-100);
+  background: #fff;
+}
+.place-chip.more {
+  color: var(--gray-muted);
+  border-style: dashed;
+}
+
+.schedule-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--gray-muted);
+  font-size: var(--font-size-xs);
+}
+.schedule-empty p { margin-bottom: 8px; }
+.schedule-empty button {
+  font-size: var(--font-size-xs);
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border: 0.5px solid var(--purple-100);
+  border-radius: var(--radius-md);
+  padding: 5px 12px;
+}
+
+/* ================================================================
+   2. 장소 목록 패널 (중앙)
+   ================================================================ */
+.attr-list {
+  width: 300px;
+  min-width: 300px;
+  background: var(--bg-page);
+  border-right: 0.5px solid var(--gray-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── 검색창 ── */
+.search-bar {
+  height: 34px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  margin: 12px 12px 0;
+  flex-shrink: 0;
+}
+.search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  color: var(--text-primary);
+}
+.search-icon { color: var(--gray-muted); font-size: 13px; }
+
+/* ── 필터 바 (버튼 토글) ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 0;
+  flex-shrink: 0;
+}
+.filter-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 0.5px solid var(--gray-border);
+  background: var(--bg-surface);
+  color: var(--gray-dark);
+  font-size: var(--font-size-xs);
+  transition: border-color .12s, background .12s;
+}
+.filter-toggle-btn:hover { border-color: var(--gray-dark); }
+.filter-toggle-btn.open,
+.filter-toggle-btn.has-selection {
+  border-color: var(--purple-900);
+  background: var(--purple-50);
+  color: var(--purple-900);
+}
+.filter-arrow {
+  font-size: 9px;
+  transition: transform .15s;
+}
+.filter-toggle-btn.open .filter-arrow { transform: rotate(180deg); }
+.filter-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--purple-900);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 500;
+}
+.filter-clear-btn {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--gray-muted);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  text-decoration: underline;
+}
+.filter-clear-btn:hover { color: var(--text-primary); }
+
+/* ── 필터 패널 (드롭다운) ── */
+.filter-panel {
+  margin: 6px 12px 0;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+.filter-panel.open { display: flex; }
+.filter-panel-section {}
+.filter-panel-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--gray-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 6px;
+}
+.filter-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+  border-top: 0.5px solid var(--gray-border);
+}
+.btn-apply-filter {
+  font-size: var(--font-size-xs);
+  color: #fff;
+  background: var(--purple-900);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 5px 14px;
+}
+
+/* ── 결과 수 ── */
+.result-count {
+  font-size: var(--font-size-xs);
+  color: var(--gray-muted);
+  margin: 6px 12px 4px;
+  flex-shrink: 0;
+}
+
+/* ── 장소 카드 그리드 ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+}
+
+.attr-card {
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color .15s;
+  position: relative;
+}
+.attr-card:hover { border-color: var(--purple-900); }
+.attr-card.candidate { border-color: var(--teal-600); }
+
+.card-img {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.card-info { padding: 6px 8px; }
+.card-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-cat { font-size: var(--font-size-xs); color: var(--gray-muted); margin-top: 2px; }
+
+.card-add {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 0;
+  font-size: var(--font-size-xs);
+  text-align: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--purple-900);
+  background: none;
+  cursor: pointer;
+  transition: background .12s;
+}
+.card-add:hover { background: var(--purple-50); }
+.card-add.added { color: var(--teal-600); background: var(--teal-50); cursor: default; }
+
+.candidate-badge {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+}
+
+/* ================================================================
+   3. 지도 영역 (오른쪽)
+   ================================================================ */
+.map-area {
+  flex: 1;
+  background: #E8E5DC;
+  position: relative;
+  overflow: hidden;
+}
+.map-label {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  padding: 5px 14px;
+  font-size: var(--font-size-xs);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+}
+.map-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  opacity: .25;
+}
+.map-marker {
+  position: absolute;
+  width: 20px; height: 20px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform .15s;
+  cursor: pointer;
+}
+.map-marker:hover { transform: rotate(-45deg) scale(1.2); }
+.map-marker.cand { border: 2px solid white; }
+.map-zoom {
+  position: absolute;
+  bottom: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.map-zoom button {
+  width: 28px; height: 28px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--gray-dark);
+  box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
