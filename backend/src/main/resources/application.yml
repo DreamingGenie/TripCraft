@@ -18,6 +18,10 @@ jwt:
   access-token-expiry: 1800000    # 30분 (ms)
   refresh-token-expiry: 604800000 # 7일 (ms)
 
+tour-api:
+  service-key: ${TOUR_API_KEY}
+  base-url: https://apis.data.go.kr/B551011/KorService1
+
 logging:
   level:
     com.tripcraft: DEBUG
