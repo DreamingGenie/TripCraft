@@ -71,6 +71,38 @@
   border-color: var(--purple-900);
   background: var(--purple-50);
 }
+.schedule-card.drop-over {
+  border-color: var(--teal-600);
+  background: var(--teal-50);
+  box-shadow: 0 0 0 2px rgba(15,110,86,.18);
+}
+
+/* ── 사이드바 후보군 카테고리 그룹 ── */
+.cand-group {
+  margin-top: 8px;
+}
+.cand-group-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--purple-900);
+  margin-bottom: 4px;
+}
+.cand-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  padding: 2px 7px;
+  margin: 2px 2px 0 0;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--teal-200, #9BD4C0);
+  background: var(--teal-50, #E1F5EE);
+  color: var(--teal-700, #0F6E56);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .schedule-card-top {
   display: flex;
@@ -307,13 +339,31 @@
   flex-shrink: 0;
 }
 
+/* ── 스크롤 래퍼 ── */
+.cards-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 12px 12px;
+}
+
+/* ── 그룹 섹션 헤더 (지역·카테고리별 분류) ── */
+.group-section-header {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--purple-900);
+  padding: 10px 2px 4px;
+  border-bottom: 0.5px solid var(--purple-100);
+  margin-bottom: 6px;
+  letter-spacing: .2px;
+}
+
 /* ── 장소 카드 그리드 ── */
 .cards-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 0 12px 12px;
-  overflow-y: auto;
+  margin-bottom: 4px;
 }
 
 .attr-card {

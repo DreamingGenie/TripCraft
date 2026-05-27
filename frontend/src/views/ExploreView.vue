@@ -10,8 +10,11 @@
       </div>
       <div class="schedule-cards">
         <div v-for="s in trips" :key="s.id"
-             class="schedule-card" :class="{ active: activeTrip === s.id }"
-             @click="activeTrip = s.id">
+             class="schedule-card" :class="{ active: activeTrip === s.id, 'drop-over': s.dropOver }"
+             @click="activeTrip = s.id"
+             @dragover.prevent="s.dropOver = true"
+             @dragleave="s.dropOver = false"
+             @drop="onDropToTrip($event, s)">
           <div class="schedule-card-top">
             <span class="schedule-card-name">{{ s.title }}</span>
             <button class="schedule-select-btn">{{ activeTrip === s.id ? '✓ 선택됨' : '선택' }}</button>
@@ -20,7 +23,17 @@
             <span>👥 {{ s.memberCount }}명</span>
             <span class="schedule-dates">{{ s.startDate }} ~ {{ s.endDate }}</span>
           </div>
-          <div class="schedule-regions">
+
+          <!-- 선택된 일정: 후보군 카테고리별 표시 -->
+          <template v-if="activeTrip === s.id && candidateGroups.length">
+            <div v-for="g in candidateGroups" :key="g.cat" class="cand-group">
+              <span class="cand-group-label">{{ g.cat }}</span>
+              <div v-for="c in g.items" :key="c.id" class="cand-chip">
+                {{ c.attractionName }}
+              </div>
+            </div>
+          </template>
+          <div v-else class="schedule-regions">
             <span style="font-size:11px;color:var(--gray-muted)">{{ s.candidateCount }}개 장소</span>
           </div>
         </div>
@@ -82,32 +95,42 @@
 
       <p class="result-count">{{ total }}개의 장소</p>
 
-      <div v-if="loading" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
-      <div v-else class="cards-grid">
-        <div v-for="a in attractions" :key="a.id"
-             class="attr-card" :class="{ candidate: addedIds.has(a.id) }">
-          <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
-          <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
-            <img v-if="a.firstImage" :src="a.firstImage" style="width:100%;height:100%;object-fit:cover" />
-            <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+      <!-- 스크롤 영역 -->
+      <div class="cards-scroll">
+        <div v-if="loading" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
+        <template v-else>
+          <div v-for="group in groupedAttractions" :key="group.label">
+            <div v-if="group.label" class="group-section-header">{{ group.label }}</div>
+            <div class="cards-grid">
+              <div v-for="a in group.items" :key="a.id"
+                   class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
+                   draggable="true"
+                   @dragstart="onCardDragStart($event, a)">
+                <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
+                <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
+                  <img v-if="a.firstImage" :src="a.firstImage" style="width:100%;height:100%;object-fit:cover" />
+                  <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+                </div>
+                <div class="card-info">
+                  <div class="card-name">{{ a.title }}</div>
+                  <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
+                  <button class="card-add" :class="{ added: addedIds.has(a.id) }"
+                          @click="addToTrip(a)">
+                    {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card-info">
-            <div class="card-name">{{ a.title }} <span style="color:var(--gray-border)">{{ a.favorited ? '★' : '☆' }}</span></div>
-            <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
-            <button class="card-add" :class="{ added: addedIds.has(a.id) }"
-                    @click="addToTrip(a)">
-              {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
-            </button>
-          </div>
-        </div>
-      </div>
+        </template>
 
-      <div v-if="totalPages > 1" class="pagination" style="margin-top:12px">
-        <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
-        <button v-for="p in totalPages" :key="p"
-                class="page-btn" :class="{ active: page === p - 1 }"
-                @click="goPage(p - 1)">{{ p }}</button>
-        <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+        <div v-if="totalPages > 1" class="pagination" style="margin-top:12px;padding-bottom:12px">
+          <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
+          <button v-for="p in totalPages" :key="p"
+                  class="page-btn" :class="{ active: page === p - 1 }"
+                  @click="goPage(p - 1)">{{ p }}</button>
+          <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
+        </div>
       </div>
     </div>
 
@@ -133,6 +156,7 @@ const trips = ref([])
 const tripsLoading = ref(false)
 const activeTrip = ref(null)
 const addedIds = ref(new Set())
+const activeTripCandidates = ref([])
 
 const attractions = ref([])
 const total = ref(0)
@@ -150,6 +174,34 @@ const PAGE_SIZE = 20
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
+// 후보군 카테고리별 그룹
+const candidateGroups = computed(() => {
+  const groups = {}
+  for (const c of activeTripCandidates.value) {
+    const cat = c.category || '기타'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push(c)
+  }
+  return Object.entries(groups).map(([cat, items]) => ({ cat, items }))
+})
+
+// 장소 목록 그룹화
+// 지역 필터 선택 시 → 카테고리별 / 그 외 → 지역별
+const groupedAttractions = computed(() => {
+  if (!attractions.value.length) return []
+  if (selectedRegion.value && selectedCat.value) {
+    return [{ label: null, items: attractions.value }]
+  }
+  const key = selectedRegion.value ? 'category' : 'region'
+  const groups = {}
+  for (const a of attractions.value) {
+    const label = a[key] || '기타'
+    if (!groups[label]) groups[label] = []
+    groups[label].push(a)
+  }
+  return Object.entries(groups).map(([label, items]) => ({ label, items }))
+})
+
 const COLORS = { 12: '#C8C5F5', 14: '#9BD4C0', 28: '#AFE8C0', 32: '#AFC9E8', 38: '#F5D0A9', 39: '#F5C0D2' }
 const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 39: '🍜' }
 function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
@@ -161,13 +213,22 @@ let naverMap = null
 let markers = []
 let infoWindow = null
 
+const REGION_CENTERS = {
+  '서울': { lat: 37.5665, lng: 126.9780, zoom: 11 },
+  '경기': { lat: 37.4138, lng: 127.5183, zoom: 10 },
+  '강원': { lat: 37.8228, lng: 128.1555, zoom: 9 },
+  '충청': { lat: 36.6524, lng: 127.4900, zoom: 9 },
+  '경상': { lat: 35.7374, lng: 128.3311, zoom: 9 },
+  '전라': { lat: 35.4203, lng: 127.2558, zoom: 9 },
+  '제주': { lat: 33.4996, lng: 126.5312, zoom: 10 },
+}
+
 function loadNaverScript() {
   return new Promise((resolve, reject) => {
     if (window.naver?.maps) { resolve(); return }
     const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
     const script = document.createElement('script')
     script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`
-
     script.onload = resolve
     script.onerror = reject
     document.head.appendChild(script)
@@ -176,10 +237,30 @@ function loadNaverScript() {
 
 function initMap() {
   naverMap = new naver.maps.Map(mapEl.value, {
-    center: new naver.maps.LatLng(36.5, 127.5),
+    center: new naver.maps.LatLng(36.2, 127.8),
     zoom: 7,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
+  // 컨테이너 크기 확정 후 지도 갱신 (절반 표시 버그 방지)
+  setTimeout(() => naver.maps.Event.trigger(naverMap, 'resize'), 100)
+}
+
+function fitMap() {
+  if (!naverMap) return
+  if (markers.length === 0) {
+    const r = REGION_CENTERS[selectedRegion.value]
+    if (r) {
+      naverMap.setCenter(new naver.maps.LatLng(r.lat, r.lng))
+      naverMap.setZoom(r.zoom)
+    } else {
+      naverMap.setCenter(new naver.maps.LatLng(36.2, 127.8))
+      naverMap.setZoom(7)
+    }
+    return
+  }
+  const bounds = new naver.maps.LatLngBounds()
+  markers.forEach(m => bounds.extend(m.getPosition()))
+  naverMap.fitBounds(bounds, { top: 40, right: 20, bottom: 40, left: 20 })
 }
 
 function updateMarkers() {
@@ -198,17 +279,48 @@ function updateMarkers() {
     })
     markers.push(marker)
   })
+  fitMap()
 }
 
 watch(attractions, updateMarkers)
 
+// 활성 일정 변경 시 후보군 로드
+watch(activeTrip, async (id) => {
+  if (!id) { activeTripCandidates.value = []; addedIds.value = new Set(); return }
+  try {
+    const detail = await tripApi.get(id)
+    activeTripCandidates.value = detail.candidates || []
+    addedIds.value = new Set(detail.candidates.map(c => c.attractionId))
+  } catch {
+    activeTripCandidates.value = []
+  }
+})
+
+// ── 드래그 ──
+let draggedAttraction = null
+
+function onCardDragStart(e, attraction) {
+  draggedAttraction = attraction
+  e.dataTransfer.effectAllowed = 'copy'
+}
+
+async function onDropToTrip(e, trip) {
+  trip.dropOver = false
+  if (!draggedAttraction) return
+  const prev = activeTrip.value
+  activeTrip.value = trip.id
+  await addToTrip(draggedAttraction)
+  if (prev !== trip.id) activeTrip.value = prev
+  draggedAttraction = null
+}
+
 async function loadTrips() {
   tripsLoading.value = true
   try {
-    trips.value = await tripApi.list()
+    trips.value = (await tripApi.list()).map(t => ({ ...t, dropOver: false }))
     if (trips.value.length) activeTrip.value = trips.value[0].id
   } catch {
-    // 비로그인 상태
+    // 비로그인
   } finally {
     tripsLoading.value = false
   }
@@ -261,6 +373,10 @@ async function addToTrip(attraction) {
   try {
     await tripApi.addCandidate(activeTrip.value, attraction.id)
     addedIds.value = new Set([...addedIds.value, attraction.id])
+    activeTripCandidates.value = [
+      ...activeTripCandidates.value,
+      { id: Date.now(), attractionId: attraction.id, attractionName: attraction.title, category: attraction.category }
+    ]
     toast.show(`"${attraction.title}" 후보군에 추가됐어요`)
     const t = trips.value.find(t => t.id === activeTrip.value)
     if (t) t.candidateCount++
