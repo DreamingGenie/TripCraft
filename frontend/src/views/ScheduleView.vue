@@ -90,6 +90,12 @@
                    :style="{ top: dragPreview.top + 'px', height: '120px' }">
                 {{ dragging?.attractionName }}
               </div>
+              <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
+                   class="transit-pill-block"
+                   :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes, 24) + 'px' }">
+                <span class="transit-pill-text">{{ pill.durationMinutes }}분 · {{ pill.transportMode }}</span>
+              </div>
+
               <div v-for="ev in d.events" :key="ev.id"
                    class="event-block" :data-color="ev.color"
                    :class="{ 'event-dragging': ev.dragging }"
@@ -116,6 +122,7 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
+import { getTransitTime } from '@/api/transit'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
@@ -220,6 +227,44 @@ function buildEvent(b, cand) {
     height,
     timeLabel: `${startStr} – ${addMins(startStr, height)}`,
     dragging: false,
+    transitFromPrev: null,
+  }
+}
+
+function getTransitPills(day) {
+  const sorted = [...day.events].sort((a, b) => a.top - b.top)
+  const pills = []
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const curr = sorted[i]
+    if (curr.transitFromPrev) {
+      pills.push({
+        top: prev.top + prev.height,
+        durationMinutes: curr.transitFromPrev.durationMinutes,
+        transportMode: curr.transitFromPrev.transportMode,
+      })
+    }
+  }
+  return pills
+}
+
+async function fetchTransitForDay(day) {
+  const sorted = [...day.events].sort((a, b) => a.top - b.top)
+  for (let i = 0; i < sorted.length; i++) {
+    if (i === 0) { sorted[0].transitFromPrev = null; continue }
+    const prev = sorted[i - 1]
+    const curr = sorted[i]
+    const prevCand = candidates.value.find(c => c.id === prev.candidateId)
+    const currCand = candidates.value.find(c => c.id === curr.candidateId)
+    if (!prevCand?.attractionId || !currCand?.attractionId) continue
+    try {
+      curr.transitFromPrev = await getTransitTime(
+        prevCand.attractionId, currCand.attractionId,
+        Math.floor(prev.top / 60), 0
+      )
+    } catch {
+      curr.transitFromPrev = null
+    }
   }
 }
 
@@ -234,6 +279,7 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
+    days.value.forEach(d => { if (d.events.length > 1) fetchTransitForDay(d) })
   } catch {
     toast.show('일정 로드 실패')
   }
@@ -348,6 +394,7 @@ async function dropCandidate(day, top, startTime) {
     })
     candidate.placed = true
     toast.show(`"${candidate.attractionName}" 추가됐어요`)
+    fetchTransitForDay(day)
   } catch (err) {
     toast.show(err.message || '추가 실패')
   }
@@ -374,6 +421,8 @@ async function moveEvent(day, top, startTime) {
       timeLabel: `${startTime} – ${addMins(startTime, ev.height)}`,
       dragging: false,
     })
+    fetchTransitForDay(day)
+    if (fromDay !== day) fetchTransitForDay(fromDay)
   } catch (err) {
     toast.show(err.message || '이동 실패')
   }
@@ -403,6 +452,7 @@ async function removeEventFrom(day, ev) {
       cand.placed = days.value.some(d => d.events.some(e => e.candidateId === ev.candidateId))
     }
     toast.show('장소를 일정에서 제거했어요')
+    fetchTransitForDay(day)
   } catch (err) {
     toast.show(err.message || '삭제 실패')
   }

@@ -113,23 +113,7 @@
 
     <!-- 오른쪽: 지도 -->
     <div class="map-area">
-      <div class="map-label">대한민국</div>
-      <svg class="map-grid" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line v-for="n in 7" :key="'h'+n" :x1="0" :y1="n*12.5" :x2="100" :y2="n*12.5" stroke="#888780" stroke-width="0.3"/>
-        <line v-for="n in 7" :key="'v'+n" :x1="n*12.5" :y1="0" :x2="n*12.5" :y2="100" stroke="#888780" stroke-width="0.3"/>
-      </svg>
-      <div v-for="a in attractions.filter(x => x.latitude && x.longitude)" :key="'m'+a.id"
-           class="map-marker" :class="{ cand: addedIds.has(a.id) }"
-           :title="a.title"
-           :style="{
-             background: addedIds.has(a.id) ? '#534AB7' : '#888',
-             left: mapX(a.longitude) + '%',
-             top: mapY(a.latitude) + '%'
-           }">
-      </div>
-      <div class="map-zoom">
-        <button>+</button><button>−</button>
-      </div>
+      <div ref="mapEl" class="naver-map"></div>
     </div>
 
   </section>
@@ -137,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, inject, watch, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { searchAttractions } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
@@ -170,8 +154,53 @@ const COLORS = { 12: '#C8C5F5', 14: '#9BD4C0', 28: '#AFE8C0', 32: '#AFC9E8', 38:
 const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 39: '🍜' }
 function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
 function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
-function mapX(lng) { return ((lng - 124) / (132 - 124) * 100).toFixed(1) }
-function mapY(lat) { return ((39 - lat) / (39 - 33) * 100).toFixed(1) }
+
+// ── Naver Maps ──
+const mapEl = ref(null)
+let naverMap = null
+let markers = []
+let infoWindow = null
+
+function loadNaverScript() {
+  return new Promise((resolve, reject) => {
+    if (window.naver?.maps) { resolve(); return }
+    const clientId = import.meta.env.VITE_NAVER_MAP_CLIENT_ID
+    const script = document.createElement('script')
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`
+
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+function initMap() {
+  naverMap = new naver.maps.Map(mapEl.value, {
+    center: new naver.maps.LatLng(36.5, 127.5),
+    zoom: 7,
+  })
+  infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
+}
+
+function updateMarkers() {
+  if (!naverMap) return
+  markers.forEach(m => m.setMap(null))
+  markers = []
+  infoWindow.close()
+
+  attractions.value.forEach(a => {
+    if (!a.latitude || !a.longitude) return
+    const position = new naver.maps.LatLng(a.latitude, a.longitude)
+    const marker = new naver.maps.Marker({ map: naverMap, position, title: a.title })
+    naver.maps.Event.addListener(marker, 'click', () => {
+      infoWindow.setContent(`<div style="padding:6px 10px;font-size:12px;white-space:nowrap">${a.title}</div>`)
+      infoWindow.open(naverMap, marker)
+    })
+    markers.push(marker)
+  })
+}
+
+watch(attractions, updateMarkers)
 
 async function loadTrips() {
   tripsLoading.value = true
@@ -240,8 +269,15 @@ async function addToTrip(attraction) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadTrips()
   loadAttractions()
+  try {
+    await loadNaverScript()
+    initMap()
+  } catch (e) {
+    console.error('Naver Maps 로드 실패:', e)
+    toast.show('지도를 불러오지 못했어요')
+  }
 })
 </script>

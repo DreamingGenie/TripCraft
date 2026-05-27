@@ -388,6 +388,10 @@
   position: relative;
   overflow: hidden;
 }
+.naver-map {
+  width: 100%;
+  height: 100%;
+}
 .map-label {
   position: absolute;
   top: 12px; left: 50%;
