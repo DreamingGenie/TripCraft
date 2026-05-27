@@ -211,15 +211,6 @@ let markers = []
 let markerIdSet = new Set()
 let infoWindow = null
 
-const REGION_CENTERS = {
-  '서울': { lat: 37.5665, lng: 126.9780, zoom: 11 },
-  '경기': { lat: 37.4138, lng: 127.5183, zoom: 10 },
-  '강원': { lat: 37.8228, lng: 128.1555, zoom: 9 },
-  '충청': { lat: 36.6524, lng: 127.4900, zoom: 9 },
-  '경상': { lat: 35.7374, lng: 128.3311, zoom: 9 },
-  '전라': { lat: 35.4203, lng: 127.2558, zoom: 9 },
-  '제주': { lat: 33.4996, lng: 126.5312, zoom: 10 },
-}
 
 function loadNaverScript() {
   return new Promise((resolve, reject) => {
@@ -239,16 +230,12 @@ function initMap() {
     zoom: 8,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
-  // 레이아웃 확정 후 resize → 한국 범위에 fitBounds
-  requestAnimationFrame(() => {
+  // resize 완료 이벤트 수신 후 updateMarkers (후보군 마커 + fitMap)
+  // resize 전에 fitBounds를 호출하면 SDK가 아직 컨테이너 크기를 모르므로 무효
+  setTimeout(() => {
+    naver.maps.Event.once(naverMap, 'resize', () => updateMarkers())
     naver.maps.Event.trigger(naverMap, 'resize')
-    const koreaBounds = new naver.maps.LatLngBounds(
-      new naver.maps.LatLng(33.0, 124.5),
-      new naver.maps.LatLng(38.9, 130.0)
-    )
-    naverMap.fitBounds(koreaBounds, { top: 20, right: 20, bottom: 20, left: 20 })
-    setTimeout(() => naver.maps.Event.trigger(naverMap, 'resize'), 300)
-  })
+  }, 100)
 }
 
 const MAX_ZOOM = 12
@@ -256,22 +243,17 @@ const MAX_ZOOM = 12
 function fitMap() {
   if (!naverMap) return
   if (markers.length === 0) {
-    const r = REGION_CENTERS[selectedRegion.value]
-    if (r) {
-      naverMap.setCenter(new naver.maps.LatLng(r.lat, r.lng))
-      naverMap.setZoom(Math.min(r.zoom, MAX_ZOOM))
-    } else {
-      const koreaBounds = new naver.maps.LatLngBounds(
-        new naver.maps.LatLng(33.0, 124.5),
-        new naver.maps.LatLng(38.9, 130.0)
-      )
-      naverMap.fitBounds(koreaBounds, { top: 20, right: 20, bottom: 20, left: 20 })
-    }
+    // 후보군 없음 → 한국 전체 표시
+    naverMap.fitBounds(new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(33.0, 124.5),
+      new naver.maps.LatLng(38.9, 130.0)
+    ), { top: 20, right: 20, bottom: 20, left: 20 })
     return
   }
+  // 후보군 있음 → 마커 범위에 맞춤 (zoom 상한 12)
   const bounds = new naver.maps.LatLngBounds()
   markers.forEach(m => bounds.extend(m.getPosition()))
-  naverMap.fitBounds(bounds, { top: 40, right: 20, bottom: 40, left: 20 })
+  naverMap.fitBounds(bounds, { top: 60, right: 40, bottom: 60, left: 40 })
   setTimeout(() => { if (naverMap.getZoom() > MAX_ZOOM) naverMap.setZoom(MAX_ZOOM) }, 150)
 }
 
