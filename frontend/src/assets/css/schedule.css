@@ -273,6 +273,33 @@
 .event-name { font-size: var(--font-size-xs); font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .event-time { font-size: 9px; color: var(--gray-muted); }
 
+.transit-pill-block {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  background: repeating-linear-gradient(
+    -45deg,
+    #E1F5EE,
+    #E1F5EE 4px,
+    #f0faf6 4px,
+    #f0faf6 8px
+  );
+  border: 1px dashed #0F6E56;
+  border-radius: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+.transit-pill-text {
+  font-size: 9px;
+  color: #0F6E56;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .event-del {
   position: absolute; top: 3px; right: 4px;
   background: none; border: none;

@@ -92,3 +92,15 @@ trip_block
 - 대중교통 경로 없음 (도서·산간) → transport_mode='NONE', "경로 없음" 표시
 
 **스키마 참조**: `docs/02_design/schema.sql`
+
+## ODsay 구현 현황 (2026-05-27 완료)
+
+- 엔드포인트: `https://api.odsay.com/v1/api/searchPubTransPathT`
+  - `/transit/path` 아님 — 해당 경로는 ODsay에 존재하지 않음
+- 인증: **URI 서비스 키** + `Referer: http://localhost:5173` 헤더
+  - 서버 키는 공인 IP 등록 필요 → 개발 환경 IP 변동 문제로 URI 키 방식 채택
+- `OdsayClient`: `com.tripcraft.plan.client.OdsayClient`
+- `TransitService/Impl`: `com.tripcraft.plan.service`
+- `GET /api/transit?fromId=&toId=&hour=&transportType=` — 인증 불필요
+- 프론트엔드: `frontend/src/api/transit.js` → ScheduleView `fetchTransitForDay()` 호출
+- TransitPill: 블록 사이 독립 요소, 높이 = 소요 분(px), 사선 패턴 배경
