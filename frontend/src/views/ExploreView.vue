@@ -282,24 +282,25 @@ function clearMarkers() {
   infoWindow?.close()
 }
 
-// 무한 스크롤: 새로 추가된 attractions만 마커 추가
+// 후보군 마커: activeTripCandidates 기준
 function updateMarkers() {
   if (!naverMap) return
-  attractions.value.forEach(a => {
-    if (!a.latitude || !a.longitude || markerIdSet.has(a.id)) return
-    const position = new naver.maps.LatLng(a.latitude, a.longitude)
-    const marker = new naver.maps.Marker({ map: naverMap, position, title: a.title })
+  clearMarkers()
+  activeTripCandidates.value.forEach(c => {
+    if (!c.latitude || !c.longitude) return
+    const position = new naver.maps.LatLng(c.latitude, c.longitude)
+    const marker = new naver.maps.Marker({ map: naverMap, position, title: c.attractionName })
     naver.maps.Event.addListener(marker, 'click', () => {
-      infoWindow.setContent(`<div style="padding:6px 10px;font-size:12px;white-space:nowrap">${a.title}</div>`)
+      infoWindow.setContent(`<div style="padding:6px 10px;font-size:12px;white-space:nowrap">${c.attractionName}</div>`)
       infoWindow.open(naverMap, marker)
     })
     markers.push(marker)
-    markerIdSet.add(a.id)
+    markerIdSet.add(c.attractionId)
   })
   fitMap()
 }
 
-watch(attractions, updateMarkers)
+watch(activeTripCandidates, updateMarkers)
 
 // 활성 일정 변경 시 후보군 로드
 watch(activeTrip, async (id) => {
@@ -358,7 +359,6 @@ async function loadAttractions(append = false) {
       attractions.value = [...attractions.value, ...data.items]
     } else {
       attractions.value = data.items
-      clearMarkers()
     }
     total.value = data.total
   } catch {
@@ -399,7 +399,8 @@ async function addToTrip(attraction) {
     addedIds.value = new Set([...addedIds.value, attraction.id])
     activeTripCandidates.value = [
       ...activeTripCandidates.value,
-      { id: Date.now(), attractionId: attraction.id, attractionName: attraction.title, category: attraction.category }
+      { id: Date.now(), attractionId: attraction.id, attractionName: attraction.title,
+        category: attraction.category, latitude: attraction.latitude, longitude: attraction.longitude }
     ]
     toast.show(`"${attraction.title}" 후보군에 추가됐어요`)
     const t = trips.value.find(t => t.id === activeTrip.value)

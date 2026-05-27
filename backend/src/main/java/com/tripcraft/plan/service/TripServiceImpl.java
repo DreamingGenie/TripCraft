@@ -81,8 +81,10 @@ public class TripServiceImpl implements TripService {
             String img = a != null ? a.getFirstImage() : null;
             String cat = a != null ? TYPE_NAME.getOrDefault(a.getContentTypeId(), "") : "";
             String city = SIDO_NAME.getOrDefault(c.getCityCode(), "");
+            var lat = a != null ? a.getLatitude() : null;
+            var lng = a != null ? a.getLongitude() : null;
             return new CandidateItem(c.getId(), c.getAttractionId(), name, img,
-                c.getCityCode(), city, cat, c.getSource(),
+                c.getCityCode(), city, cat, c.getSource(), lat, lng,
                 blocksByCandidate.getOrDefault(c.getId(), List.of()));
         }).toList();
 
