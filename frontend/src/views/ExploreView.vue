@@ -96,41 +96,35 @@
       <p class="result-count">{{ total }}개의 장소</p>
 
       <!-- 스크롤 영역 -->
-      <div class="cards-scroll">
-        <div v-if="loading" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
-        <template v-else>
-          <div v-for="group in groupedAttractions" :key="group.label">
-            <div v-if="group.label" class="group-section-header">{{ group.label }}</div>
-            <div class="cards-grid">
-              <div v-for="a in group.items" :key="a.id"
-                   class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
-                   draggable="true"
-                   @dragstart="onCardDragStart($event, a)">
-                <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
-                <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
-                  <img v-if="a.firstImage" :src="a.firstImage" style="width:100%;height:100%;object-fit:cover" />
-                  <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
-                </div>
-                <div class="card-info">
-                  <div class="card-name">{{ a.title }}</div>
-                  <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
-                  <button class="card-add" :class="{ added: addedIds.has(a.id) }"
-                          @click="addToTrip(a)">
-                    {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
-                  </button>
-                </div>
+      <div ref="scrollEl" class="cards-scroll">
+        <div v-for="group in groupedAttractions" :key="group.label">
+          <div v-if="group.label" class="group-section-header">{{ group.label }}</div>
+          <div class="cards-grid">
+            <div v-for="a in group.items" :key="a.id"
+                 class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
+                 draggable="true"
+                 @dragstart="onCardDragStart($event, a)">
+              <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
+              <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
+                <img v-if="a.firstImage" :src="a.firstImage" style="width:100%;height:100%;object-fit:cover" />
+                <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+              </div>
+              <div class="card-info">
+                <div class="card-name">{{ a.title }}</div>
+                <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
+                <button class="card-add" :class="{ added: addedIds.has(a.id) }"
+                        @click="addToTrip(a)">
+                  {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
+                </button>
               </div>
             </div>
           </div>
-        </template>
-
-        <div v-if="totalPages > 1" class="pagination" style="margin-top:12px;padding-bottom:12px">
-          <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
-          <button v-for="p in totalPages" :key="p"
-                  class="page-btn" :class="{ active: page === p - 1 }"
-                  @click="goPage(p - 1)">{{ p }}</button>
-          <button class="page-btn" :disabled="page >= totalPages - 1" @click="goPage(page + 1)">›</button>
         </div>
+
+        <!-- 무한 스크롤 센티넬 -->
+        <div ref="sentinel" style="height:1px"></div>
+        <div v-if="loading" style="padding:16px;text-align:center;color:var(--gray-muted);font-size:12px">로딩 중...</div>
+        <div v-else-if="!hasMore && attractions.length" style="padding:12px;text-align:center;color:var(--gray-muted);font-size:11px">모든 장소를 불러왔어요</div>
       </div>
     </div>
 
@@ -144,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch, onMounted } from 'vue'
+import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { searchAttractions } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
@@ -162,17 +156,20 @@ const attractions = ref([])
 const total = ref(0)
 const page = ref(0)
 const loading = ref(false)
+const hasMore = computed(() => attractions.value.length < total.value)
 
 const searchQuery = ref('')
 const filterOpen = ref(false)
 const selectedRegion = ref('')
 const selectedCat = ref('')
 
+const scrollEl = ref(null)
+const sentinel = ref(null)
+let observer = null
+
 const regions = ['서울', '경기', '강원', '충청', '경상', '전라', '제주']
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
 const PAGE_SIZE = 20
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 // 후보군 카테고리별 그룹
 const candidateGroups = computed(() => {
@@ -211,6 +208,7 @@ function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
 const mapEl = ref(null)
 let naverMap = null
 let markers = []
+let markerIdSet = new Set()
 let infoWindow = null
 
 const REGION_CENTERS = {
@@ -253,13 +251,15 @@ function initMap() {
   })
 }
 
+const MAX_ZOOM = 12
+
 function fitMap() {
   if (!naverMap) return
   if (markers.length === 0) {
     const r = REGION_CENTERS[selectedRegion.value]
     if (r) {
       naverMap.setCenter(new naver.maps.LatLng(r.lat, r.lng))
-      naverMap.setZoom(r.zoom)
+      naverMap.setZoom(Math.min(r.zoom, MAX_ZOOM))
     } else {
       const koreaBounds = new naver.maps.LatLngBounds(
         new naver.maps.LatLng(33.0, 124.5),
@@ -272,16 +272,21 @@ function fitMap() {
   const bounds = new naver.maps.LatLngBounds()
   markers.forEach(m => bounds.extend(m.getPosition()))
   naverMap.fitBounds(bounds, { top: 40, right: 20, bottom: 40, left: 20 })
+  setTimeout(() => { if (naverMap.getZoom() > MAX_ZOOM) naverMap.setZoom(MAX_ZOOM) }, 150)
 }
 
-function updateMarkers() {
-  if (!naverMap) return
+function clearMarkers() {
   markers.forEach(m => m.setMap(null))
   markers = []
-  infoWindow.close()
+  markerIdSet = new Set()
+  infoWindow?.close()
+}
 
+// 무한 스크롤: 새로 추가된 attractions만 마커 추가
+function updateMarkers() {
+  if (!naverMap) return
   attractions.value.forEach(a => {
-    if (!a.latitude || !a.longitude) return
+    if (!a.latitude || !a.longitude || markerIdSet.has(a.id)) return
     const position = new naver.maps.LatLng(a.latitude, a.longitude)
     const marker = new naver.maps.Marker({ map: naverMap, position, title: a.title })
     naver.maps.Event.addListener(marker, 'click', () => {
@@ -289,6 +294,7 @@ function updateMarkers() {
       infoWindow.open(naverMap, marker)
     })
     markers.push(marker)
+    markerIdSet.add(a.id)
   })
   fitMap()
 }
@@ -337,7 +343,8 @@ async function loadTrips() {
   }
 }
 
-async function loadAttractions() {
+async function loadAttractions(append = false) {
+  if (loading.value) return
   loading.value = true
   try {
     const data = await searchAttractions({
@@ -347,7 +354,12 @@ async function loadAttractions() {
       page: page.value,
       size: PAGE_SIZE,
     })
-    attractions.value = data.items
+    if (append) {
+      attractions.value = [...attractions.value, ...data.items]
+    } else {
+      attractions.value = data.items
+      clearMarkers()
+    }
     total.value = data.total
   } catch {
     toast.show('관광지 로드 실패')
@@ -356,9 +368,15 @@ async function loadAttractions() {
   }
 }
 
+async function loadMore() {
+  if (loading.value || !hasMore.value) return
+  page.value++
+  await loadAttractions(true)
+}
+
 function applyFilters() {
   page.value = 0
-  loadAttractions()
+  loadAttractions(false)
 }
 
 function clearFilters() {
@@ -366,13 +384,8 @@ function clearFilters() {
   selectedCat.value = ''
   searchQuery.value = ''
   page.value = 0
-  loadAttractions()
+  loadAttractions(false)
   toast.show('필터가 초기화됐어요')
-}
-
-function goPage(p) {
-  page.value = p
-  loadAttractions()
 }
 
 async function addToTrip(attraction) {
@@ -398,7 +411,17 @@ async function addToTrip(attraction) {
 
 onMounted(async () => {
   loadTrips()
-  loadAttractions()
+  loadAttractions(false)
+
+  // 무한 스크롤 IntersectionObserver
+  observer = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) loadMore()
+  }, { root: scrollEl.value, rootMargin: '200px' })
+  watch(sentinel, el => {
+    observer.disconnect()
+    if (el) observer.observe(el)
+  }, { immediate: true })
+
   try {
     await loadNaverScript()
     initMap()
@@ -407,6 +430,8 @@ onMounted(async () => {
     toast.show('지도를 불러오지 못했어요')
   }
 })
+
+onUnmounted(() => observer?.disconnect())
 </script>
 
 <style scoped>
