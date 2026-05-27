@@ -103,7 +103,7 @@ a { text-decoration: none; }
 .chip-group { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* ── 레이아웃 기반 ── */
-#main { flex: 1; overflow: hidden; display: flex; }
+#main { flex: 1; min-height: 0; overflow: hidden; display: flex; }
 
 /* ── 모달 (일정 생성) ── */
 #modal-overlay {
