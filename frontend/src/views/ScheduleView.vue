@@ -88,7 +88,7 @@
                  @drop="onDrop($event, d)">
               <div v-if="d.dragOver && dragPreview" class="drop-preview"
                    :style="{ top: dragPreview.top + 'px', height: '120px' }">
-                {{ dragging?.attractionName }}
+                {{ dragState?.data?.attractionName }}
               </div>
               <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
                    class="transit-pill-block"
