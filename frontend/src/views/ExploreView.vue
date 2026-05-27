@@ -241,8 +241,9 @@ function initMap() {
     zoom: 7,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
-  // 컨테이너 크기 확정 후 지도 갱신 (절반 표시 버그 방지)
-  setTimeout(() => naver.maps.Event.trigger(naverMap, 'resize'), 100)
+  // flex 레이아웃이 확정된 후 resize 트리거 (절반 표시 버그 방지)
+  const trigger = () => naver.maps.Event.trigger(naverMap, 'resize')
+  requestAnimationFrame(() => { trigger(); setTimeout(trigger, 300) })
 }
 
 function fitMap() {
