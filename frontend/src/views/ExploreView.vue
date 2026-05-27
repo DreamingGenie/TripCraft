@@ -241,9 +241,16 @@ function initMap() {
     zoom: 8,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
-  // flex 레이아웃이 확정된 후 resize 트리거 (절반 표시 버그 방지)
-  const trigger = () => naver.maps.Event.trigger(naverMap, 'resize')
-  requestAnimationFrame(() => { trigger(); setTimeout(trigger, 300) })
+  // 레이아웃 확정 후 resize → 한국 범위에 fitBounds
+  requestAnimationFrame(() => {
+    naver.maps.Event.trigger(naverMap, 'resize')
+    const koreaBounds = new naver.maps.LatLngBounds(
+      new naver.maps.LatLng(33.0, 124.5),
+      new naver.maps.LatLng(38.9, 130.0)
+    )
+    naverMap.fitBounds(koreaBounds, { top: 20, right: 20, bottom: 20, left: 20 })
+    setTimeout(() => naver.maps.Event.trigger(naverMap, 'resize'), 300)
+  })
 }
 
 function fitMap() {
@@ -254,8 +261,11 @@ function fitMap() {
       naverMap.setCenter(new naver.maps.LatLng(r.lat, r.lng))
       naverMap.setZoom(r.zoom)
     } else {
-      naverMap.setCenter(new naver.maps.LatLng(36.5, 127.7))
-      naverMap.setZoom(8)
+      const koreaBounds = new naver.maps.LatLngBounds(
+        new naver.maps.LatLng(33.0, 124.5),
+        new naver.maps.LatLng(38.9, 130.0)
+      )
+      naverMap.fitBounds(koreaBounds, { top: 20, right: 20, bottom: 20, left: 20 })
     }
     return
   }
@@ -398,3 +408,11 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+/* flex 체인의 height 전파 불안정 문제: 명시적 높이로 직접 고정 */
+.schedule-list-sidebar,
+.attr-list {
+  height: calc(100vh - 48px);
+}
+</style>
