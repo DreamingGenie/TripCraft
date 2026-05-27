@@ -237,8 +237,8 @@ function loadNaverScript() {
 
 function initMap() {
   naverMap = new naver.maps.Map(mapEl.value, {
-    center: new naver.maps.LatLng(36.2, 127.8),
-    zoom: 7,
+    center: new naver.maps.LatLng(36.5, 127.7),
+    zoom: 8,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
   // flex 레이아웃이 확정된 후 resize 트리거 (절반 표시 버그 방지)
@@ -254,8 +254,8 @@ function fitMap() {
       naverMap.setCenter(new naver.maps.LatLng(r.lat, r.lng))
       naverMap.setZoom(r.zoom)
     } else {
-      naverMap.setCenter(new naver.maps.LatLng(36.2, 127.8))
-      naverMap.setZoom(7)
+      naverMap.setCenter(new naver.maps.LatLng(36.5, 127.7))
+      naverMap.setZoom(8)
     }
     return
   }
