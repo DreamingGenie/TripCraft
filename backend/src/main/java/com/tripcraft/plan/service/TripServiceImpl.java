@@ -9,6 +9,7 @@ import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockItem;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateItem;
+import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
@@ -16,15 +17,20 @@ import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
 import com.tripcraft.plan.mapper.TripMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TripServiceImpl implements TripService {
@@ -33,6 +39,7 @@ public class TripServiceImpl implements TripService {
     private final TripCandidateMapper candidateMapper;
     private final TripBlockMapper blockMapper;
     private final AttractionMapper attractionMapper;
+    private final TransitService transitService;
 
     private static final Map<Integer, String> SIDO_NAME = Map.ofEntries(
         Map.entry(1, "서울"), Map.entry(2, "인천"), Map.entry(3, "대전"),
@@ -72,7 +79,8 @@ public class TripServiceImpl implements TripService {
         Map<Long, List<BlockItem>> blocksByCandidate = blocks.stream()
             .collect(Collectors.groupingBy(TripBlock::getCandidateId,
                 Collectors.mapping(b -> new BlockItem(b.getId(), b.getCandidateId(),
-                    b.getTripDate(), b.getDisplayOrder(), b.getStartTime(), b.getDurationMinutes()),
+                    b.getTripDate(), b.getDisplayOrder(), b.getStartTime(), b.getDurationMinutes(),
+                    b.getTransitDurationMinutes(), b.getTransitMode()),
                     Collectors.toList())));
 
         List<CandidateItem> candidateItems = candidates.stream().map(c -> {
@@ -170,6 +178,7 @@ public class TripServiceImpl implements TripService {
         block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
         block.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : 1);
         blockMapper.insert(block);
+        recalculateTransitForDate(tripId, req.getTripDate());
         return block.getId();
     }
 
@@ -183,11 +192,16 @@ public class TripServiceImpl implements TripService {
         }
         TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        LocalDate oldDate = block.getTripDate();
         block.setTripDate(req.getTripDate());
         block.setStartTime(req.getStartTime());
         block.setDurationMinutes(req.getDurationMinutes());
         block.setDisplayOrder(req.getDisplayOrder());
         blockMapper.update(block);
+        recalculateTransitForDate(tripId, req.getTripDate());
+        if (!oldDate.equals(req.getTripDate())) {
+            recalculateTransitForDate(tripId, oldDate);
+        }
     }
 
     @Override
@@ -198,8 +212,40 @@ public class TripServiceImpl implements TripService {
         if (!trip.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-        blockMapper.findById(blockId)
+        TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        LocalDate date = block.getTripDate();
         blockMapper.deleteById(blockId);
+        recalculateTransitForDate(tripId, date);
+    }
+
+    private void recalculateTransitForDate(Long tripId, LocalDate date) {
+        try {
+            List<TripBlock> blocks = blockMapper.findByTripIdAndDate(tripId, date);
+            blocks.sort(Comparator.comparingInt(b -> Optional.ofNullable(b.getDisplayOrder()).orElse(0)));
+            for (int i = 0; i < blocks.size(); i++) {
+                TripBlock block = blocks.get(i);
+                if (i == 0) {
+                    block.setTransitDurationMinutes(null);
+                    block.setTransitMode(null);
+                } else {
+                    TripBlock prev = blocks.get(i - 1);
+                    Optional<TripCandidate> fromCand = candidateMapper.findById(prev.getCandidateId());
+                    Optional<TripCandidate> toCand   = candidateMapper.findById(block.getCandidateId());
+                    if (fromCand.isPresent() && toCand.isPresent()) {
+                        Optional<TransitResponse> transit = transitService.getTransitTime(
+                                fromCand.get().getAttractionId(), toCand.get().getAttractionId(), 9);
+                        block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
+                        block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
+                    } else {
+                        block.setTransitDurationMinutes(null);
+                        block.setTransitMode(null);
+                    }
+                }
+                blockMapper.update(block);
+            }
+        } catch (Exception e) {
+            log.warn("Transit recalculation failed: tripId={}, date={}: {}", tripId, date, e.getMessage());
+        }
     }
 }

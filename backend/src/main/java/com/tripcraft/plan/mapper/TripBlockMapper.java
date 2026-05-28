@@ -2,7 +2,9 @@ package com.tripcraft.plan.mapper;
 
 import com.tripcraft.plan.domain.TripBlock;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +16,8 @@ public interface TripBlockMapper {
     List<TripBlock> findByCandidateId(Long candidateId);
 
     List<TripBlock> findByTripId(Long tripId);
+
+    List<TripBlock> findByTripIdAndDate(@Param("tripId") Long tripId, @Param("date") LocalDate date);
 
     void insert(TripBlock block);
 

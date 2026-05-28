@@ -124,7 +124,6 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
-import { getTransitTime } from '@/api/transit'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
@@ -235,7 +234,8 @@ function buildEvent(b, cand) {
     height,
     timeLabel: `${startStr} – ${addMins(startStr, height)}`,
     dragging: false,
-    transitFromPrev: null,
+    transitDurationMinutes: b.transitDurationMinutes ?? null,
+    transitMode: b.transitMode ?? null,
   }
 }
 
@@ -245,37 +245,16 @@ function getTransitPills(day) {
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]
     const curr = sorted[i]
-    if (curr.transitFromPrev) {
+    if (curr.transitDurationMinutes) {
       pills.push({
         top: prev.top + prev.height,
-        durationMinutes: curr.transitFromPrev.durationMinutes,
-        transportMode: curr.transitFromPrev.transportMode,
-        transferCount: curr.transitFromPrev.transferCount ?? 0,
-        fare: curr.transitFromPrev.fare ?? 0,
+        durationMinutes: curr.transitDurationMinutes,
+        transportMode: curr.transitMode,
+        transferCount: 0,
       })
     }
   }
   return pills
-}
-
-async function fetchTransitForDay(day) {
-  const sorted = [...day.events].sort((a, b) => a.top - b.top)
-  for (let i = 0; i < sorted.length; i++) {
-    if (i === 0) { sorted[0].transitFromPrev = null; continue }
-    const prev = sorted[i - 1]
-    const curr = sorted[i]
-    const prevCand = candidates.value.find(c => c.id === prev.candidateId)
-    const currCand = candidates.value.find(c => c.id === curr.candidateId)
-    if (!prevCand?.attractionId || !currCand?.attractionId) continue
-    try {
-      curr.transitFromPrev = await getTransitTime(
-        prevCand.attractionId, currCand.attractionId,
-        Math.floor(prev.top / 60)
-      )
-    } catch {
-      curr.transitFromPrev = null
-    }
-  }
 }
 
 async function loadTrip() {
@@ -289,7 +268,6 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
-    days.value.forEach(d => { if (d.events.length > 1) fetchTransitForDay(d) })
   } catch {
     toast.show('일정 로드 실패')
   }
@@ -383,28 +361,15 @@ async function onDrop(e, day) {
 async function dropCandidate(day, top, startTime) {
   const candidate = dragState.data
   try {
-    const blockId = await tripApi.placeBlock(activeTripId.value, {
+    await tripApi.placeBlock(activeTripId.value, {
       candidateId: candidate.id,
       tripDate: day.isoDate,
       startTime: startTime + ':00',
       durationMinutes: 120,
       displayOrder: day.events.length + 1,
     })
-    day.events.push({
-      id: blockId,
-      candidateId: candidate.id,
-      tripDate: day.isoDate,
-      displayOrder: day.events.length + 1,
-      name: candidate.attractionName,
-      color: 'purple',
-      top,
-      height: 120,
-      timeLabel: `${startTime} – ${addMins(startTime, 120)}`,
-      dragging: false,
-    })
-    candidate.placed = true
     toast.show(`"${candidate.attractionName}" 추가됐어요`)
-    fetchTransitForDay(day)
+    await loadTrip()
   } catch (err) {
     toast.show(err.message || '추가 실패')
   }
@@ -420,19 +385,7 @@ async function moveEvent(day, top, startTime) {
       durationMinutes: ev.height,
       displayOrder: fromDay === day ? ev.displayOrder ?? 1 : day.events.length + 1,
     })
-    // UI 업데이트
-    const fromIdx = fromDay.events.indexOf(ev)
-    if (fromIdx !== -1) fromDay.events.splice(fromIdx, 1)
-    day.events.push({
-      ...ev,
-      tripDate: day.isoDate,
-      displayOrder: fromDay === day ? ev.displayOrder : day.events.length + 1,
-      top,
-      timeLabel: `${startTime} – ${addMins(startTime, ev.height)}`,
-      dragging: false,
-    })
-    fetchTransitForDay(day)
-    if (fromDay !== day) fetchTransitForDay(fromDay)
+    await loadTrip()
   } catch (err) {
     toast.show(err.message || '이동 실패')
   }
@@ -455,14 +408,8 @@ async function onDropSidebar() {
 async function removeEventFrom(day, ev) {
   try {
     await tripApi.removeBlock(activeTripId.value, ev.id)
-    const idx = day.events.indexOf(ev)
-    if (idx !== -1) day.events.splice(idx, 1)
-    const cand = candidates.value.find(c => c.id === ev.candidateId)
-    if (cand) {
-      cand.placed = days.value.some(d => d.events.some(e => e.candidateId === ev.candidateId))
-    }
     toast.show('장소를 일정에서 제거했어요')
-    fetchTransitForDay(day)
+    await loadTrip()
   } catch (err) {
     toast.show(err.message || '삭제 실패')
   }

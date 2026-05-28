@@ -28,7 +28,7 @@ public class TransitServiceImpl implements TransitService {
             TransitCache c = cached.get();
             return Optional.of(new TransitResponse(
                     c.getDurationMinutes(), c.getTransportMode(),
-                    c.getTransferCount(), c.getFare()));
+                    c.getTransferCount(), c.getFare(), c.getTotalWalkM()));
         }
 
         Attraction from = attractionMapper.findById(fromId).orElse(null);
@@ -53,7 +53,10 @@ public class TransitServiceImpl implements TransitService {
         cache.setDepartureHour(departureHour);
         cache.setDurationMinutes(r.durationMinutes());
         cache.setTransportMode(r.transportMode());
-        // ODsay는 환승 횟수·요금·거리를 반환하지 않음
+        cache.setTransferCount(r.transferCount());
+        cache.setFare(r.fare());
+        cache.setTotalDistanceM(r.totalDistanceM());
+        cache.setTotalWalkM(r.totalWalkM());
         try {
             transitCacheMapper.insert(cache);
         } catch (Exception e) {
@@ -61,6 +64,6 @@ public class TransitServiceImpl implements TransitService {
         }
 
         return Optional.of(new TransitResponse(
-                r.durationMinutes(), r.transportMode(), null, null));
+                r.durationMinutes(), r.transportMode(), r.transferCount(), r.fare(), r.totalWalkM()));
     }
 }
