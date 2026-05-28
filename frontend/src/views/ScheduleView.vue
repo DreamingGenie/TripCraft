@@ -93,7 +93,9 @@
               <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
                    class="transit-pill-block"
                    :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes, 24) + 'px' }">
-                <span class="transit-pill-text">{{ pill.durationMinutes }}분 · {{ displayMode(pill.transportMode) }}</span>
+                <span class="transit-pill-text">
+                  {{ pill.durationMinutes }}분 · {{ displayMode(pill.transportMode) }}{{ pill.transferCount > 0 ? ` · 환승 ${pill.transferCount}회` : '' }}
+                </span>
               </div>
 
               <div v-for="ev in d.events" :key="ev.id"
@@ -144,7 +146,10 @@ const dragPreview = ref(null)
 const sidebarDragOver = ref(false)
 const sidebarDropActive = computed(() => sidebarDragOver.value && dragState?.type === 'event')
 
-const TRANSPORT_DISPLAY = { BUS: '버스', SUBWAY: '지하철', WALK: '도보', CAR: '자동차', NONE: '도보' }
+const TRANSPORT_DISPLAY = {
+  BUS: '버스', SUBWAY: '지하철', RAIL: 'KTX/기차', EXPRESSBUS: '고속버스',
+  WALK: '도보', CAR: '자동차', AIRPLANE: '항공', FERRY: '해운', NONE: '-',
+}
 function displayMode(mode) { return TRANSPORT_DISPLAY[mode] || mode }
 
 const SIDO_NAME = {
@@ -245,6 +250,8 @@ function getTransitPills(day) {
         top: prev.top + prev.height,
         durationMinutes: curr.transitFromPrev.durationMinutes,
         transportMode: curr.transitFromPrev.transportMode,
+        transferCount: curr.transitFromPrev.transferCount ?? 0,
+        fare: curr.transitFromPrev.fare ?? 0,
       })
     }
   }
@@ -263,7 +270,7 @@ async function fetchTransitForDay(day) {
     try {
       curr.transitFromPrev = await getTransitTime(
         prevCand.attractionId, currCand.attractionId,
-        Math.floor(prev.top / 60), 0
+        Math.floor(prev.top / 60)
       )
     } catch {
       curr.transitFromPrev = null
