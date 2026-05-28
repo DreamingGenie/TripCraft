@@ -21,10 +21,9 @@ public class TransitController {
     public ResponseEntity<ApiResponse<TransitResponse>> getTransitTime(
             @RequestParam Long fromId,
             @RequestParam Long toId,
-            @RequestParam(defaultValue = "9") int hour,
-            @RequestParam(defaultValue = "0") int transportType) {
+            @RequestParam(defaultValue = "9") int hour) {
 
-        return transitService.getTransitTime(fromId, toId, hour, transportType)
+        return transitService.getTransitTime(fromId, toId, hour)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }

@@ -15,8 +15,10 @@ public class TransitCache {
     private Long fromAttractionId;
     private Long toAttractionId;
     private Integer departureHour;
-    private Integer transportType;
     private Integer durationMinutes;
     private String transportMode;
+    private Integer transferCount;
+    private Integer fare;
+    private Integer totalDistanceM;
     private LocalDateTime cachedAt;
 }

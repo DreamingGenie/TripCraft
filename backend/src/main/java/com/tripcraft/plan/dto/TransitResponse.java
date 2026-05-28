@@ -8,4 +8,6 @@ import lombok.Getter;
 public class TransitResponse {
     private Integer durationMinutes;
     private String transportMode;
+    private Integer transferCount;
+    private Integer fare;
 }
