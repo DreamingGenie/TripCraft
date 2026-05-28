@@ -104,3 +104,16 @@ trip_block
 - `GET /api/transit?fromId=&toId=&hour=&transportType=` — 인증 불필요
 - 프론트엔드: `frontend/src/api/transit.js` → ScheduleView `fetchTransitForDay()` 호출
 - TransitPill: 블록 사이 독립 요소, 높이 = 소요 분(px), 사선 패턴 배경
+
+**버그픽스 (2026-05-28)**
+- `extractMode()` 반환값이 한국어(`"버스"`)였던 것을 DB ENUM 호환 영문(`BUS`)으로 수정
+  - MySQL ENUM 불일치로 INSERT 실패 → try-catch에서 조용히 삭제 → 캐시가 쌓이지 않던 문제
+
+## 전역 예외 처리 (GlobalExceptionHandler)
+
+`com.tripcraft.global.exception.GlobalExceptionHandler` (`@RestControllerAdvice`)
+
+- `ResponseStatusException` → `ApiResponse.fail(reason, statusCode)` 형식으로 직접 반환
+  - Spring Boot 기본 `/error` 재디스패치 우회 → Security 필터에서 401로 둔갑하던 문제 해결
+- 일반 `Exception` → 500 반환
+- `SecurityConfig`: `/error` `permitAll()` 추가 (안전망)
