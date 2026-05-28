@@ -14,6 +14,7 @@
         <result column="transfer_count"     property="transferCount"/>
         <result column="fare"               property="fare"/>
         <result column="total_distance_m"   property="totalDistanceM"/>
+        <result column="total_walk_m"       property="totalWalkM"/>
         <result column="cached_at"          property="cachedAt"/>
     </resultMap>
 
@@ -28,16 +29,17 @@
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO transit_cache
             (from_attraction_id, to_attraction_id, departure_hour,
-             duration_minutes, transport_mode, transfer_count, fare, total_distance_m)
+             duration_minutes, transport_mode, transfer_count, fare, total_distance_m, total_walk_m)
         VALUES
             (#{fromAttractionId}, #{toAttractionId}, #{departureHour},
-             #{durationMinutes}, #{transportMode}, #{transferCount}, #{fare}, #{totalDistanceM})
+             #{durationMinutes}, #{transportMode}, #{transferCount}, #{fare}, #{totalDistanceM}, #{totalWalkM})
         ON DUPLICATE KEY UPDATE
             duration_minutes = VALUES(duration_minutes),
             transport_mode   = VALUES(transport_mode),
             transfer_count   = VALUES(transfer_count),
             fare             = VALUES(fare),
             total_distance_m = VALUES(total_distance_m),
+            total_walk_m     = VALUES(total_walk_m),
             cached_at        = CURRENT_TIMESTAMP
     </insert>
 

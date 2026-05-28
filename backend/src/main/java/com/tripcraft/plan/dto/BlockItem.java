@@ -16,4 +16,6 @@ public class BlockItem {
     private Integer displayOrder;
     private LocalTime startTime;
     private Integer durationMinutes;
+    private Integer transitDurationMinutes;
+    private String transitMode;
 }

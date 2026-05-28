@@ -13,6 +13,8 @@
         <result column="duration_minutes" property="durationMinutes"/>
         <result column="transport_preference" property="transportPreference"/>
         <result column="memo" property="memo"/>
+        <result column="transit_duration_minutes" property="transitDurationMinutes"/>
+        <result column="transit_mode" property="transitMode"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -46,9 +48,20 @@
         SET trip_date = #{tripDate}, display_order = #{displayOrder},
             start_time = #{startTime}, duration_minutes = #{durationMinutes},
             transport_preference = #{transportPreference}, memo = #{memo},
+            transit_duration_minutes = #{transitDurationMinutes},
+            transit_mode = #{transitMode},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <select id="findByTripIdAndDate" resultMap="blockMap">
+        SELECT tb.*
+        FROM trip_block tb
+        JOIN trip_candidate tc ON tc.id = tb.candidate_id
+        WHERE tc.trip_id = #{tripId}
+          AND tb.trip_date = #{date}
+        ORDER BY tb.display_order
+    </select>
 
     <delete id="deleteById" parameterType="long">
         DELETE FROM trip_block WHERE id = #{id}

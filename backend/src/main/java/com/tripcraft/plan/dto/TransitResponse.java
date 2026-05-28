@@ -10,4 +10,5 @@ public class TransitResponse {
     private String transportMode;
     private Integer transferCount;
     private Integer fare;
+    private Integer totalWalkM;
 }

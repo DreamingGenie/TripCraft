@@ -20,5 +20,6 @@ public class TransitCache {
     private Integer transferCount;
     private Integer fare;
     private Integer totalDistanceM;
+    private Integer totalWalkM;
     private LocalDateTime cachedAt;
 }
