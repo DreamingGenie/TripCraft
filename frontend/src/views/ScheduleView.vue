@@ -94,7 +94,7 @@
                    class="transit-pill-block"
                    :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes, 24) + 'px' }">
                 <span class="transit-pill-text">
-                  {{ pill.durationMinutes }}분 · {{ displayMode(pill.transportMode) }}{{ pill.transferCount > 0 ? ` · 환승 ${pill.transferCount}회` : '' }}
+                  {{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}
                 </span>
               </div>
 
@@ -149,7 +149,10 @@ const TRANSPORT_DISPLAY = {
   BUS: '버스', SUBWAY: '지하철', RAIL: 'KTX/기차', EXPRESSBUS: '고속버스',
   WALK: '도보', CAR: '자동차', AIRPLANE: '항공', FERRY: '해운', NONE: '-',
 }
-function displayMode(mode) { return TRANSPORT_DISPLAY[mode] || mode }
+function displayModes(modeStr) {
+  if (!modeStr) return ''
+  return modeStr.split(',').map(m => TRANSPORT_DISPLAY[m] || m).join(' → ')
+}
 
 const SIDO_NAME = {
   1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
