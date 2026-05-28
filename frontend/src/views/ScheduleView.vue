@@ -93,7 +93,7 @@
               <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
                    class="transit-pill-block"
                    :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes, 24) + 'px' }">
-                <span class="transit-pill-text">{{ pill.durationMinutes }}분 · {{ pill.transportMode }}</span>
+                <span class="transit-pill-text">{{ pill.durationMinutes }}분 · {{ displayMode(pill.transportMode) }}</span>
               </div>
 
               <div v-for="ev in d.events" :key="ev.id"
@@ -143,6 +143,9 @@ let dragState = null // { type: 'candidate'|'event', data, fromDay? }
 const dragPreview = ref(null)
 const sidebarDragOver = ref(false)
 const sidebarDropActive = computed(() => sidebarDragOver.value && dragState?.type === 'event')
+
+const TRANSPORT_DISPLAY = { BUS: '버스', SUBWAY: '지하철', WALK: '도보', CAR: '자동차', NONE: '도보' }
+function displayMode(mode) { return TRANSPORT_DISPLAY[mode] || mode }
 
 const SIDO_NAME = {
   1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
