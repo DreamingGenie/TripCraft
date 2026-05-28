@@ -80,32 +80,101 @@
   box-shadow: 0 0 0 2px rgba(15,110,86,.18);
 }
 
-/* ── 사이드바 후보군 카테고리 그룹 ── */
-.cand-group {
-  margin-top: 8px;
+/* ── 사이드바 후보군 지역 > 카테고리 리스트 ── */
+.cand-region-group {
+  margin-top: 6px;
+  border: 0.5px solid var(--purple-100);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
-.cand-group-label {
-  display: block;
+.cand-region-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--purple-50);
+}
+.cand-region-pin {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.cand-region-name {
+  flex: 1;
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--purple-900);
-  margin-bottom: 4px;
 }
-.cand-chip {
-  display: inline-flex;
-  align-items: center;
+.cand-region-count {
   font-size: 9px;
-  padding: 2px 7px;
-  margin: 2px 2px 0 0;
+  font-weight: 500;
+  color: var(--purple-900);
+  background: var(--purple-100);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+.cand-cat-group {
+  padding: 4px 8px 2px;
+  border-top: 0.5px solid var(--purple-100);
+}
+.cand-cat-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-dark);
+  padding: 2px 0 3px;
+  margin-bottom: 1px;
+}
+.cand-cat-count {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--gray-muted);
+  font-weight: 400;
+}
+.cand-list-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 2px 3px 6px;
   border-radius: var(--radius-sm);
-  border: 0.5px solid var(--teal-200, #9BD4C0);
-  background: var(--teal-50, #E1F5EE);
-  color: var(--teal-700, #0F6E56);
+  cursor: grab;
+  border-left: 2px solid transparent;
+}
+.cand-list-item:hover {
+  background: var(--bg-page);
+  border-left-color: var(--teal-600, #0F6E56);
+}
+.cand-list-item:active {
+  cursor: grabbing;
+}
+.cand-list-name {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-primary);
   white-space: nowrap;
-  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.cand-item-remove {
+  display: none;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--gray-muted);
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cand-list-item:hover .cand-item-remove {
+  display: block;
+}
+.cand-item-remove:hover {
+  color: #dc2626;
+}
+
 
 .schedule-card-top {
   display: flex;
