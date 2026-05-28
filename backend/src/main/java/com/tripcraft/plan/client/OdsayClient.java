@@ -80,7 +80,8 @@ public class OdsayClient {
                 log.debug("ODsay 경로가 도보 전용 — 결과 무시");
                 return Optional.empty();
             }
-            return Optional.of(new OdsayResult(totalTime, mode, transferCount, fare, totalDistanceM, totalWalkM));
+            String pathDetail = objectMapper.writeValueAsString(first);
+            return Optional.of(new OdsayResult(totalTime, mode, transferCount, fare, totalDistanceM, totalWalkM, pathDetail));
         } catch (Exception e) {
             log.warn("ODsay 호출 실패: {}", e.getMessage());
             return Optional.empty();
@@ -116,6 +117,7 @@ public class OdsayClient {
             int transferCount,
             int fare,
             int totalDistanceM,
-            int totalWalkM
+            int totalWalkM,
+            String pathDetail
     ) {}
 }

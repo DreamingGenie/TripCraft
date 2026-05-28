@@ -216,6 +216,7 @@ CREATE TABLE transit_cache (
     fare               INT UNSIGNED NULL      COMMENT '요금(원) — ODsay info.payment',
     total_distance_m   INT UNSIGNED NULL      COMMENT '총 이동 거리(m) — ODsay info.totalDistance',
     total_walk_m       INT UNSIGNED NULL      COMMENT '도보 거리(m) — ODsay info.totalWalk',
+    path_detail        JSON         NULL      COMMENT 'ODsay path[0] 전체 JSON (subPath 포함)',
     cached_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour),

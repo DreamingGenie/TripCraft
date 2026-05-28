@@ -57,6 +57,7 @@ public class TransitServiceImpl implements TransitService {
         cache.setFare(r.fare());
         cache.setTotalDistanceM(r.totalDistanceM());
         cache.setTotalWalkM(r.totalWalkM());
+        cache.setPathDetail(r.pathDetail());
         try {
             transitCacheMapper.insert(cache);
         } catch (Exception e) {

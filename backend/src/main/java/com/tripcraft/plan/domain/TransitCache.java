@@ -21,5 +21,6 @@ public class TransitCache {
     private Integer fare;
     private Integer totalDistanceM;
     private Integer totalWalkM;
+    private String pathDetail;
     private LocalDateTime cachedAt;
 }
