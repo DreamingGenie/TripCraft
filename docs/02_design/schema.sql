@@ -1,11 +1,14 @@
 -- =============================================
--- TripCraft Schema DDL v0.1
+-- TripCraft Schema DDL v0.2
 -- 기준: 요구사항 명세 v0.1 / 기획서 v0.2
+-- v0.2 변경: transit_cache ODsay 응답 전체 저장 구조로 재설계,
+--            trip_block에 transit 표시 컬럼(transit_duration_minutes, transit_mode) 추가
 -- =============================================
 -- 결정 사항 요약
 --   - member: 하드 딜리트. 탈퇴 시 앱 레이어에서 trip_block → trip_candidate → trip 순서대로 삭제 후 member 삭제
 --   - attraction: TourAPI 필드 그대로 저장. api_modified_at 기반 증분 배치 동기화
---   - transit_cache: (from, to, departure_hour, transport_type) 키. 레벨 로직은 서비스 레이어 전담
+--   - transit_cache: (from, to, departure_hour) 키. ODsay 응답(fare/transfer_count/distance/walk) 전체 저장
+--   - trip_block: transit_duration_minutes/transit_mode 비정규화 저장 (블록 배치 시 자동 계산)
 --   - post: 작성자·일정 삭제 시 SET NULL (탈퇴한 사용자 표시, 게시글 보존)
 --   - notice: 관리자 계정 삭제 시 SET NULL (공지 보존)
 --   - trip_block → trip_candidate: RESTRICT (모달 확인 후 삭제 UX)
@@ -135,17 +138,19 @@ CREATE TABLE trip_candidate (
 -- 7. 타임라인 확정 블록 (trip_block)
 -- ---------------------------------------------
 CREATE TABLE trip_block (
-    id                   BIGINT    NOT NULL AUTO_INCREMENT,
-    candidate_id         BIGINT    NOT NULL COMMENT '후보군 FK',
-    trip_date            DATE      NOT NULL COMMENT '배치된 날짜 (trip.start_date~end_date 범위, TRIGGER 검증)',
-    display_order        TINYINT   NOT NULL COMMENT '해당 날짜 내 표시 순서 (1부터, 앱 레이어 관리)',
-    start_time           TIME      NULL     COMMENT '시작 시간 (NULL=미확정)',
-    duration_minutes     SMALLINT  NOT NULL DEFAULT 60 COMMENT '체류 시간(분). end_time = start_time + duration_minutes',
-    transport_preference TINYINT   NOT NULL DEFAULT 0
-                                            COMMENT '이전 장소→이 장소 이동수단 0=대중교통전체 1=지하철 2=버스 3=자동차',
-    memo                 TEXT      NULL     COMMENT '장소 메모',
-    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id                       BIGINT      NOT NULL AUTO_INCREMENT,
+    candidate_id             BIGINT      NOT NULL COMMENT '후보군 FK',
+    trip_date                DATE        NOT NULL COMMENT '배치된 날짜 (trip.start_date~end_date 범위, TRIGGER 검증)',
+    display_order            TINYINT     NOT NULL COMMENT '해당 날짜 내 표시 순서 (1부터, 앱 레이어 관리)',
+    start_time               TIME        NULL     COMMENT '시작 시간 (NULL=미확정)',
+    duration_minutes         SMALLINT    NOT NULL DEFAULT 60 COMMENT '체류 시간(분). end_time = start_time + duration_minutes',
+    transport_preference     TINYINT     NOT NULL DEFAULT 0
+                                                  COMMENT '이전 장소→이 장소 이동수단 0=대중교통전체 1=지하철 2=버스 3=자동차',
+    memo                     TEXT        NULL     COMMENT '장소 메모',
+    transit_duration_minutes SMALLINT    NULL     COMMENT '이전 블록→이 블록 이동 시간(분). 첫 블록은 NULL',
+    transit_mode             VARCHAR(20) NULL     COMMENT '이동 수단 (BUS/SUBWAY 등). 첫 블록은 NULL',
+    created_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     INDEX idx_block_candidate (candidate_id),
     INDEX idx_block_date      (trip_date),
@@ -201,19 +206,22 @@ DELIMITER ;
 -- 8. 이동 시간 캐시 (transit_cache)
 -- ---------------------------------------------
 CREATE TABLE transit_cache (
-    id                 BIGINT                                    NOT NULL AUTO_INCREMENT,
-    from_attraction_id BIGINT                                    NOT NULL COMMENT '출발지 FK',
-    to_attraction_id   BIGINT                                    NOT NULL COMMENT '도착지 FK',
-    departure_hour     TINYINT                                   NOT NULL COMMENT '출발 시(0~23). 레벨별 대표 시간은 서비스 레이어에서 결정',
-    transport_type     TINYINT                                   NOT NULL COMMENT '0=대중교통전체 1=지하철 2=버스 3=자동차',
-    duration_minutes   SMALLINT                                  NOT NULL COMMENT '소요 시간(분)',
-    transport_mode     ENUM('BUS','SUBWAY','WALK','CAR','NONE')  NOT NULL COMMENT 'API 반환 주요 이동 수단',
-    cached_at          TIMESTAMP                                 NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id                 BIGINT       NOT NULL AUTO_INCREMENT,
+    from_attraction_id BIGINT       NOT NULL COMMENT '출발지 FK (ODsay 요청 파라미터)',
+    to_attraction_id   BIGINT       NOT NULL COMMENT '도착지 FK (ODsay 요청 파라미터)',
+    departure_hour     TINYINT      NOT NULL COMMENT '출발 시(0~23) (ODsay 요청 파라미터)',
+    duration_minutes   SMALLINT     NOT NULL COMMENT '소요 시간(분) — ODsay info.totalTime',
+    transport_mode     VARCHAR(20)  NOT NULL COMMENT '주요 이동 수단 (BUS/SUBWAY) — subPath 분석',
+    transfer_count     TINYINT UNSIGNED NULL  COMMENT '환승 횟수 — ODsay info.busTransitCount + subwayTransitCount',
+    fare               INT UNSIGNED NULL      COMMENT '요금(원) — ODsay info.payment',
+    total_distance_m   INT UNSIGNED NULL      COMMENT '총 이동 거리(m) — ODsay info.totalDistance',
+    total_walk_m       INT UNSIGNED NULL      COMMENT '도보 거리(m) — ODsay info.totalWalk',
+    cached_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour, transport_type),
+    UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour),
     FOREIGN KEY fk_transit_from (from_attraction_id) REFERENCES attraction(id) ON DELETE CASCADE,
     FOREIGN KEY fk_transit_to   (to_attraction_id)   REFERENCES attraction(id) ON DELETE CASCADE
-) COMMENT='ODsay(대중교통)/자동차 API 이동 시간 캐시. 레벨 로직은 서비스 레이어 전담'
+) COMMENT='ODsay 대중교통 API 응답 캐시. (from, to, departure_hour) 키. 일일 1,000건 한도 절약 목적'
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
