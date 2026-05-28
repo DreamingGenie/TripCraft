@@ -24,12 +24,28 @@
             <span class="schedule-dates">{{ s.startDate }} ~ {{ s.endDate }}</span>
           </div>
 
-          <!-- 선택된 일정: 후보군 카테고리별 표시 -->
-          <template v-if="activeTrip === s.id && candidateGroups.length">
-            <div v-for="g in candidateGroups" :key="g.cat" class="cand-group">
-              <span class="cand-group-label">{{ g.cat }}</span>
-              <div v-for="c in g.items" :key="c.id" class="cand-chip">
-                {{ c.attractionName }}
+          <!-- 선택된 일정: 지역 > 카테고리 > 장소 리스트 -->
+          <template v-if="activeTrip === s.id && candidateRegionGroups.length">
+            <div v-for="rg in candidateRegionGroups" :key="rg.region" class="cand-region-group">
+              <div class="cand-region-header">
+                <span class="cand-region-pin">📍</span>
+                <span class="cand-region-name">{{ rg.region }}</span>
+                <span class="cand-region-count">{{ rg.total }}</span>
+              </div>
+              <div v-for="cg in rg.catGroups" :key="cg.cat" class="cand-cat-group">
+                <div class="cand-cat-label">
+                  <span>{{ catEmoji(cg.cat) }}</span>
+                  <span>{{ cg.cat }}</span>
+                  <span class="cand-cat-count">{{ cg.items.length }}</span>
+                </div>
+                <div v-for="c in cg.items" :key="c.id"
+                     class="cand-list-item"
+                     draggable="true"
+                     @dragstart="onCandListDragStart($event, c)"
+                     @dragend="draggingCand = null">
+                  <span class="cand-list-name">{{ c.attractionName }}</span>
+                  <button class="cand-item-remove" @click.stop="removeFromTrip(c.attractionId)">×</button>
+                </div>
               </div>
             </div>
           </template>
@@ -43,11 +59,14 @@
           <button @click="openScheduleModal()">+ 새 일정 만들기</button>
         </div>
         <div v-if="tripsLoading" style="padding:12px;color:var(--gray-muted);font-size:12px">로딩 중...</div>
+
       </div>
     </aside>
 
     <!-- 중앙: 장소 목록 -->
-    <div class="attr-list">
+    <div class="attr-list"
+         @dragover.prevent
+         @drop="onDropToAttrList">
       <div class="search-bar">
         <span class="search-icon">🔍</span>
         <input type="text" v-model="searchQuery" placeholder="장소, 도시 검색"
@@ -113,8 +132,8 @@
                 <div class="card-name">{{ a.title }}</div>
                 <p class="card-cat">{{ a.category }} · {{ a.region }}</p>
                 <button class="card-add" :class="{ added: addedIds.has(a.id) }"
-                        @click="addToTrip(a)">
-                  {{ addedIds.has(a.id) ? '✓ 추가됨' : '+ 일정에 추가' }}
+                        @click="addedIds.has(a.id) ? removeByAttraction(a.id) : addToTrip(a)">
+                  {{ addedIds.has(a.id) ? '× 제거' : '+ 일정에 추가' }}
                 </button>
               </div>
             </div>
@@ -151,6 +170,7 @@ const tripsLoading = ref(false)
 const activeTrip = ref(null)
 const addedIds = ref(new Set())
 const activeTripCandidates = ref([])
+const candidateIdMap = ref(new Map()) // attractionId → candidateId (DB PK)
 
 const attractions = ref([])
 const total = ref(0)
@@ -171,15 +191,21 @@ const regions = ['서울', '경기', '강원', '충청', '경상', '전라', '�
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
 const PAGE_SIZE = 20
 
-// 후보군 카테고리별 그룹
-const candidateGroups = computed(() => {
-  const groups = {}
+// 후보군 지역 > 카테고리 2단계 그룹
+const candidateRegionGroups = computed(() => {
+  const regionMap = {}
   for (const c of activeTripCandidates.value) {
+    const region = c.cityName || '기타'
     const cat = c.category || '기타'
-    if (!groups[cat]) groups[cat] = []
-    groups[cat].push(c)
+    if (!regionMap[region]) regionMap[region] = {}
+    if (!regionMap[region][cat]) regionMap[region][cat] = []
+    regionMap[region][cat].push(c)
   }
-  return Object.entries(groups).map(([cat, items]) => ({ cat, items }))
+  return Object.entries(regionMap).map(([region, catMap]) => ({
+    region,
+    total: Object.values(catMap).reduce((s, arr) => s + arr.length, 0),
+    catGroups: Object.entries(catMap).map(([cat, items]) => ({ cat, items })),
+  }))
 })
 
 // 장소 목록 그룹화
@@ -203,6 +229,9 @@ const COLORS = { 12: '#C8C5F5', 14: '#9BD4C0', 28: '#AFE8C0', 32: '#AFC9E8', 38:
 const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 39: '🍜' }
 function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
 function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
+
+const CAT_EMOJI = { '관광지': '🏯', '음식점': '🍜', '숙박': '🏨', '문화시설': '🎨', '레포츠': '🏄', '쇼핑': '🛍️' }
+function catEmoji(cat) { return CAT_EMOJI[cat] || '📍' }
 
 // ── Naver Maps ──
 const mapEl = ref(null)
@@ -268,6 +297,8 @@ function clearMarkers() {
 function updateMarkers() {
   if (!naverMap) return
   clearMarkers()
+  console.log('[map] updateMarkers 호출, 후보군:', activeTripCandidates.value.length, '개',
+    activeTripCandidates.value.map(c => `${c.attractionName}(lat:${c.latitude},lng:${c.longitude})`))
   activeTripCandidates.value.forEach(c => {
     if (!c.latitude || !c.longitude) return
     const position = new naver.maps.LatLng(c.latitude, c.longitude)
@@ -286,27 +317,98 @@ watch(activeTripCandidates, updateMarkers)
 
 // 활성 일정 변경 시 후보군 로드
 watch(activeTrip, async (id) => {
-  if (!id) { activeTripCandidates.value = []; addedIds.value = new Set(); return }
+  if (!id) {
+    activeTripCandidates.value = []
+    addedIds.value = new Set()
+    candidateIdMap.value = new Map()
+    return
+  }
   try {
     const detail = await tripApi.get(id)
     activeTripCandidates.value = detail.candidates || []
     addedIds.value = new Set(detail.candidates.map(c => c.attractionId))
+    candidateIdMap.value = new Map(detail.candidates.map(c => [c.attractionId, c.id]))
   } catch {
     activeTripCandidates.value = []
   }
 })
 
+// ── 후보 제거 ──
+function _applyRemove(attractionId, candidateId, tripId) {
+  activeTripCandidates.value = activeTripCandidates.value.filter(c => c.id !== candidateId)
+  addedIds.value = new Set([...addedIds.value].filter(id => id !== attractionId))
+  candidateIdMap.value.delete(attractionId)
+  const t = trips.value.find(t => t.id === tripId)
+  if (t && t.candidateCount > 0) t.candidateCount--
+}
+
+async function removeFromTrip(attractionId) {
+  const tripId = activeTrip.value
+  if (!tripId) return
+  const candidateId = candidateIdMap.value.get(attractionId)
+  if (candidateId == null) return
+  try {
+    await tripApi.removeCandidate(tripId, candidateId)
+    _applyRemove(attractionId, candidateId, tripId)
+    toast.show('후보에서 제거됐어요')
+  } catch (e) {
+    if (e.status === 409) {
+      const candidate = activeTripCandidates.value.find(c => c.id === candidateId)
+      const blocks = candidate?.blocks || []
+      if (blocks.length > 0 && window.confirm(
+        `타임라인에 ${blocks.length}개 일정 블록이 배치돼 있어요.\n블록도 함께 삭제할까요?`
+      )) {
+        try {
+          for (const block of blocks) {
+            await tripApi.removeBlock(tripId, block.id)
+          }
+          await tripApi.removeCandidate(tripId, candidateId)
+          _applyRemove(attractionId, candidateId, tripId)
+          toast.show('일정 블록과 함께 후보에서 제거됐어요')
+        } catch {
+          toast.show('삭제 중 오류가 발생했어요')
+        }
+      }
+    } else if (e.status === 401) {
+      toast.show('로그인이 필요합니다.')
+    } else {
+      toast.show(`제거 실패 (${e.status ?? '?'}: ${e.message})`)
+    }
+  }
+}
+
+async function removeByAttraction(attractionId) {
+  await removeFromTrip(attractionId)
+}
+
 // ── 드래그 ──
 let draggedAttraction = null
+const draggingCand = ref(null)
+
+function onCandListDragStart(e, c) {
+  draggingCand.value = c
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('type', 'candidate')
+}
+
+function onDropToAttrList(e) {
+  const type = e.dataTransfer.getData('type')
+  if (type === 'candidate' && draggingCand.value) {
+    removeFromTrip(draggingCand.value.attractionId)
+    draggingCand.value = null
+  }
+}
 
 function onCardDragStart(e, attraction) {
   draggedAttraction = attraction
   e.dataTransfer.effectAllowed = 'copy'
+  e.dataTransfer.setData('type', 'attraction')
 }
 
 async function onDropToTrip(e, trip) {
   trip.dropOver = false
-  if (!draggedAttraction) return
+  const type = e.dataTransfer.getData('type')
+  if (type === 'candidate' || !draggedAttraction) return
   const prev = activeTrip.value
   activeTrip.value = trip.id
   await addToTrip(draggedAttraction)
@@ -377,12 +479,14 @@ async function addToTrip(attraction) {
     return
   }
   try {
-    await tripApi.addCandidate(activeTrip.value, attraction.id)
+    const candidateId = await tripApi.addCandidate(activeTrip.value, attraction.id)
     addedIds.value = new Set([...addedIds.value, attraction.id])
+    candidateIdMap.value.set(attraction.id, candidateId)
     activeTripCandidates.value = [
       ...activeTripCandidates.value,
-      { id: Date.now(), attractionId: attraction.id, attractionName: attraction.title,
-        category: attraction.category, latitude: attraction.latitude, longitude: attraction.longitude }
+      { id: candidateId, attractionId: attraction.id, attractionName: attraction.title,
+        category: attraction.category, cityName: attraction.region,
+        latitude: attraction.latitude, longitude: attraction.longitude }
     ]
     toast.show(`"${attraction.title}" 후보군에 추가됐어요`)
     const t = trips.value.find(t => t.id === activeTrip.value)
