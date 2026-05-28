@@ -59,13 +59,21 @@ public class OdsayClient {
             JsonNode info = first.path("info");
 
             int totalTime      = info.path("totalTime").asInt(0);
-            int fare           = info.path("payment").asInt(0);
+            // 도시간 경로는 totalPayment, 도시내 경로는 payment 사용
+            int fare = info.path("totalPayment").asInt(0);
+            if (fare == 0) fare = info.path("payment").asInt(0);
             int totalDistanceM = info.path("totalDistance").asInt(0);
             int totalWalkM     = info.path("totalWalk").asInt(0);
-            // 환승 횟수 = 총 탑승 구간 수 - 1 (최소 0)
-            int busCount    = info.path("busTransitCount").asInt(0);
-            int subwayCount = info.path("subwayTransitCount").asInt(0);
-            int transferCount = Math.max(0, busCount + subwayCount - 1);
+            // 도시간 경로는 transitCount, 도시내 경로는 busTransitCount + subwayTransitCount
+            int transitCount = info.path("transitCount").asInt(-1);
+            int transferCount;
+            if (transitCount >= 0) {
+                transferCount = Math.max(0, transitCount - 1);
+            } else {
+                int busCount    = info.path("busTransitCount").asInt(0);
+                int subwayCount = info.path("subwayTransitCount").asInt(0);
+                transferCount = Math.max(0, busCount + subwayCount - 1);
+            }
 
             String mode = extractMode(first);
             if (mode == null) {
@@ -79,17 +87,26 @@ public class OdsayClient {
         }
     }
 
-    /** 비-도보 구간이 하나라도 있으면 주요 수단 반환. 도보만 있으면 null. */
+    /**
+     * trafficType: 1=지하철 2=버스 3=도보 4=기차(KTX/SRT/무궁화) 5=항공 6=시외/고속버스
+     * 비-도보 구간이 없으면 null 반환 → 호출 측에서 Optional.empty() 처리
+     */
     private String extractMode(JsonNode path) {
-        boolean hasBus = false;
+        boolean hasRail = false;
         boolean hasSubway = false;
+        boolean hasExpressBus = false;
+        boolean hasBus = false;
         for (JsonNode sub : path.path("subPath")) {
             int type = sub.path("trafficType").asInt();
+            if (type == 4) hasRail = true;
             if (type == 1) hasSubway = true;
+            if (type == 6) hasExpressBus = true;
             if (type == 2) hasBus = true;
         }
-        if (hasSubway) return "SUBWAY";
-        if (hasBus) return "BUS";
+        if (hasRail)        return "RAIL";
+        if (hasSubway)      return "SUBWAY";
+        if (hasExpressBus)  return "EXPRESSBUS";
+        if (hasBus)         return "BUS";
         return null;
     }
 
