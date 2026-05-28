@@ -72,10 +72,9 @@ public class OdsayClient {
             if (type == 1) hasSubway = true;
             if (type == 2) hasBus = true;
         }
-        if (hasSubway && hasBus) return "버스+지하철";
-        if (hasSubway) return "지하철";
-        if (hasBus) return "버스";
-        return "도보";
+        if (hasSubway) return "SUBWAY";
+        if (hasBus) return "BUS";
+        return "WALK";
     }
 
     public record OdsayResult(int durationMinutes, String transportMode) {}
