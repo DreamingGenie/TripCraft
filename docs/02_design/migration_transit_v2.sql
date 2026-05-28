@@ -14,6 +14,7 @@ CREATE TABLE transit_cache (
     fare               INT UNSIGNED NULL,
     total_distance_m   INT UNSIGNED NULL,
     total_walk_m       INT UNSIGNED NULL,
+    path_detail        JSON         NULL,
     cached_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour),
