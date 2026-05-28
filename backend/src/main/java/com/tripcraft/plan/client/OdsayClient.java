@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -90,25 +92,24 @@ public class OdsayClient {
 
     /**
      * trafficType: 1=지하철 2=버스 3=도보 4=기차(KTX/SRT/무궁화) 5=항공 6=시외/고속버스
-     * 비-도보 구간이 없으면 null 반환 → 호출 측에서 Optional.empty() 처리
+     * 경로에 등장하는 순서대로 모든 비-도보 수단을 콤마로 연결해 반환.
+     * 비-도보 구간이 없으면 null 반환 → 호출 측에서 Optional.empty() 처리.
      */
     private String extractMode(JsonNode path) {
-        boolean hasRail = false;
-        boolean hasSubway = false;
-        boolean hasExpressBus = false;
-        boolean hasBus = false;
+        List<String> modes = new ArrayList<>();
         for (JsonNode sub : path.path("subPath")) {
-            int type = sub.path("trafficType").asInt();
-            if (type == 4) hasRail = true;
-            if (type == 1) hasSubway = true;
-            if (type == 6) hasExpressBus = true;
-            if (type == 2) hasBus = true;
+            String mode = switch (sub.path("trafficType").asInt()) {
+                case 1 -> "SUBWAY";
+                case 2 -> "BUS";
+                case 4 -> "RAIL";
+                case 6 -> "EXPRESSBUS";
+                default -> null;
+            };
+            if (mode != null && (modes.isEmpty() || !modes.get(modes.size() - 1).equals(mode))) {
+                modes.add(mode);
+            }
         }
-        if (hasRail)        return "RAIL";
-        if (hasSubway)      return "SUBWAY";
-        if (hasExpressBus)  return "EXPRESSBUS";
-        if (hasBus)         return "BUS";
-        return null;
+        return modes.isEmpty() ? null : String.join(",", modes);
     }
 
     public record OdsayResult(

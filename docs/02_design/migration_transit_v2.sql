@@ -9,7 +9,7 @@ CREATE TABLE transit_cache (
     to_attraction_id   BIGINT       NOT NULL,
     departure_hour     TINYINT      NOT NULL,
     duration_minutes   SMALLINT     NOT NULL,
-    transport_mode     VARCHAR(20)  NOT NULL,
+    transport_mode     VARCHAR(100) NOT NULL,
     transfer_count     TINYINT UNSIGNED NULL,
     fare               INT UNSIGNED NULL,
     total_distance_m   INT UNSIGNED NULL,
@@ -23,5 +23,5 @@ CREATE TABLE transit_cache (
 );
 
 ALTER TABLE trip_block
-    ADD COLUMN transit_duration_minutes SMALLINT NULL COMMENT '이전 블록→이 블록 이동 시간(분)',
-    ADD COLUMN transit_mode             VARCHAR(20) NULL COMMENT '이동 수단 (BUS/SUBWAY 등)';
+    ADD COLUMN transit_duration_minutes SMALLINT     NULL COMMENT '이전 블록→이 블록 이동 시간(분)',
+    ADD COLUMN transit_mode             VARCHAR(100) NULL COMMENT '이동 수단 목록 (콤마 구분, 예: EXPRESSBUS,RAIL)';
