@@ -8,8 +8,7 @@ import java.util.Optional;
 @Mapper
 public interface TransitCacheMapper {
 
-    Optional<TransitCache> findByKey(Long fromAttractionId, Long toAttractionId,
-                                     Integer departureHour, Integer transportType);
+    Optional<TransitCache> findByKey(Long fromAttractionId, Long toAttractionId, Integer departureHour);
 
     void insert(TransitCache cache);
 }

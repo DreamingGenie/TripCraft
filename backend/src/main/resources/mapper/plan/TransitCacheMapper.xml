@@ -5,14 +5,16 @@
 <mapper namespace="com.tripcraft.plan.mapper.TransitCacheMapper">
 
     <resultMap id="cacheMap" type="com.tripcraft.plan.domain.TransitCache">
-        <id column="id" property="id"/>
+        <id     column="id"                 property="id"/>
         <result column="from_attraction_id" property="fromAttractionId"/>
-        <result column="to_attraction_id" property="toAttractionId"/>
-        <result column="departure_hour" property="departureHour"/>
-        <result column="transport_type" property="transportType"/>
-        <result column="duration_minutes" property="durationMinutes"/>
-        <result column="transport_mode" property="transportMode"/>
-        <result column="cached_at" property="cachedAt"/>
+        <result column="to_attraction_id"   property="toAttractionId"/>
+        <result column="departure_hour"     property="departureHour"/>
+        <result column="duration_minutes"   property="durationMinutes"/>
+        <result column="transport_mode"     property="transportMode"/>
+        <result column="transfer_count"     property="transferCount"/>
+        <result column="fare"               property="fare"/>
+        <result column="total_distance_m"   property="totalDistanceM"/>
+        <result column="cached_at"          property="cachedAt"/>
     </resultMap>
 
     <select id="findByKey" resultMap="cacheMap">
@@ -20,17 +22,22 @@
         WHERE from_attraction_id = #{fromAttractionId}
           AND to_attraction_id   = #{toAttractionId}
           AND departure_hour     = #{departureHour}
-          AND transport_type     = #{transportType}
     </select>
 
-    <insert id="insert" parameterType="com.tripcraft.plan.domain.TransitCache" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO transit_cache (from_attraction_id, to_attraction_id, departure_hour,
-                                   transport_type, duration_minutes, transport_mode)
-        VALUES (#{fromAttractionId}, #{toAttractionId}, #{departureHour},
-                #{transportType}, #{durationMinutes}, #{transportMode})
+    <insert id="insert" parameterType="com.tripcraft.plan.domain.TransitCache"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transit_cache
+            (from_attraction_id, to_attraction_id, departure_hour,
+             duration_minutes, transport_mode, transfer_count, fare, total_distance_m)
+        VALUES
+            (#{fromAttractionId}, #{toAttractionId}, #{departureHour},
+             #{durationMinutes}, #{transportMode}, #{transferCount}, #{fare}, #{totalDistanceM})
         ON DUPLICATE KEY UPDATE
             duration_minutes = VALUES(duration_minutes),
             transport_mode   = VALUES(transport_mode),
+            transfer_count   = VALUES(transfer_count),
+            fare             = VALUES(fare),
+            total_distance_m = VALUES(total_distance_m),
             cached_at        = CURRENT_TIMESTAMP
     </insert>
 
