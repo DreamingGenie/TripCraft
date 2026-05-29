@@ -80,100 +80,80 @@
   box-shadow: 0 0 0 2px rgba(15,110,86,.18);
 }
 
-/* ── 사이드바 후보군 지역 > 카테고리 리스트 ── */
-.cand-region-group {
-  margin-top: 6px;
-  border: 0.5px solid var(--purple-100);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+/* ── 후보군 트리 (지역 > 카테고리 > 아이템) ── */
+.cand-tree { margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--gray-border); }
+
+.cand-city-group { margin-bottom: 2px; }
+.cand-city-header {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 5px 2px;
+  background: none; border: none; border-radius: var(--radius-md);
+  cursor: pointer; text-align: left;
+  transition: background .12s;
 }
-.cand-region-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
-  background: var(--purple-50);
+.cand-city-header:hover { background: var(--bg-page); }
+.cand-chevron {
+  display: inline-block; font-size: 6px; color: var(--gray-muted);
+  transform: rotate(0deg); transition: transform 0.2s ease;
+  flex-shrink: 0; line-height: 1;
 }
-.cand-region-pin {
-  font-size: 10px;
-  flex-shrink: 0;
+.cand-chevron.open { transform: rotate(90deg); }
+.cand-chevron.sm { font-size: 5px; }
+.cand-city-name { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; }
+.cand-city-count {
+  font-size: 9px; color: var(--gray-muted);
+  background: var(--bg-page); border-radius: 8px; padding: 1px 5px; flex-shrink: 0;
 }
-.cand-region-name {
-  flex: 1;
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--purple-900);
+
+.cand-city-body {
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 1.5px solid var(--gray-border);
+  padding-bottom: 2px;
+  margin-bottom: 2px;
 }
-.cand-region-count {
-  font-size: 9px;
-  font-weight: 500;
-  color: var(--purple-900);
-  background: var(--purple-100);
-  padding: 1px 5px;
-  border-radius: 8px;
+
+.cand-cat-group { margin-bottom: 1px; }
+.cand-cat-header {
+  display: flex; align-items: center; gap: 4px;
+  width: 100%; padding: 3px 4px;
+  background: none; border: none; border-radius: var(--radius-md);
+  cursor: pointer; text-align: left;
+  transition: background .12s;
 }
-.cand-cat-group {
-  padding: 4px 8px 2px;
-  border-top: 0.5px solid var(--purple-100);
-}
-.cand-cat-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--gray-dark);
-  padding: 2px 0 3px;
+.cand-cat-header:hover { background: var(--purple-50); }
+.cand-cat-name { font-size: 10px; font-weight: 600; color: var(--gray-dark); flex: 1; }
+.cand-cat-count { font-size: 9px; color: var(--gray-muted); }
+
+.cand-cat-body { padding-left: 2px; margin-bottom: 2px; }
+
+.cand-item-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 4px; border-radius: var(--radius-md);
+  cursor: grab; user-select: none;
+  transition: background .1s;
   margin-bottom: 1px;
 }
-.cand-cat-count {
-  margin-left: auto;
-  font-size: 9px;
-  color: var(--gray-muted);
-  font-weight: 400;
+.cand-item-row:hover { background: var(--purple-50); }
+.cand-item-row:active { cursor: grabbing; opacity: .7; }
+.cand-drag-dot { font-size: 10px; color: var(--gray-border); flex-shrink: 0; line-height: 1; }
+.cand-item-name {
+  flex: 1; font-size: 11px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cand-list-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 2px 3px 6px;
-  border-radius: var(--radius-sm);
-  cursor: grab;
-  border-left: 2px solid transparent;
+.cand-item-del {
+  display: none; font-size: 11px; line-height: 1;
+  color: var(--gray-muted); background: none; border: none;
+  padding: 0 2px; cursor: pointer; flex-shrink: 0;
 }
-.cand-list-item:hover {
-  background: var(--bg-page);
-  border-left-color: var(--teal-600, #0F6E56);
-}
-.cand-list-item:active {
-  cursor: grabbing;
-}
-.cand-list-name {
-  flex: 1;
-  font-size: 11px;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cand-item-remove {
-  display: none;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--gray-muted);
-  background: none;
-  border: none;
-  padding: 0 2px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.cand-list-item:hover .cand-item-remove {
-  display: block;
-}
-.cand-item-remove:hover {
-  color: #dc2626;
-}
+.cand-item-row:hover .cand-item-del { display: block; }
+.cand-item-del:hover { color: #dc2626; }
+
+/* ── 콜랩스 애니메이션 ── */
+.tree-slide-enter-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.tree-slide-leave-active { transition: opacity 0.13s ease, transform 0.13s ease; }
+.tree-slide-enter-from { opacity: 0; transform: translateY(-6px); }
+.tree-slide-leave-to   { opacity: 0; transform: translateY(-4px); }
 
 
 .schedule-card-top {

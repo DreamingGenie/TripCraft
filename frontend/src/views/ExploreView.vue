@@ -24,28 +24,39 @@
             <span class="schedule-dates">{{ s.startDate }} ~ {{ s.endDate }}</span>
           </div>
 
-          <!-- 선택된 일정: 지역 > 카테고리 > 장소 리스트 -->
+          <!-- 선택된 일정: 지역 > 카테고리 > 장소 트리 -->
           <template v-if="activeTrip === s.id && candidateRegionGroups.length">
-            <div v-for="rg in candidateRegionGroups" :key="rg.region" class="cand-region-group">
-              <div class="cand-region-header">
-                <span class="cand-region-pin">📍</span>
-                <span class="cand-region-name">{{ rg.region }}</span>
-                <span class="cand-region-count">{{ rg.total }}</span>
-              </div>
-              <div v-for="cg in rg.catGroups" :key="cg.cat" class="cand-cat-group">
-                <div class="cand-cat-label">
-                  <span>{{ catEmoji(cg.cat) }}</span>
-                  <span>{{ cg.cat }}</span>
-                  <span class="cand-cat-count">{{ cg.items.length }}</span>
-                </div>
-                <div v-for="c in cg.items" :key="c.id"
-                     class="cand-list-item"
-                     draggable="true"
-                     @dragstart="onCandListDragStart($event, c)"
-                     @dragend="draggingCand = null">
-                  <span class="cand-list-name">{{ c.attractionName }}</span>
-                  <button class="cand-item-remove" @click.stop="removeFromTrip(c.attractionId)">×</button>
-                </div>
+            <div class="cand-tree">
+              <div v-for="rg in candidateRegionGroups" :key="rg.region" class="cand-city-group">
+                <button class="cand-city-header" @click.stop="toggleRegion(rg.region)">
+                  <span class="cand-chevron" :class="{ open: !collapsedRegions[rg.region] }">▶</span>
+                  <span class="cand-city-name">{{ rg.region }}</span>
+                  <span class="cand-city-count">{{ rg.total }}</span>
+                </button>
+                <Transition name="tree-slide">
+                  <div v-if="!collapsedRegions[rg.region]" class="cand-city-body">
+                    <div v-for="cg in rg.catGroups" :key="cg.cat" class="cand-cat-group">
+                      <button class="cand-cat-header" @click.stop="toggleCatGroup(rg.region, cg.cat)">
+                        <span class="cand-chevron sm" :class="{ open: !collapsedCatGroups[`${rg.region}__${cg.cat}`] }">▶</span>
+                        <span class="cand-cat-name">{{ cg.cat }}</span>
+                        <span class="cand-cat-count">({{ cg.items.length }})</span>
+                      </button>
+                      <Transition name="tree-slide">
+                        <div v-if="!collapsedCatGroups[`${rg.region}__${cg.cat}`]" class="cand-cat-body">
+                          <div v-for="c in cg.items" :key="c.id"
+                               class="cand-item-row"
+                               draggable="true"
+                               @dragstart="onCandListDragStart($event, c)"
+                               @dragend="draggingCand = null">
+                            <span class="cand-drag-dot">⠿</span>
+                            <span class="cand-item-name">{{ c.attractionName }}</span>
+                            <button class="cand-item-del" @click.stop="removeFromTrip(c.attractionId)">×</button>
+                          </div>
+                        </div>
+                      </Transition>
+                    </div>
+                  </div>
+                </Transition>
               </div>
             </div>
           </template>
@@ -157,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, inject, watch, onMounted, onUnmounted } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { searchAttractions } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
@@ -168,6 +179,13 @@ const openScheduleModal = inject('openScheduleModal')
 const trips = ref([])
 const tripsLoading = ref(false)
 const activeTrip = ref(null)
+const collapsedRegions = reactive({})
+const collapsedCatGroups = reactive({})
+function toggleRegion(region) { collapsedRegions[region] = !collapsedRegions[region] }
+function toggleCatGroup(region, cat) {
+  const key = `${region}__${cat}`
+  collapsedCatGroups[key] = !collapsedCatGroups[key]
+}
 const addedIds = ref(new Set())
 const activeTripCandidates = ref([])
 const candidateIdMap = ref(new Map()) // attractionId → candidateId (DB PK)
