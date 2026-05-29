@@ -26,32 +26,33 @@
         <template v-else>
           <div v-for="group in cityGroups" :key="group.city" class="city-group">
             <button class="city-header" @click="toggleCity(group.city)">
-              <span class="city-pin">📍</span>
+              <span class="city-chevron" :class="{ open: !collapsedCities[group.city] }">▶</span>
               <span class="city-name">{{ group.city }}</span>
-              <span class="city-count">{{ group.total }}개</span>
-              <span class="city-chevron">{{ collapsedCities[group.city] ? '▸' : '▾' }}</span>
+              <span class="city-count">{{ group.total }}</span>
             </button>
-            <template v-if="!collapsedCities[group.city]">
-              <div v-for="catGroup in group.categories" :key="catGroup.cat" class="cat-group">
-                <button class="cat-header" @click="toggleCat(group.city, catGroup.cat)">
-                  <span class="cat-name">{{ catGroup.cat }}</span>
-                  <span class="cat-count">{{ catGroup.candidates.length }}</span>
-                  <span class="city-chevron">{{ collapsedCats[`${group.city}__${catGroup.cat}`] ? '▸' : '▾' }}</span>
-                </button>
-                <template v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]">
-                  <div v-for="c in catGroup.candidates" :key="c.id"
-                       class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
-                       draggable="true"
-                       @dragstart="onCandDragStart($event, c)"
-                       @dragend="onDragEnd">
-                    <div class="cand-bar" style="background:#534AB7"></div>
-                    <div class="cand-info">
-                      <p class="cand-name">{{ c.attractionName }}</p>
+            <Transition name="tree-slide">
+              <div v-if="!collapsedCities[group.city]" class="city-body">
+                <div v-for="catGroup in group.categories" :key="catGroup.cat" class="cat-group">
+                  <button class="cat-header" @click.stop="toggleCat(group.city, catGroup.cat)">
+                    <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${catGroup.cat}`] }">▶</span>
+                    <span class="cat-name">{{ catGroup.cat }}</span>
+                    <span class="cat-count">({{ catGroup.candidates.length }})</span>
+                  </button>
+                  <Transition name="tree-slide">
+                    <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
+                      <div v-for="c in catGroup.candidates" :key="c.id"
+                           class="cand-row" :class="{ placed: c.placed }"
+                           draggable="true"
+                           @dragstart="onCandDragStart($event, c)"
+                           @dragend="onDragEnd">
+                        <span class="drag-dot">⠿</span>
+                        <span class="cand-row-name">{{ c.attractionName }}</span>
+                      </div>
                     </div>
-                  </div>
-                </template>
+                  </Transition>
+                </div>
               </div>
-            </template>
+            </Transition>
           </div>
         </template>
 
