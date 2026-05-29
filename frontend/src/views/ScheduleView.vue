@@ -25,23 +25,33 @@
 
         <template v-else>
           <div v-for="group in cityGroups" :key="group.city" class="city-group">
-            <button class="city-header">
+            <button class="city-header" @click="toggleCity(group.city)">
               <span class="city-pin">📍</span>
               <span class="city-name">{{ group.city }}</span>
-              <span class="city-count">{{ group.candidates.length }}개</span>
-              <span class="city-chevron">▾</span>
+              <span class="city-count">{{ group.total }}개</span>
+              <span class="city-chevron">{{ collapsedCities[group.city] ? '▸' : '▾' }}</span>
             </button>
-            <div v-for="c in group.candidates" :key="c.id"
-                 class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
-                 draggable="true"
-                 @dragstart="onCandDragStart($event, c)"
-                 @dragend="onDragEnd">
-              <div class="cand-bar" style="background:#534AB7"></div>
-              <div class="cand-info">
-                <p class="cand-name">{{ c.attractionName }}</p>
-                <p class="cand-cat">{{ c.category }}</p>
+            <template v-if="!collapsedCities[group.city]">
+              <div v-for="catGroup in group.categories" :key="catGroup.cat" class="cat-group">
+                <button class="cat-header" @click="toggleCat(group.city, catGroup.cat)">
+                  <span class="cat-name">{{ catGroup.cat }}</span>
+                  <span class="cat-count">{{ catGroup.candidates.length }}</span>
+                  <span class="city-chevron">{{ collapsedCats[`${group.city}__${catGroup.cat}`] ? '▸' : '▾' }}</span>
+                </button>
+                <template v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]">
+                  <div v-for="c in catGroup.candidates" :key="c.id"
+                       class="cand-card" :class="{ placed: c.placed, dragging: c.dragging }"
+                       draggable="true"
+                       @dragstart="onCandDragStart($event, c)"
+                       @dragend="onDragEnd">
+                    <div class="cand-bar" style="background:#534AB7"></div>
+                    <div class="cand-info">
+                      <p class="cand-name">{{ c.attractionName }}</p>
+                    </div>
+                  </div>
+                </template>
               </div>
-            </div>
+            </template>
           </div>
         </template>
 
@@ -133,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
 import { getTransitDetail, selectTransitPath } from '@/api/transit'
@@ -181,14 +191,29 @@ const SIDO_NAME = {
   31:'경기', 32:'강원', 33:'충북', 34:'충남', 35:'경북', 36:'경남', 37:'전북', 38:'전남', 39:'제주',
 }
 
+const collapsedCities = reactive({})
+const collapsedCats = reactive({})
+
+function toggleCity(city) { collapsedCities[city] = !collapsedCities[city] }
+function toggleCat(city, cat) {
+  const key = `${city}__${cat}`
+  collapsedCats[key] = !collapsedCats[key]
+}
+
 const cityGroups = computed(() => {
   const groups = {}
   for (const c of candidates.value) {
     const city = c.cityName || SIDO_NAME[c.cityCode] || '기타'
-    if (!groups[city]) groups[city] = []
-    groups[city].push(c)
+    const cat = c.category || '기타'
+    if (!groups[city]) groups[city] = {}
+    if (!groups[city][cat]) groups[city][cat] = []
+    groups[city][cat].push(c)
   }
-  return Object.entries(groups).map(([city, cands]) => ({ city, candidates: cands }))
+  return Object.entries(groups).map(([city, catMap]) => ({
+    city,
+    total: Object.values(catMap).flat().length,
+    categories: Object.entries(catMap).map(([cat, cands]) => ({ cat, candidates: cands })),
+  }))
 })
 
 const nightsLabel = computed(() => {

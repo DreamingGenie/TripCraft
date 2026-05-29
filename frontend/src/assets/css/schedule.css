@@ -44,6 +44,21 @@
 .city-count { font-size: var(--font-size-xs); color: var(--gray-muted); }
 .city-chevron { font-size: var(--font-size-xs); color: var(--gray-muted); }
 
+.cat-group { margin-top: 2px; }
+.cat-header {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 0 3px 10px;
+  background: none; width: 100%; text-align: left; cursor: pointer;
+  border: none;
+}
+.cat-header:hover { background: var(--purple-50); border-radius: var(--radius-md); }
+.cat-name { font-size: var(--font-size-xs); color: var(--gray-dark); flex: 1; }
+.cat-count {
+  font-size: 10px; color: var(--gray-muted);
+  background: var(--bg-page); border-radius: var(--radius-full);
+  padding: 1px 5px;
+}
+
 .cand-card {
   border: 0.5px solid var(--gray-border); border-radius: var(--radius-md);
   padding: 8px 10px; background: var(--bg-surface);
