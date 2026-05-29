@@ -32,25 +32,60 @@
             </button>
             <Transition name="tree-slide">
               <div v-if="!collapsedCities[group.city]" class="city-body">
-                <div v-for="catGroup in group.categories" :key="catGroup.cat" class="cat-group">
-                  <button class="cat-header" @click.stop="toggleCat(group.city, catGroup.cat)">
-                    <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${catGroup.cat}`] }">▶</span>
-                    <span class="cat-name">{{ catGroup.cat }}</span>
-                    <span class="cat-count">({{ catGroup.candidates.length }})</span>
-                  </button>
-                  <Transition name="tree-slide">
-                    <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
-                      <div v-for="c in catGroup.candidates" :key="c.id"
-                           class="cand-row" :class="{ placed: c.placed }"
-                           draggable="true"
-                           @dragstart="onCandDragStart($event, c)"
-                           @dragend="onDragEnd">
-                        <span class="drag-dot">⠿</span>
-                        <span class="cand-row-name">{{ c.attractionName }}</span>
+                <template v-for="sg in group.sgGroups" :key="sg.sg || '__none__'">
+                  <!-- 시군구 레이어 -->
+                  <template v-if="sg.sg">
+                    <button class="sigungu-header" @click.stop="toggleSigungu(group.city, sg.sg)">
+                      <span class="cat-chevron" :class="{ open: !collapsedSigungus[`${group.city}__${sg.sg}`] }">▶</span>
+                      <span class="sigungu-name">{{ sg.sg }}</span>
+                    </button>
+                    <Transition name="tree-slide">
+                      <div v-if="!collapsedSigungus[`${group.city}__${sg.sg}`]" class="sigungu-body">
+                        <div v-for="catGroup in sg.catGroups" :key="catGroup.cat" class="cat-group">
+                          <button class="cat-header" @click.stop="toggleCat(`${group.city}__${sg.sg}`, catGroup.cat)">
+                            <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`] }">▶</span>
+                            <span class="cat-name">{{ catGroup.cat }}</span>
+                            <span class="cat-count">({{ catGroup.candidates.length }})</span>
+                          </button>
+                          <Transition name="tree-slide">
+                            <div v-if="!collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`]" class="cat-body">
+                              <div v-for="c in catGroup.candidates" :key="c.id"
+                                   class="cand-row" :class="{ placed: c.placed }"
+                                   draggable="true"
+                                   @dragstart="onCandDragStart($event, c)"
+                                   @dragend="onDragEnd">
+                                <span class="drag-dot">⠿</span>
+                                <span class="cand-row-name">{{ c.attractionName }}</span>
+                              </div>
+                            </div>
+                          </Transition>
+                        </div>
                       </div>
+                    </Transition>
+                  </template>
+                  <!-- 시군구 없는 기존 데이터: 2단계 그대로 표시 -->
+                  <template v-else>
+                    <div v-for="catGroup in sg.catGroups" :key="catGroup.cat" class="cat-group">
+                      <button class="cat-header" @click.stop="toggleCat(group.city, catGroup.cat)">
+                        <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${catGroup.cat}`] }">▶</span>
+                        <span class="cat-name">{{ catGroup.cat }}</span>
+                        <span class="cat-count">({{ catGroup.candidates.length }})</span>
+                      </button>
+                      <Transition name="tree-slide">
+                        <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
+                          <div v-for="c in catGroup.candidates" :key="c.id"
+                               class="cand-row" :class="{ placed: c.placed }"
+                               draggable="true"
+                               @dragstart="onCandDragStart($event, c)"
+                               @dragend="onDragEnd">
+                            <span class="drag-dot">⠿</span>
+                            <span class="cand-row-name">{{ c.attractionName }}</span>
+                          </div>
+                        </div>
+                      </Transition>
                     </div>
-                  </Transition>
-                </div>
+                  </template>
+                </template>
               </div>
             </Transition>
           </div>
@@ -194,26 +229,37 @@ const SIDO_NAME = {
 
 const collapsedCities = reactive({})
 const collapsedCats = reactive({})
+const collapsedSigungus = reactive({})
 
 function toggleCity(city) { collapsedCities[city] = !collapsedCities[city] }
-function toggleCat(city, cat) {
-  const key = `${city}__${cat}`
-  collapsedCats[key] = !collapsedCats[key]
+function toggleCat(key, cat) {
+  const k = `${key}__${cat}`
+  collapsedCats[k] = !collapsedCats[k]
+}
+function toggleSigungu(city, sg) {
+  const key = `${city}__${sg}`
+  collapsedSigungus[key] = !collapsedSigungus[key]
 }
 
 const cityGroups = computed(() => {
   const groups = {}
   for (const c of candidates.value) {
     const city = c.cityName || SIDO_NAME[c.cityCode] || '기타'
+    const sg = c.sigunguName || '__none__'
     const cat = c.category || '기타'
     if (!groups[city]) groups[city] = {}
-    if (!groups[city][cat]) groups[city][cat] = []
-    groups[city][cat].push(c)
+    if (!groups[city][sg]) groups[city][sg] = { cats: {} }
+    if (!groups[city][sg].cats[cat]) groups[city][sg].cats[cat] = []
+    groups[city][sg].cats[cat].push(c)
   }
-  return Object.entries(groups).map(([city, catMap]) => ({
+  return Object.entries(groups).map(([city, sgMap]) => ({
     city,
-    total: Object.values(catMap).flat().length,
-    categories: Object.entries(catMap).map(([cat, cands]) => ({ cat, candidates: cands })),
+    total: Object.values(sgMap).reduce((s, sg) =>
+      s + Object.values(sg.cats).reduce((cs, arr) => cs + arr.length, 0), 0),
+    sgGroups: Object.entries(sgMap).map(([sg, sgData]) => ({
+      sg: sg === '__none__' ? null : sg,
+      catGroups: Object.entries(sgData.cats).map(([cat, cands]) => ({ cat, candidates: cands })),
+    })),
   }))
 })
 
