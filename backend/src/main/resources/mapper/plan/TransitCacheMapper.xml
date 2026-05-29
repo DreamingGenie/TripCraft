@@ -26,6 +26,20 @@
           AND departure_hour     = #{departureHour}
     </select>
 
+    <update id="updateSummary" parameterType="com.tripcraft.plan.domain.TransitCache">
+        UPDATE transit_cache
+        SET duration_minutes  = #{durationMinutes},
+            transport_mode    = #{transportMode},
+            transfer_count    = #{transferCount},
+            fare              = #{fare},
+            total_distance_m  = #{totalDistanceM},
+            total_walk_m      = #{totalWalkM},
+            cached_at         = CURRENT_TIMESTAMP
+        WHERE from_attraction_id = #{fromAttractionId}
+          AND to_attraction_id   = #{toAttractionId}
+          AND departure_hour     = #{departureHour}
+    </update>
+
     <insert id="insert" parameterType="com.tripcraft.plan.domain.TransitCache"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO transit_cache

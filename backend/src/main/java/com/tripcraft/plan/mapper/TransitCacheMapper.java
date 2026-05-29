@@ -11,4 +11,6 @@ public interface TransitCacheMapper {
     Optional<TransitCache> findByKey(Long fromAttractionId, Long toAttractionId, Integer departureHour);
 
     void insert(TransitCache cache);
+
+    void updateSummary(TransitCache cache);
 }

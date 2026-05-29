@@ -28,4 +28,10 @@ public interface TripBlockMapper {
     void deleteByCandidateId(Long candidateId);
 
     void deleteByTripId(Long tripId);
+
+    void updateTransitByAttractionPair(
+            @Param("fromAttractionId") Long fromAttractionId,
+            @Param("toAttractionId") Long toAttractionId,
+            @Param("durationMinutes") Integer durationMinutes,
+            @Param("transportMode") String transportMode);
 }
