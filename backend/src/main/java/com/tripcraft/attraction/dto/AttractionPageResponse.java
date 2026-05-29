@@ -13,4 +13,5 @@ public class AttractionPageResponse {
     private int total;
     private int page;
     private int size;
+    private List<AttractionGroupStat> groupStats;
 }

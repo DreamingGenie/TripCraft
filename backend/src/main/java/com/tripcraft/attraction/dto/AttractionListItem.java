@@ -15,6 +15,8 @@ public class AttractionListItem {
     private String category;
     private Integer sidoCode;
     private String region;
+    private Integer sigunguCode;
+    private String sigunguName;
     private String address;
     private String firstImage;
     private BigDecimal latitude;

@@ -47,7 +47,17 @@ CREATE TABLE member_token (
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
--- 3. 관광지 (attraction)
+-- 3. 시군구 참조 (sigungu) — TourAPI 공식 코드 기준
+-- ---------------------------------------------
+CREATE TABLE sigungu (
+    sido_code    TINYINT     NOT NULL COMMENT '시도 코드 (1=서울, 31=경기 등)',
+    sigungu_code TINYINT     NOT NULL COMMENT '시도 내 시군구 코드',
+    name         VARCHAR(50) NOT NULL,
+    PRIMARY KEY (sido_code, sigungu_code)
+) DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 4. 관광지 (attraction)
 -- ---------------------------------------------
 CREATE TABLE attraction (
     id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '내부 PK',

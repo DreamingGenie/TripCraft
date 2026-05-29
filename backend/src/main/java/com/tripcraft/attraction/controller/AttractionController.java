@@ -1,6 +1,7 @@
 package com.tripcraft.attraction.controller;
 
 import com.tripcraft.attraction.dto.AttractionPageResponse;
+import com.tripcraft.attraction.dto.RegionWithSigunguDto;
 import com.tripcraft.attraction.service.AttractionService;
 import com.tripcraft.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/attractions")
 @RequiredArgsConstructor
@@ -18,16 +21,22 @@ public class AttractionController {
 
     private final AttractionService attractionService;
 
+    @GetMapping("/regions")
+    public ResponseEntity<ApiResponse<List<RegionWithSigunguDto>>> getRegions() {
+        return ResponseEntity.ok(ApiResponse.ok(attractionService.getRegionsWithSigungu()));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<AttractionPageResponse>> search(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
+            @RequestParam(required = false) String sigungu,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Long memberId) {
 
-        AttractionPageResponse result = attractionService.search(keyword, region, category, page, size, memberId);
+        AttractionPageResponse result = attractionService.search(keyword, region, sigungu, category, page, size, memberId);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

@@ -23,6 +23,29 @@
         <result column="synced_at" property="syncedAt"/>
     </resultMap>
 
+    <!-- 공통 WHERE 조건 -->
+    <sql id="searchWhere">
+        <where>
+            <if test="sidoCodes != null and !sidoCodes.isEmpty()">
+                AND sido_code IN
+                <foreach item="code" collection="sidoCodes" open="(" separator="," close=")">#{code}</foreach>
+            </if>
+            <if test="sigunguPairs != null and !sigunguPairs.isEmpty()">
+                AND (sido_code, sigungu_code) IN
+                <foreach item="pair" collection="sigunguPairs" open="(" separator="," close=")">
+                    (#{pair.sidoCode}, #{pair.sigunguCode})
+                </foreach>
+            </if>
+            <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
+                AND content_type_id IN
+                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">#{id}</foreach>
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND title LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </sql>
+
     <select id="findById" parameterType="long" resultMap="attractionMap">
         SELECT * FROM attraction WHERE id = #{id}
     </select>
@@ -34,39 +57,25 @@
     <select id="findByCondition" parameterType="com.tripcraft.attraction.mapper.AttractionSearchCondition"
             resultMap="attractionMap">
         SELECT * FROM attraction
-        <where>
-            <if test="sidoCodes != null and !sidoCodes.isEmpty()">
-                AND sido_code IN
-                <foreach item="code" collection="sidoCodes" open="(" separator="," close=")">#{code}</foreach>
-            </if>
-            <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
-                AND content_type_id IN
-                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">#{id}</foreach>
-            </if>
-            <if test="keyword != null and keyword != ''">
-                AND title LIKE CONCAT('%', #{keyword}, '%')
-            </if>
-        </where>
-        ORDER BY id
+        <include refid="searchWhere"/>
+        ORDER BY sido_code, sigungu_code, content_type_id, id
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <select id="countByCondition" parameterType="com.tripcraft.attraction.mapper.AttractionSearchCondition"
             resultType="int">
         SELECT COUNT(*) FROM attraction
-        <where>
-            <if test="sidoCodes != null and !sidoCodes.isEmpty()">
-                AND sido_code IN
-                <foreach item="code" collection="sidoCodes" open="(" separator="," close=")">#{code}</foreach>
-            </if>
-            <if test="contentTypeIds != null and !contentTypeIds.isEmpty()">
-                AND content_type_id IN
-                <foreach item="id" collection="contentTypeIds" open="(" separator="," close=")">#{id}</foreach>
-            </if>
-            <if test="keyword != null and keyword != ''">
-                AND title LIKE CONCAT('%', #{keyword}, '%')
-            </if>
-        </where>
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="findGroupStats" parameterType="com.tripcraft.attraction.mapper.AttractionSearchCondition"
+            resultType="com.tripcraft.attraction.mapper.GroupStatRow">
+        SELECT sido_code AS sidoCode, sigungu_code AS sigunguCode,
+               content_type_id AS contentTypeId, COUNT(*) AS count
+        FROM attraction
+        <include refid="searchWhere"/>
+        GROUP BY sido_code, sigungu_code, content_type_id
+        ORDER BY sido_code, sigungu_code, content_type_id
     </select>
 
     <insert id="insertAll" parameterType="list">
