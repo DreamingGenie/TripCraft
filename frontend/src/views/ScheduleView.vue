@@ -87,7 +87,7 @@
                  @dragleave="d.dragOver = false"
                  @drop="onDrop($event, d)">
               <div v-if="d.dragOver && dragPreview" class="drop-preview"
-                   :style="{ top: dragPreview.top + 'px', height: '120px' }">
+                   :style="{ top: dragPreview.top + 'px', height: dragPreview.height + 'px' }">
                 {{ dragState?.data?.attractionName }}
               </div>
               <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
@@ -103,13 +103,14 @@
 
               <div v-for="ev in d.events" :key="ev.id"
                    class="event-block" :data-color="ev.color"
-                   :class="{ 'event-dragging': ev.dragging }"
+                   :class="{ 'event-dragging': ev.dragging, 'event-processing': isProcessing && ev.id === processingEvId }"
                    draggable="true"
                    :style="{ top: ev.top + 'px', height: ev.height + 'px' }"
                    @dragstart="onEventDragStart($event, ev, d)"
                    @dragend="onDragEnd">
                 <span class="event-name">{{ ev.name }}</span>
                 <span class="event-time">{{ ev.timeLabel }}</span>
+                <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
                 <button class="event-del" @click.stop="removeEvent(d, ev)">✕</button>
                 <div class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
               </div>
@@ -161,6 +162,8 @@ const selectedPill = ref(null)
 // drag state
 let dragState = null // { type: 'candidate'|'event', data, fromDay? }
 const dragPreview = ref(null)
+const isProcessing = ref(false)
+const processingEvId = ref(null)
 const sidebarDragOver = ref(false)
 const sidebarDropActive = computed(() => sidebarDragOver.value && dragState?.type === 'event')
 
@@ -338,14 +341,16 @@ async function loadTrip() {
 
 // ── 드래그 시작 ──
 function onCandDragStart(e, candidate) {
-  dragState = { type: 'candidate', data: candidate }
+  if (isProcessing.value) { e.preventDefault(); return }
+  dragState = { type: 'candidate', data: candidate, grabOffsetY: 0 }
   candidate.dragging = true
   e.dataTransfer.effectAllowed = 'move'
 }
 
 function onEventDragStart(e, ev, day) {
-  if (resizeState) { e.preventDefault(); return }
-  dragState = { type: 'event', data: ev, fromDay: day }
+  if (isProcessing.value || resizeState) { e.preventDefault(); return }
+  const grabOffsetY = e.clientY - e.currentTarget.getBoundingClientRect().top
+  dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY }
   ev.dragging = true
   e.dataTransfer.effectAllowed = 'move'
 }
@@ -354,6 +359,7 @@ function onEventDragStart(e, ev, day) {
 let resizeState = null // { ev, startY, startHeight }
 
 function onResizeStart(e, ev) {
+  if (isProcessing.value) return
   resizeState = { ev, startY: e.clientY, startHeight: ev.height }
   document.addEventListener('mousemove', onResizeMove)
   document.addEventListener('mouseup', onResizeEnd)
@@ -387,9 +393,11 @@ async function onResizeEnd() {
 }
 
 function onDragEnd() {
+  days.value.forEach(d => {
+    d.events.forEach(ev => { ev.dragging = false })
+    d.dragOver = false
+  })
   if (dragState?.type === 'candidate') dragState.data.dragging = false
-  if (dragState?.type === 'event') dragState.data.dragging = false
-  days.value.forEach(d => { d.dragOver = false })
   sidebarDragOver.value = false
   dragPreview.value = null
   dragState = null
@@ -399,16 +407,17 @@ function onDragEnd() {
 function onDragOver(e, day) {
   if (!dragState) return
   day.dragOver = true
-  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top + wrapperEl.value.scrollTop
-  dragPreview.value = { top: Math.round(relY / SNAP) * SNAP }
+  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
+  const height = dragState.type === 'event' ? dragState.data.height : 60
+  dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
 }
 
 // ── 타임라인 드롭 ──
 async function onDrop(e, day) {
   if (!dragState) return
   day.dragOver = false
-  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top + wrapperEl.value.scrollTop
-  const top = Math.round(relY / SNAP) * SNAP
+  const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
+  const top = Math.round(Math.max(0, relY) / SNAP) * SNAP
   const startTime = topToTime(top)
 
   if (dragState.type === 'candidate') {
@@ -423,34 +432,77 @@ async function onDrop(e, day) {
 
 async function dropCandidate(day, top, startTime) {
   const candidate = dragState.data
+
+  // 낙관적 업데이트: 즉시 UI에 임시 블록 추가
+  const tempEv = {
+    id: `temp-${Date.now()}`,
+    candidateId: candidate.id,
+    tripDate: day.isoDate,
+    displayOrder: day.events.length + 1,
+    name: candidate.attractionName,
+    color: 'purple',
+    top, height: 60,
+    timeLabel: `${startTime} – ${addMins(startTime, 60)}`,
+    dragging: false,
+    transitDurationMinutes: null, transitMode: null,
+  }
+  day.events.push(tempEv)
+  candidate.placed = true
+
+  isProcessing.value = true
+  processingEvId.value = tempEv.id
   try {
     await tripApi.placeBlock(activeTripId.value, {
       candidateId: candidate.id,
       tripDate: day.isoDate,
       startTime: startTime + ':00',
-      durationMinutes: 120,
-      displayOrder: day.events.length + 1,
+      durationMinutes: 60,
+      displayOrder: tempEv.displayOrder,
     })
     toast.show(`"${candidate.attractionName}" 추가됐어요`)
     await loadTrip()
   } catch (err) {
+    // 롤백
+    const idx = day.events.findIndex(e => e.id === tempEv.id)
+    if (idx !== -1) day.events.splice(idx, 1)
+    candidate.placed = false
     toast.show(err.message || '추가 실패')
+  } finally {
+    isProcessing.value = false
+    processingEvId.value = null
   }
 }
 
 async function moveEvent(day, top, startTime) {
   const { data: ev, fromDay } = dragState
-  if (fromDay === day && top === ev.top) return
+  if (fromDay === day && top === ev.top) { ev.dragging = false; return }
+
+  // 낙관적 업데이트: 즉시 UI에서 이동
+  const newDisplayOrder = fromDay === day ? ev.displayOrder ?? 1 : day.events.length + 1
+  ev.dragging = false
+  const fromIdx = fromDay.events.indexOf(ev)
+  if (fromIdx !== -1) fromDay.events.splice(fromIdx, 1)
+  ev.top = top
+  ev.tripDate = day.isoDate
+  ev.timeLabel = `${startTime} – ${addMins(startTime, ev.height)}`
+  day.events.push(ev)
+
+  isProcessing.value = true
+  processingEvId.value = ev.id
   try {
     await tripApi.updateBlock(activeTripId.value, ev.id, {
       tripDate: day.isoDate,
       startTime: startTime + ':00',
       durationMinutes: ev.height,
-      displayOrder: fromDay === day ? ev.displayOrder ?? 1 : day.events.length + 1,
+      displayOrder: newDisplayOrder,
     })
     await loadTrip()
   } catch (err) {
     toast.show(err.message || '이동 실패')
+    await loadTrip() // 에러 시 서버 상태로 복원
+  } finally {
+    isProcessing.value = false
+    processingEvId.value = null
   }
 }
 
@@ -469,12 +521,16 @@ async function onDropSidebar() {
 
 // ── 이벤트 삭제 공통 ──
 async function removeEventFrom(day, ev) {
+  isProcessing.value = true
   try {
     await tripApi.removeBlock(activeTripId.value, ev.id)
     toast.show('장소를 일정에서 제거했어요')
     await loadTrip()
   } catch (err) {
     toast.show(err.message || '삭제 실패')
+  } finally {
+    isProcessing.value = false
+    processingEvId.value = null
   }
 }
 
