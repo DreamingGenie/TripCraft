@@ -21,36 +21,44 @@
 
       <!-- 필터 칩 -->
       <div class="filter-inline">
-        <div class="filter-row">
-          <span class="filter-row-label">지역</span>
-          <div class="filter-chips-wrap">
-            <button v-for="r in regions" :key="r"
-                    class="chip" :class="{ sel: selectedRegions.includes(r) }"
-                    @click="selectRegion(r)">{{ r }}</button>
-          </div>
-          <button v-if="selectedRegions.length || selectedSigungus.length || selectedCats.length"
-                  class="filter-clear-inline" @click="clearFilters">초기화</button>
+        <div class="filter-header" @click="filterOpen = !filterOpen">
+          <span class="filter-header-label">필터</span>
+          <button class="filter-clear-inline"
+                  :style="{ visibility: (selectedRegions.length || selectedSigungus.length || selectedCats.length) ? 'visible' : 'hidden' }"
+                  @click.stop="clearFilters">초기화</button>
+          <span class="filter-chevron" :class="{ open: filterOpen }">▾</span>
         </div>
 
         <Transition name="tree-slide">
-          <div v-if="currentSigunguList.length" class="filter-row">
-            <span class="filter-row-label">시군구</span>
-            <div class="filter-chips-wrap">
-              <button v-for="sg in currentSigunguList" :key="sg.code"
-                      class="chip chip-sm" :class="{ sel: selectedSigungus.includes(`${sg.sidoCode}:${sg.code}`) }"
-                      @click="toggleSigungu(sg.sidoCode, sg.code)">{{ sg.name }}</button>
+          <div v-show="filterOpen" class="filter-body">
+            <div class="filter-row">
+              <span class="filter-row-label">지역</span>
+              <div class="filter-chips-wrap">
+                <button v-for="r in regions" :key="r"
+                        class="chip" :class="{ sel: selectedRegions.includes(r) }"
+                        @click="selectRegion(r)">{{ r }}</button>
+              </div>
+            </div>
+
+            <div v-if="currentSigunguList.length" class="filter-row">
+              <span class="filter-row-label">시군</span>
+              <div class="filter-chips-wrap">
+                <button v-for="sg in currentSigunguList" :key="`${sg.sidoCode}:${sg.code}`"
+                        class="chip chip-sm" :class="{ sel: selectedSigungus.includes(`${sg.sidoCode}:${sg.code}`) }"
+                        @click="toggleSigungu(sg.sidoCode, sg.code)">{{ sg.name }}</button>
+              </div>
+            </div>
+
+            <div class="filter-row">
+              <span class="filter-row-label">분류</span>
+              <div class="filter-chips-wrap">
+                <button v-for="c in categories" :key="c"
+                        class="chip" :class="{ sel: selectedCats.includes(c) }"
+                        @click="toggleCatFilter(c)">{{ c }}</button>
+              </div>
             </div>
           </div>
         </Transition>
-
-        <div class="filter-row">
-          <span class="filter-row-label">분류</span>
-          <div class="filter-chips-wrap">
-            <button v-for="c in categories" :key="c"
-                    class="chip" :class="{ sel: selectedCats.includes(c) }"
-                    @click="toggleCatFilter(c)">{{ c }}</button>
-          </div>
-        </div>
       </div>
 
       <p class="result-count"><strong>{{ total }}</strong>개의 장소</p>
@@ -214,14 +222,14 @@ const statsData = ref([])
 
 const regionsData = ref([])
 const currentSigunguList = computed(() => {
-  if (selectedRegions.value.length !== 1) return []
-  return regionsData.value.find(r => r.sido === selectedRegions.value[0])?.sigunguList ?? []
+  if (!selectedRegions.value.length) return []
+  return regionsData.value
+    .filter(r => selectedRegions.value.includes(r.sido))
+    .flatMap(r => r.sigunguList ?? [])
 })
 
 function selectRegion(r) {
-  const idx = selectedRegions.value.indexOf(r)
-  if (idx === -1) selectedRegions.value = [...selectedRegions.value, r]
-  else selectedRegions.value = selectedRegions.value.filter(x => x !== r)
+  selectedRegions.value = selectedRegions.value.includes(r) ? [] : [r]
   selectedSigungus.value = []
 }
 function toggleSigungu(sidoCode, code) {
@@ -237,8 +245,9 @@ function toggleCatFilter(c) {
 }
 
 const scrollEl = ref(null)
+const filterOpen = ref(true)
 
-const regions = ['서울', '경기', '강원', '충청', '경상', '전라', '제주']
+const regions = ['서울', '경기', '강원', '충북', '충남', '경북', '경남', '전북', '전남', '제주']
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
 const PAGE_SIZE = 20
 

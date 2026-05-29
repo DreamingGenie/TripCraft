@@ -53,10 +53,7 @@ public class AttractionServiceImpl implements AttractionService {
         Map.entry("충북", List.of(33)), Map.entry("충남", List.of(34)),
         Map.entry("경북", List.of(35)), Map.entry("경남", List.of(36)),
         Map.entry("전북", List.of(37)), Map.entry("전남", List.of(38)),
-        Map.entry("제주", List.of(39)),
-        Map.entry("충청", List.of(33, 34)),
-        Map.entry("경상", List.of(35, 36)),
-        Map.entry("전라", List.of(37, 38))
+        Map.entry("제주", List.of(39))
     );
 
     // 단일 시도 코드 → 이름 (광역 그룹 제외)
