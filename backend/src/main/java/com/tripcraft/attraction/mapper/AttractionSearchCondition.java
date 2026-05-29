@@ -10,6 +10,7 @@ import java.util.List;
 public class AttractionSearchCondition {
 
     private List<Integer> sidoCodes;
+    private List<SigunguPair> sigunguPairs;
     private List<Integer> contentTypeIds;
     private String keyword;
     private int offset;

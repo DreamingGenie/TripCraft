@@ -16,6 +16,8 @@ public class CandidateItem {
     private String firstImage;
     private Integer cityCode;
     private String cityName;
+    private Integer sigunguCode;
+    private String sigunguName;
     private String category;
     private String source;
     private BigDecimal latitude;

@@ -2,6 +2,7 @@ package com.tripcraft.plan.service;
 
 import com.tripcraft.attraction.domain.Attraction;
 import com.tripcraft.attraction.mapper.AttractionMapper;
+import com.tripcraft.attraction.service.AttractionService;
 import com.tripcraft.plan.domain.Trip;
 import com.tripcraft.plan.domain.TripBlock;
 import com.tripcraft.plan.domain.TripCandidate;
@@ -40,6 +41,7 @@ public class TripServiceImpl implements TripService {
     private final TripBlockMapper blockMapper;
     private final AttractionMapper attractionMapper;
     private final TransitService transitService;
+    private final AttractionService attractionService;
 
     private static final Map<Integer, String> SIDO_NAME = Map.ofEntries(
         Map.entry(1, "서울"), Map.entry(2, "인천"), Map.entry(3, "대전"),
@@ -89,10 +91,12 @@ public class TripServiceImpl implements TripService {
             String img = a != null ? a.getFirstImage() : null;
             String cat = a != null ? TYPE_NAME.getOrDefault(a.getContentTypeId(), "") : "";
             String city = SIDO_NAME.getOrDefault(c.getCityCode(), "");
+            Integer sgCode = a != null ? a.getSigunguCode() : null;
+            String sgName = attractionService.getSigunguName(c.getCityCode(), sgCode);
             var lat = a != null ? a.getLatitude() : null;
             var lng = a != null ? a.getLongitude() : null;
             return new CandidateItem(c.getId(), c.getAttractionId(), name, img,
-                c.getCityCode(), city, cat, c.getSource(), lat, lng,
+                c.getCityCode(), city, sgCode, sgName, cat, c.getSource(), lat, lng,
                 blocksByCandidate.getOrDefault(c.getId(), List.of()));
         }).toList();
 

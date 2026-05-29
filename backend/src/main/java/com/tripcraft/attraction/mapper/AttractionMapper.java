@@ -17,6 +17,8 @@ public interface AttractionMapper {
 
     int countByCondition(AttractionSearchCondition condition);
 
+    List<GroupStatRow> findGroupStats(AttractionSearchCondition condition);
+
     void insertAll(List<Attraction> attractions);
 
     void update(Attraction attraction);

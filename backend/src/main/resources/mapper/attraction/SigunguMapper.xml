@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.attraction.mapper.SigunguMapper">
+
+    <resultMap id="sigunguMap" type="com.tripcraft.attraction.domain.Sigungu">
+        <result column="sido_code"    property="sidoCode"/>
+        <result column="sigungu_code" property="sigunguCode"/>
+        <result column="name"         property="name"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="sigunguMap">
+        SELECT sido_code, sigungu_code, name
+        FROM sigungu
+        ORDER BY sido_code, sigungu_code
+    </select>
+
+    <select id="findBySidoCode" parameterType="int" resultMap="sigunguMap">
+        SELECT sido_code, sigungu_code, name
+        FROM sigungu
+        WHERE sido_code = #{sidoCode}
+        ORDER BY sigungu_code
+    </select>
+
+</mapper>
