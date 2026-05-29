@@ -22,13 +22,20 @@ public class AttractionServiceImpl implements AttractionService {
     private final AttractionMapper attractionMapper;
     private final FavoriteMapper favoriteMapper;
 
-    private static final Map<String, Integer> REGION_CODE = Map.ofEntries(
-        Map.entry("서울", 1), Map.entry("인천", 2), Map.entry("대전", 3),
-        Map.entry("대구", 4), Map.entry("광주", 5), Map.entry("부산", 6),
-        Map.entry("울산", 7), Map.entry("세종", 8), Map.entry("경기", 31),
-        Map.entry("강원", 32), Map.entry("충북", 33), Map.entry("충남", 34),
-        Map.entry("경북", 35), Map.entry("경남", 36), Map.entry("전북", 37),
-        Map.entry("전남", 38), Map.entry("제주", 39)
+    private static final Map<String, List<Integer>> REGION_CODE = Map.ofEntries(
+        Map.entry("서울", List.of(1)),  Map.entry("인천", List.of(2)),
+        Map.entry("대전", List.of(3)),  Map.entry("대구", List.of(4)),
+        Map.entry("광주", List.of(5)),  Map.entry("부산", List.of(6)),
+        Map.entry("울산", List.of(7)),  Map.entry("세종", List.of(8)),
+        Map.entry("경기", List.of(31)), Map.entry("강원", List.of(32)),
+        Map.entry("충북", List.of(33)), Map.entry("충남", List.of(34)),
+        Map.entry("경북", List.of(35)), Map.entry("경남", List.of(36)),
+        Map.entry("전북", List.of(37)), Map.entry("전남", List.of(38)),
+        Map.entry("제주", List.of(39)),
+        // 광역 그룹: 프론트 필터 칩과 매핑
+        Map.entry("충청", List.of(33, 34)),
+        Map.entry("경상", List.of(35, 36)),
+        Map.entry("전라", List.of(37, 38))
     );
 
     private static final Map<Integer, String> CODE_REGION = Map.ofEntries(
@@ -54,7 +61,7 @@ public class AttractionServiceImpl implements AttractionService {
     public AttractionPageResponse search(String keyword, String region, String category,
                                          int page, int size, Long memberId) {
         List<Integer> sidoCodes = region != null && REGION_CODE.containsKey(region)
-            ? List.of(REGION_CODE.get(region)) : null;
+            ? REGION_CODE.get(region) : null;
         List<Integer> contentTypeIds = category != null && CATEGORY_CODE.containsKey(category)
             ? List.of(CATEGORY_CODE.get(category)) : null;
 
