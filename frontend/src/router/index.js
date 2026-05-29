@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
-  { path: '/', redirect: '/explore' },
+  { path: '/', component: () => import('@/views/LandingView.vue') },
+  { path: '/about', component: () => import('@/views/AboutView.vue') },
   { path: '/auth', component: () => import('@/views/AuthView.vue') },
   { path: '/explore', component: () => import('@/views/ExploreView.vue') },
   {
@@ -16,6 +17,7 @@ const routes = [
     component: () => import('@/views/AdminView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 
 const router = createRouter({

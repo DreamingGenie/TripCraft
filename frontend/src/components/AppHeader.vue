@@ -1,6 +1,6 @@
 <template>
   <header id="gnb">
-    <RouterLink class="logo" to="/explore">TripCraft</RouterLink>
+    <RouterLink class="logo" to="/">TripCraft</RouterLink>
     <RouterLink class="nav-link" to="/explore" active-class="active">관광지 탐색</RouterLink>
     <RouterLink class="nav-link" to="/schedule" active-class="active">내 일정</RouterLink>
     <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
