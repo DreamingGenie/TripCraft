@@ -1,8 +1,6 @@
 <template>
   <main id="main">
   <div id="community-layout">
-
-    <!-- 메인 콘텐츠 -->
     <div id="community-content">
 
       <!-- 목록 뷰 -->
@@ -14,10 +12,17 @@
                     class="sort-btn" :class="{ active: sort === s.value }"
                     @click="changeSort(s.value)">{{ s.label }}</button>
           </div>
-          <button class="btn-primary" @click="writeModal = true">글쓰기</button>
+          <button class="btn-primary" @click="writeModal = true">✏ 글쓰기</button>
         </div>
 
-        <div v-if="loading" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
+        <!-- 공지 배너 -->
+        <div v-if="notices.length" class="notice-banner" @click="openPost(notices[0])">
+          <span class="notice-icon">📢</span>
+          <span class="notice-text">{{ notices[0].title }}</span>
+          <button class="notice-more" @click.stop>더보기 ›</button>
+        </div>
+
+        <div v-if="loading" class="posts-empty">로딩 중...</div>
         <div v-else class="posts-list">
           <div v-for="post in posts" :key="post.id"
                class="post-card" @click="openPost(post)">
@@ -37,12 +42,12 @@
               </div>
             </div>
           </div>
-          <div v-if="!posts.length" style="padding:40px;text-align:center;color:var(--gray-muted)">
-            게시글이 없습니다.
+          <div v-if="!posts.length" class="posts-empty">
+            아직 게시글이 없어요.<br>첫 글을 남겨보세요.
           </div>
         </div>
 
-        <div class="pagination">
+        <div v-if="totalPages > 1" class="pagination">
           <button class="page-btn" :disabled="page === 0" @click="goPage(page - 1)">‹</button>
           <button v-for="p in totalPages" :key="p"
                   class="page-btn" :class="{ active: page === p - 1 }"
@@ -55,7 +60,7 @@
       <div v-else id="view-detail">
         <button class="back-btn" @click="selectedPost = null; postDetail = null">← 목록으로</button>
 
-        <div v-if="!postDetail" style="padding:40px;text-align:center;color:var(--gray-muted)">로딩 중...</div>
+        <div v-if="!postDetail" class="posts-empty">로딩 중...</div>
         <article v-else class="detail-article">
           <h2 class="detail-title">{{ postDetail.title }}</h2>
           <div class="detail-meta">
@@ -65,7 +70,7 @@
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>
             </div>
             <div class="detail-actions" v-if="postDetail.mine">
-              <button class="btn-ghost btn-sm btn-danger" @click="deletePost">삭제</button>
+              <button class="btn-sm btn-danger" @click="deletePost">삭제</button>
             </div>
           </div>
           <div class="detail-body" style="white-space:pre-wrap">{{ postDetail.content }}</div>
@@ -77,35 +82,10 @@
         </article>
 
         <section class="comment-section">
-          <p class="comment-title">댓글 <span class="comment-count" style="color:var(--gray-muted);font-size:12px">준비 중</span></p>
+          <p class="comment-title">댓글 <span class="comment-count">준비 중</span></p>
         </section>
       </div>
-    </div><!-- /community-content -->
-
-    <!-- 사이드바 -->
-    <aside id="community-sidebar">
-      <div>
-        <span class="sidebar-title">📢 공지사항</span>
-        <ul class="notice-list">
-          <li v-for="n in notices" :key="n.id" class="notice-item">
-            <span class="notice-badge">공지</span>
-            <span class="notice-text">{{ n.title }}</span>
-          </li>
-          <li v-if="!notices.length" class="notice-item" style="color:var(--gray-muted)">공지사항 없음</li>
-        </ul>
-      </div>
-      <div>
-        <span class="sidebar-title">🔥 이번 주 인기</span>
-        <ul class="hot-list">
-          <li v-for="(h, i) in hotPosts" :key="h.id" class="hot-item">
-            <span class="hot-rank">{{ i + 1 }}</span>
-            <span class="hot-title">{{ h.title }}</span>
-          </li>
-          <li v-if="!hotPosts.length" class="hot-item" style="color:var(--gray-muted)">게시글 없음</li>
-        </ul>
-      </div>
-    </aside>
-
+    </div>
   </div>
   </main>
 
@@ -118,9 +98,9 @@
       </div>
       <div class="modal-body">
         <label class="field-label"><span class="required">*</span> 제목</label>
-        <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:12px" />
+        <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
         <label class="field-label"><span class="required">*</span> 내용</label>
-        <textarea class="field-textarea" v-model="newPost.body" rows="8" placeholder="내용을 입력하세요"></textarea>
+        <textarea class="field-textarea" v-model="newPost.body" rows="10" placeholder="내용을 입력하세요"></textarea>
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" @click="writeModal = false">취소</button>
@@ -154,7 +134,6 @@ const submitting = ref(false)
 const newPost = reactive({ title: '', body: '' })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
-const hotPosts = computed(() => [...posts.value].sort((a, b) => b.likeCount - a.likeCount).slice(0, 5))
 
 function formatDate(dt) {
   if (!dt) return ''
