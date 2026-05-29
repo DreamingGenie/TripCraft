@@ -220,11 +220,18 @@ public class TripServiceImpl implements TripService {
     }
 
     private void recalculateTransitForDate(Long tripId, LocalDate date) {
+        List<TripBlock> blocks;
         try {
-            List<TripBlock> blocks = blockMapper.findByTripIdAndDate(tripId, date);
-            blocks.sort(Comparator.comparingInt(b -> Optional.ofNullable(b.getDisplayOrder()).orElse(0)));
-            for (int i = 0; i < blocks.size(); i++) {
-                TripBlock block = blocks.get(i);
+            blocks = blockMapper.findByTripIdAndDate(tripId, date);
+        } catch (Exception e) {
+            log.warn("Transit 재계산 실패 (block 조회): tripId={}, date={}: {}", tripId, date, e.getMessage());
+            return;
+        }
+        blocks.sort(Comparator.comparing(
+                b -> Optional.ofNullable(((TripBlock) b).getStartTime()).orElse(java.time.LocalTime.MAX)));
+        for (int i = 0; i < blocks.size(); i++) {
+            TripBlock block = blocks.get(i);
+            try {
                 if (i == 0) {
                     block.setTransitDurationMinutes(null);
                     block.setTransitMode(null);
@@ -233,19 +240,23 @@ public class TripServiceImpl implements TripService {
                     Optional<TripCandidate> fromCand = candidateMapper.findById(prev.getCandidateId());
                     Optional<TripCandidate> toCand   = candidateMapper.findById(block.getCandidateId());
                     if (fromCand.isPresent() && toCand.isPresent()) {
-                        Optional<TransitResponse> transit = transitService.getTransitTime(
-                                fromCand.get().getAttractionId(), toCand.get().getAttractionId(), 9);
+                        long fromAttrId = fromCand.get().getAttractionId();
+                        long toAttrId   = toCand.get().getAttractionId();
+                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9);
                         block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
                         block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
+                        log.debug("Transit 계산: from={} to={} → {}분 ({})",
+                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode());
                     } else {
                         block.setTransitDurationMinutes(null);
                         block.setTransitMode(null);
                     }
                 }
                 blockMapper.update(block);
+            } catch (Exception e) {
+                log.warn("Transit 재계산 실패 (blockId={}): tripId={}, date={}: {}",
+                        block.getId(), tripId, date, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Transit recalculation failed: tripId={}, date={}: {}", tripId, date, e.getMessage());
         }
     }
 }

@@ -71,6 +71,19 @@
         DELETE FROM trip_block WHERE candidate_id = #{candidateId}
     </delete>
 
+    <update id="updateTransitByAttractionPair">
+        UPDATE trip_block b
+        JOIN trip_candidate tc_b ON b.candidate_id = tc_b.id
+        JOIN trip_candidate tc_a ON tc_a.trip_id = tc_b.trip_id
+        JOIN trip_block a ON a.candidate_id = tc_a.id
+            AND a.trip_date = b.trip_date
+            AND a.display_order = b.display_order - 1
+        SET b.transit_duration_minutes = #{durationMinutes},
+            b.transit_mode             = #{transportMode}
+        WHERE tc_b.attraction_id = #{toAttractionId}
+          AND tc_a.attraction_id = #{fromAttractionId}
+    </update>
+
     <delete id="deleteByTripId" parameterType="long">
         DELETE FROM trip_block
         WHERE candidate_id IN (

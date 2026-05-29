@@ -91,10 +91,13 @@
                 {{ dragState?.data?.attractionName }}
               </div>
               <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
-                   class="transit-pill-block"
-                   :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes, 24) + 'px' }">
+                   class="transit-pill-block transit-pill-clickable"
+                   :class="{ 'transit-pill-none': pill.transportMode === 'NONE' }"
+                   :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes || 24, 24) + 'px' }"
+                   @click="openTransitDetail(pill)">
                 <span class="transit-pill-text">
-                  {{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}
+                  <template v-if="pill.transportMode === 'NONE'">경로 정보 없음</template>
+                  <template v-else>{{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}</template>
                 </span>
               </div>
 
@@ -117,6 +120,14 @@
     </div>
 
   </section>
+
+  <TransitDetailPanel
+    v-if="showTransitDetail"
+    :detail="transitDetail"
+    :loading="transitDetailLoading"
+    @close="showTransitDetail = false; selectedPill = null"
+    @select="handleTransitSelect"
+  />
   </main>
 </template>
 
@@ -124,6 +135,8 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
+import { getTransitDetail, selectTransitPath } from '@/api/transit'
+import TransitDetailPanel from '@/components/TransitDetailPanel.vue'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
@@ -138,6 +151,12 @@ const activeTripId = ref(null)
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
+
+// transit detail
+const showTransitDetail = ref(false)
+const transitDetail = ref(null)
+const transitDetailLoading = ref(false)
+const selectedPill = ref(null)
 
 // drag state
 let dragState = null // { type: 'candidate'|'event', data, fromDay? }
@@ -248,16 +267,57 @@ function getTransitPills(day) {
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]
     const curr = sorted[i]
-    if (curr.transitDurationMinutes) {
+    if (curr.transitMode) {
+      const prevCand = candidates.value.find(c => c.id === prev.candidateId)
+      const currCand = candidates.value.find(c => c.id === curr.candidateId)
+      const pillTop = prev.top + prev.height
       pills.push({
-        top: prev.top + prev.height,
+        top: pillTop,
         durationMinutes: curr.transitDurationMinutes,
         transportMode: curr.transitMode,
-        transferCount: 0,
+        fromAttractionId: prevCand?.attractionId,
+        toAttractionId: currCand?.attractionId,
+        departureHour: Math.min(Math.floor(pillTop / 60), 23),
       })
     }
   }
   return pills
+}
+
+async function openTransitDetail(pill) {
+  if (pill.transportMode === 'NONE') {
+    toast.show('이 구간의 대중교통 경로 정보가 없습니다. 택시 또는 자가용을 이용하세요.')
+    return
+  }
+  if (!pill.fromAttractionId || !pill.toAttractionId) {
+    toast.show('경로 정보를 불러올 수 없어요')
+    return
+  }
+  selectedPill.value = pill
+  showTransitDetail.value = true
+  transitDetailLoading.value = true
+  transitDetail.value = null
+  try {
+    transitDetail.value = await getTransitDetail(pill.fromAttractionId, pill.toAttractionId)
+  } catch {
+    toast.show('경로 정보를 불러오지 못했어요')
+    showTransitDetail.value = false
+  } finally {
+    transitDetailLoading.value = false
+  }
+}
+
+async function handleTransitSelect(pathIndex) {
+  if (!selectedPill.value) return
+  try {
+    await selectTransitPath(selectedPill.value.fromAttractionId, selectedPill.value.toAttractionId, pathIndex)
+    showTransitDetail.value = false
+    selectedPill.value = null
+    await loadTrip()
+    toast.show('경로가 저장됐어요')
+  } catch {
+    toast.show('경로 저장 실패')
+  }
 }
 
 async function loadTrip() {
