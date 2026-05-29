@@ -98,18 +98,35 @@
   padding: 2px 0;
 }
 .filter-header-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--gray-muted);
+  color: var(--gray-dark);
   text-transform: uppercase;
   letter-spacing: .6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.filter-header-summary {
   flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--purple-900);
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 2px;
 }
 .filter-chevron {
-  font-size: 13px;
-  color: var(--gray-muted);
-  transition: transform .2s ease;
-  display: inline-block;
+  font-size: 18px;
+  color: var(--gray-dark);
+  transition: transform .25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   transform: rotate(-90deg);
 }
 .filter-chevron.open {
@@ -120,7 +137,18 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overflow-y: auto;
+  max-height: 55vh;
+  opacity: 1;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
 }
+.filter-body.collapsed {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 
 .filter-row {
   display: flex;
@@ -215,26 +243,31 @@
   border-radius: 6px;
 }
 
-/* ── 그룹 헤더(지역/시도) — 심플 + 굵게 ── */
+/* ── 그룹 헤더(지역/시도) — 레벨 1: 가장 강하게 ── */
 .group-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 12px 0 8px;
+  padding: 10px 10px 10px 12px;
   margin-top: 12px;
-  background: none;
+  background: var(--purple-50);
   border: none;
-  border-bottom: 1px solid var(--gray-border);
+  border-left: 3px solid var(--purple-900);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   cursor: pointer;
   text-align: left;
-  color: var(--text-primary);
+  color: var(--purple-900);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  transition: background .12s, color .12s;
 }
 .group-section-header:first-child { margin-top: 0; }
-.group-section-header:hover { color: var(--purple-900); }
+.group-section-header:hover {
+  background: var(--purple-100);
+  color: var(--purple-900);
+}
 
 .group-chevron {
   display: inline-block;
@@ -249,15 +282,15 @@
 .group-count {
   margin-left: auto;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--purple-900);
-  background: var(--purple-50);
+  background: rgba(83,74,183,.15);
   border-radius: var(--radius-full);
   padding: 1px 8px;
   letter-spacing: .1px;
 }
 
-/* ── 시군구 서브헤더 ── */
+/* ── 시군구 서브헤더 — 레벨 2: 중간 ── */
 .sg-section-header {
   display: flex;
   align-items: center;
@@ -266,37 +299,46 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--gray-dark);
-  padding: 8px 0 6px;
+  padding: 7px 8px 7px 14px;
   background: none;
   border: none;
+  border-bottom: 1px solid var(--gray-border);
   cursor: pointer;
   text-align: left;
-  transition: color .12s;
+  transition: color .12s, background .12s;
 }
-.sg-section-header:hover { color: var(--purple-900); }
-.sg-level-indent { padding-left: 2px; }
+.sg-section-header:hover {
+  color: var(--purple-900);
+  background: var(--bg-page);
+}
+.sg-level-indent { padding-left: 14px; }
 
-/* ── 카테고리 ── */
+/* ── 카테고리 — 레벨 3: 인라인 뱃지 스타일 ── */
 .cat-section-wrap { margin-bottom: 10px; }
 .cat-section-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--gray-muted);
-  padding: 4px 0;
+  color: var(--gray-dark);
+  padding: 3px 10px 3px 8px;
   border: none;
-  background: none;
-  margin-bottom: 6px;
+  background: var(--bg-page);
+  border-radius: var(--radius-full);
+  margin-bottom: 8px;
+  margin-left: 20px;
   cursor: pointer;
   text-align: left;
   text-transform: uppercase;
   letter-spacing: .5px;
-  transition: color .12s;
+  transition: background .12s, color .12s;
+  width: auto;
 }
-.cat-section-header:hover { color: var(--text-primary); }
+.cat-section-header:hover {
+  background: var(--purple-50);
+  color: var(--purple-900);
+}
 
 .group-cards-wrap { margin-bottom: 4px; }
 
