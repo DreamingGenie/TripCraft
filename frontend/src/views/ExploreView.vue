@@ -23,42 +23,43 @@
       <div class="filter-inline">
         <div class="filter-header" @click="filterOpen = !filterOpen">
           <span class="filter-header-label">필터</span>
+          <span class="filter-header-summary">
+            <template v-if="!filterOpen && hasActiveFilters">{{ [...selectedRegions, ...selectedSigunguNames, ...selectedCats].join(' · ') }}</template>
+          </span>
           <button class="filter-clear-inline"
-                  :style="{ visibility: (selectedRegions.length || selectedSigungus.length || selectedCats.length) ? 'visible' : 'hidden' }"
+                  :style="{ visibility: hasActiveFilters ? 'visible' : 'hidden' }"
                   @click.stop="clearFilters">초기화</button>
           <span class="filter-chevron" :class="{ open: filterOpen }">▾</span>
         </div>
 
-        <Transition name="tree-slide">
-          <div v-show="filterOpen" class="filter-body">
-            <div class="filter-row">
-              <span class="filter-row-label">지역</span>
-              <div class="filter-chips-wrap">
-                <button v-for="r in regions" :key="r"
-                        class="chip" :class="{ sel: selectedRegions.includes(r) }"
-                        @click="selectRegion(r)">{{ r }}</button>
-              </div>
-            </div>
-
-            <div v-if="currentSigunguList.length" class="filter-row">
-              <span class="filter-row-label">시군</span>
-              <div class="filter-chips-wrap">
-                <button v-for="sg in currentSigunguList" :key="`${sg.sidoCode}:${sg.code}`"
-                        class="chip chip-sm" :class="{ sel: selectedSigungus.includes(`${sg.sidoCode}:${sg.code}`) }"
-                        @click="toggleSigungu(sg.sidoCode, sg.code)">{{ sg.name }}</button>
-              </div>
-            </div>
-
-            <div class="filter-row">
-              <span class="filter-row-label">분류</span>
-              <div class="filter-chips-wrap">
-                <button v-for="c in categories" :key="c"
-                        class="chip" :class="{ sel: selectedCats.includes(c) }"
-                        @click="toggleCatFilter(c)">{{ c }}</button>
-              </div>
+        <div class="filter-body" :class="{ collapsed: !filterOpen }">
+          <div class="filter-row">
+            <span class="filter-row-label">지역</span>
+            <div class="filter-chips-wrap">
+              <button v-for="r in regions" :key="r"
+                      class="chip" :class="{ sel: selectedRegions.includes(r) }"
+                      @click="selectRegion(r)">{{ r }}</button>
             </div>
           </div>
-        </Transition>
+
+          <div v-if="currentSigunguList.length" class="filter-row">
+            <span class="filter-row-label">시군</span>
+            <div class="filter-chips-wrap">
+              <button v-for="sg in currentSigunguList" :key="`${sg.sidoCode}:${sg.code}`"
+                      class="chip chip-sm" :class="{ sel: selectedSigungus.includes(`${sg.sidoCode}:${sg.code}`) }"
+                      @click="toggleSigungu(sg.sidoCode, sg.code)">{{ sg.name }}</button>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <span class="filter-row-label">분류</span>
+            <div class="filter-chips-wrap">
+              <button v-for="c in categories" :key="c"
+                      class="chip" :class="{ sel: selectedCats.includes(c) }"
+                      @click="toggleCatFilter(c)">{{ c }}</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <p class="result-count"><strong>{{ total }}</strong>개의 장소</p>
@@ -80,7 +81,7 @@
                         @click="toggleSearchSigungu(`${rg.region}__${sg.sg}`)">
                   <span class="group-chevron" :class="{ open: !collapsedSearchSigungus[`${rg.region}__${sg.sg}`] }">▶</span>
                   {{ sg.sg }}
-                  <span class="group-count">{{ sg.total ?? sg.items.length }}</span>
+                  <span class="group-count">{{ sg.total }}</span>
                 </button>
                 <Transition name="tree-slide">
                   <div v-if="!sg.sg || !collapsedSearchSigungus[`${rg.region}__${sg.sg}`]"
@@ -90,33 +91,38 @@
                               @click="toggleSearchCat(`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`)">
                         <span class="group-chevron" :class="{ open: !collapsedSearchCats[`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`] }">▶</span>
                         {{ cg.cat }}
-                        <span class="group-count">{{ cg.total ?? cg.items.length }}</span>
+                        <span class="group-count">{{ cg.total }}</span>
                       </button>
                       <Transition name="tree-slide">
                         <div v-if="!cg.cat || !collapsedSearchCats[`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`]"
-                             class="cards-grid">
-                          <div v-for="a in cg.items" :key="a.id"
-                               class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
-                               draggable="true"
-                               @dragstart="onCardDragStart($event, a)"
-                               @dragend="onCardDragEnd">
-                            <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
-                            <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
-                              <img v-if="a.firstImage" :src="a.firstImage" />
-                              <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+                             class="cards-grid"
+                             v-observe="() => loadGroup(rg.region, sg.sg, cg.cat)">
+                          <div v-if="getGroup(rg.region, sg.sg, cg.cat).loading"
+                               style="padding:12px;text-align:center;color:var(--gray-muted);font-size:11px">로딩 중...</div>
+                          <template v-else>
+                            <div v-for="a in getGroup(rg.region, sg.sg, cg.cat).items" :key="a.id"
+                                 class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
+                                 draggable="true"
+                                 @dragstart="onCardDragStart($event, a)"
+                                 @dragend="onCardDragEnd">
+                              <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
+                              <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
+                                <img v-if="a.firstImage" :src="a.firstImage" />
+                                <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
+                              </div>
+                              <div class="card-info">
+                                <div class="card-name">{{ a.title }}</div>
+                                <p class="card-cat">
+                                  <template v-if="cg.cat">{{ a.sigunguName || a.region }}</template>
+                                  <template v-else>{{ a.category }} · {{ a.sigunguName || a.region }}</template>
+                                </p>
+                                <button class="card-add" :class="{ added: addedIds.has(a.id) }"
+                                        @click.stop="addedIds.has(a.id) ? removeByAttraction(a.id) : addToTrip(a)">
+                                  {{ addedIds.has(a.id) ? '× 제거' : '+ 일정에 추가' }}
+                                </button>
+                              </div>
                             </div>
-                            <div class="card-info">
-                              <div class="card-name">{{ a.title }}</div>
-                              <p class="card-cat">
-                                <template v-if="cg.cat">{{ a.sigunguName || a.region }}</template>
-                                <template v-else>{{ a.category }} · {{ a.sigunguName || a.region }}</template>
-                              </p>
-                              <button class="card-add" :class="{ added: addedIds.has(a.id) }"
-                                      @click.stop="addedIds.has(a.id) ? removeByAttraction(a.id) : addToTrip(a)">
-                                {{ addedIds.has(a.id) ? '× 제거' : '+ 일정에 추가' }}
-                              </button>
-                            </div>
-                          </div>
+                          </template>
                         </div>
                       </Transition>
                     </div>
@@ -127,8 +133,7 @@
           </Transition>
         </div>
 
-        <div v-if="loading" style="padding:20px;text-align:center;color:var(--gray-muted);font-size:12px">로딩 중...</div>
-        <div v-else-if="!hasMore && attractions.length" style="padding:14px;text-align:center;color:var(--gray-muted);font-size:11px">모든 장소를 불러왔어요</div>
+        <div v-if="loading" style="padding:20px;text-align:center;color:var(--gray-muted);font-size:12px">목록 로딩 중...</div>
       </div>
     </div>
 
@@ -207,12 +212,12 @@ const addedIds = ref(new Set())
 const activeTripCandidates = ref([])
 const candidateIdMap = ref(new Map())
 
-const attractions = ref([])
 const total = ref(0)
-const page = ref(0)
 const loading = ref(false)
-const hasMore = computed(() => attractions.value.length < total.value)
 let loadSeq = 0
+
+// 그룹별 아이템 캐시: "region__sg__cat" → { items, loading, loaded }
+const groupItems = reactive({})
 
 const searchQuery = ref('')
 const selectedRegions = ref([])
@@ -228,31 +233,130 @@ const currentSigunguList = computed(() => {
     .flatMap(r => r.sigunguList ?? [])
 })
 
+const hasActiveFilters = computed(() =>
+  selectedRegions.value.length > 0 || selectedSigungus.value.length > 0 || selectedCats.value.length > 0
+)
+
+const selectedSigunguNames = computed(() =>
+  selectedSigungus.value.map(key => {
+    const [sidoCode, code] = key.split(':')
+    for (const r of regionsData.value) {
+      const sg = (r.sigunguList ?? []).find(s => String(s.sidoCode) === sidoCode && String(s.code) === code)
+      if (sg) return sg.name
+    }
+    return key
+  })
+)
+
 function selectRegion(r) {
   selectedRegions.value = selectedRegions.value.includes(r) ? [] : [r]
   selectedSigungus.value = []
+  loadAttractions()
 }
 function toggleSigungu(sidoCode, code) {
   const val = `${sidoCode}:${code}`
   const idx = selectedSigungus.value.indexOf(val)
   if (idx === -1) selectedSigungus.value = [...selectedSigungus.value, val]
   else selectedSigungus.value = selectedSigungus.value.filter(c => c !== val)
+  loadAttractions()
 }
 function toggleCatFilter(c) {
   const idx = selectedCats.value.indexOf(c)
   if (idx === -1) selectedCats.value = [...selectedCats.value, c]
   else selectedCats.value = selectedCats.value.filter(x => x !== c)
+  loadAttractions()
 }
 
 const scrollEl = ref(null)
 const filterOpen = ref(true)
+let lastScrollTop = 0
+let accScrollDown = 0
+let groupObserver = null
+const groupObserverMap = new WeakMap()
+const observedElements = new Set()
+
+const vObserve = {
+  mounted(el, binding) {
+    groupObserverMap.set(el, binding.value)
+    observedElements.add(el)
+    groupObserver?.observe(el)
+  },
+  beforeUpdate(el, binding) {
+    groupObserverMap.set(el, binding.value)
+  },
+  unmounted(el) {
+    groupObserver?.unobserve(el)
+    groupObserverMap.delete(el)
+    observedElements.delete(el)
+  }
+}
+
+function reobserveAll() {
+  if (!groupObserver) return
+  for (const el of observedElements) {
+    groupObserver.unobserve(el)
+    groupObserver.observe(el)
+  }
+}
+
+function setupGroupObserver() {
+  groupObserver?.disconnect()
+  if (!scrollEl.value) return
+  groupObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          groupObserverMap.get(entry.target)?.()
+        }
+      }
+    },
+    { root: scrollEl.value, threshold: 0 }
+  )
+}
+
+function getSigunguKey(regionName, sgName) {
+  if (!sgName || sgName === '기타') return null
+  const region = regionsData.value.find(r => r.sido === regionName)
+  const sg = region?.sigunguList?.find(s => s.name === sgName)
+  return sg ? `${sg.sidoCode}:${sg.code}` : null
+}
+
+function getGroup(region, sg, cat) {
+  const key = `${region ?? ''}__${sg ?? ''}__${cat ?? ''}`
+  return groupItems[key] ?? { items: [], loading: false, loaded: false }
+}
+
+async function loadGroup(region, sg, cat) {
+  const key = `${region ?? ''}__${sg ?? ''}__${cat ?? ''}`
+  if (groupItems[key]?.loading || groupItems[key]?.loaded) return
+  const seq = loadSeq
+  groupItems[key] = { items: [], loading: true, loaded: false }
+  try {
+    const sigunguKey = getSigunguKey(region, sg)
+    const data = await searchAttractions({
+      keyword: searchQuery.value || undefined,
+      region: region && region !== '기타' ? region : undefined,
+      sigungu: sigunguKey ? [sigunguKey] : undefined,
+      category: cat && cat !== '기타' ? cat : undefined,
+      page: 0,
+      size: 200,
+    })
+    if (seq !== loadSeq) { delete groupItems[key]; return }
+    groupItems[key].items = data.items
+    groupItems[key].loaded = true
+  } catch {
+    if (seq === loadSeq) delete groupItems[key]
+  } finally {
+    if (groupItems[key] && seq === loadSeq) groupItems[key].loading = false
+  }
+}
 
 const regions = ['서울', '경기', '강원', '충북', '충남', '경북', '경남', '전북', '전남', '제주']
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
 const PAGE_SIZE = 20
 
 function toRenderGroups(sg) {
-  return sg.catGroups || [{ cat: null, items: sg.items }]
+  return sg.catGroups ?? []
 }
 
 const collapsedSearchRegions = reactive({})
@@ -263,30 +367,11 @@ function toggleSearchSigungu(key) { collapsedSearchSigungus[key] = !collapsedSea
 function toggleSearchCat(key) { collapsedSearchCats[key] = !collapsedSearchCats[key] }
 
 const searchResultGroups = computed(() => {
-  if (!statsData.value.length && !attractions.value.length) return []
+  if (!statsData.value.length) return []
 
   const hasRegion = selectedRegions.value.length > 0
-  const hasSigungu = selectedSigungus.value.length > 0
-  const hasCat = selectedCats.value.length > 0
-
-  const cards = attractions.value
   const stats = statsData.value
-
-  if (hasRegion && hasSigungu && hasCat) {
-    return [{ region: null, total: cards.length,
-              sgGroups: [{ sg: null, total: cards.length, items: cards }] }]
-  }
-
-  if (hasRegion && hasSigungu) {
-    const catTotals = {}
-    for (const s of stats) catTotals[s.category] = (catTotals[s.category] || 0) + s.count
-    const grandTotal = Object.values(catTotals).reduce((a, b) => a + b, 0)
-    const catGroups = Object.entries(catTotals).map(([cat, total]) => ({
-      cat, total, items: cards.filter(a => (a.category || '기타') === cat)
-    }))
-    return [{ region: null, total: grandTotal,
-              sgGroups: [{ sg: null, total: grandTotal, items: cards, catGroups }] }]
-  }
+  const selectedRegion = selectedRegions.value[0] ?? null
 
   if (hasRegion) {
     const sgMap = {}
@@ -297,14 +382,10 @@ const searchResultGroups = computed(() => {
       sgMap[sg].catMap[s.category] = (sgMap[sg].catMap[s.category] || 0) + s.count
     }
     const grandTotal = Object.values(sgMap).reduce((s, v) => s + v.total, 0)
-    return [{ region: null, total: grandTotal,
+    return [{ region: selectedRegion, total: grandTotal,
               sgGroups: Object.entries(sgMap).map(([sg, { total: sgTotal, catMap }]) => ({
                 sg, total: sgTotal,
-                items: cards.filter(a => (a.sigunguName || '기타') === sg),
-                catGroups: Object.entries(catMap).map(([cat, catTotal]) => ({
-                  cat, total: catTotal,
-                  items: cards.filter(a => (a.sigunguName || '기타') === sg && (a.category || '기타') === cat)
-                }))
+                catGroups: Object.entries(catMap).map(([cat, catTotal]) => ({ cat, total: catTotal }))
               })) }]
   }
 
@@ -318,15 +399,11 @@ const searchResultGroups = computed(() => {
     regionMap[region].sgMap[sg].total += s.count
     regionMap[region].sgMap[sg].catMap[s.category] = (regionMap[region].sgMap[sg].catMap[s.category] || 0) + s.count
   }
-  return Object.entries(regionMap).map(([region, { total, sgMap }]) => ({
-    region, total,
+  return Object.entries(regionMap).map(([region, { total: rTotal, sgMap }]) => ({
+    region, total: rTotal,
     sgGroups: Object.entries(sgMap).map(([sg, { total: sgTotal, catMap }]) => ({
       sg, total: sgTotal,
-      items: cards.filter(a => (a.region || '기타') === region && (a.sigunguName || '기타') === sg),
-      catGroups: Object.entries(catMap).map(([cat, catTotal]) => ({
-        cat, total: catTotal,
-        items: cards.filter(a => (a.region || '기타') === region && (a.sigunguName || '기타') === sg && (a.category || '기타') === cat)
-      }))
+      catGroups: Object.entries(catMap).map(([cat, catTotal]) => ({ cat, total: catTotal }))
     }))
   }))
 })
@@ -537,12 +614,11 @@ async function loadRegions() {
   }
 }
 
-async function loadAttractions(append = false) {
-  if (append && loading.value) return
-
-  if (!append) loadSeq++
+async function loadAttractions() {
+  loadSeq++
   const mySeq = loadSeq
   loading.value = true
+  for (const key in groupItems) delete groupItems[key]
 
   try {
     const data = await searchAttractions({
@@ -550,18 +626,14 @@ async function loadAttractions(append = false) {
       region: selectedRegions.value.length ? selectedRegions.value.join(',') : undefined,
       sigungu: selectedSigungus.value.length ? selectedSigungus.value : undefined,
       category: selectedCats.value.length ? selectedCats.value.join(',') : undefined,
-      page: page.value,
-      size: PAGE_SIZE,
+      page: 0,
+      size: 1,
     })
     if (mySeq !== loadSeq) return
-    if (append) {
-      attractions.value = [...attractions.value, ...data.items]
-    } else {
-      attractions.value = data.items
-      statsData.value = data.groupStats || []
-      backgroundLoadAll(mySeq)
-    }
+    statsData.value = data.groupStats || []
     total.value = data.total
+    await nextTick()
+    reobserveAll()
   } catch {
     if (mySeq === loadSeq) toast.show('관광지 로드 실패')
   } finally {
@@ -571,30 +643,25 @@ async function loadAttractions(append = false) {
 
 function checkScroll() {
   const el = scrollEl.value
-  if (!el || loading.value || !hasMore.value) return
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) loadMore()
-}
+  if (!el) return
+  const st = el.scrollTop
+  const delta = st - lastScrollTop
 
-async function loadMore() {
-  if (loading.value || !hasMore.value) return
-  page.value++
-  await loadAttractions(true)
-  await nextTick()
-  checkScroll()
-}
-
-async function backgroundLoadAll(seq) {
-  await new Promise(r => setTimeout(r, 200))
-  if (total.value > 20) return
-  while (seq === loadSeq && hasMore.value) {
-    if (!loading.value) await loadMore()
-    await new Promise(r => setTimeout(r, 80))
+  if (delta > 0 && filterOpen.value) {
+    accScrollDown += delta
+    if (accScrollDown > 60) {
+      filterOpen.value = false
+      accScrollDown = 0
+    }
+  } else if (delta < 0) {
+    accScrollDown = 0
   }
+
+  lastScrollTop = st
 }
 
 function applyFilters() {
-  page.value = 0
-  loadAttractions(false)
+  loadAttractions()
 }
 
 function clearFilters() {
@@ -602,8 +669,7 @@ function clearFilters() {
   selectedSigungus.value = []
   selectedCats.value = []
   searchQuery.value = ''
-  page.value = 0
-  loadAttractions(false)
+  loadAttractions()
   toast.show('필터가 초기화됐어요')
 }
 
@@ -634,13 +700,12 @@ async function addToTrip(attraction) {
 }
 
 onMounted(async () => {
-  loadTrips()
-  loadAttractions(false)
-  loadRegions()
-
+  setupGroupObserver()
   scrollEl.value?.addEventListener('scroll', checkScroll)
-  await nextTick()
-  checkScroll()
+
+  loadTrips()
+  loadRegions()
+  loadAttractions()
 
   try {
     await loadNaverScript()
@@ -651,5 +716,8 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => scrollEl.value?.removeEventListener('scroll', checkScroll))
+onUnmounted(() => {
+  scrollEl.value?.removeEventListener('scroll', checkScroll)
+  groupObserver?.disconnect()
+})
 </script>

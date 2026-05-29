@@ -42,3 +42,27 @@ com.tripcraft.attraction/
 - 카테고리 필터: 콘텐츠 타입 코드 기준 (다중 선택)
 - 검색: 장소명 키워드 부분 일치
 - 목록 API 응답 목표: **500ms 이하** (자체 DB 조회 기준)
+
+## ExploreView 프론트엔드 아키텍처
+
+### 그룹별 Lazy Loading (per-group lazy loading)
+
+`ExploreView.vue`는 전역 페이지네이션 대신 **그룹별 독립 로드** 방식을 사용한다.
+
+**초기 로드 (`loadAttractions`)**
+- `page=0, size=1`로 `groupStats`(트리 뼈대) + `total` 만 가져옴
+- 아이템은 이 단계에서 로드하지 않음
+
+**그룹별 로드 (`loadGroup`)**
+- `IntersectionObserver` + `v-observe` 디렉티브로 `cards-grid`가 viewport에 진입하면 트리거
+- `region + sigungu(코드) + category` 조합으로 API 호출 (`size: 200`)
+- 결과는 `groupItems["서울__강남구__관광지"]` 형태로 캐싱
+- 그룹 접힘(v-if 제거) → Observer 자동 해제
+
+**필터 변경 시**
+- `loadSeq` 증가 → 진행 중인 `loadGroup` 요청 결과 폐기
+- `groupItems` 전체 초기화 후 `loadAttractions` 재호출
+
+**시군구 코드 조회**
+- `getSigunguKey(regionName, sgName)`: `regionsData`에서 `${sidoCode}:${code}` 형식 역조회
+- `groupStats`의 `sigunguName`으로 코드를 찾으므로 `regionsData` 로드 완료 후 정상 동작
