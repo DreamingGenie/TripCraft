@@ -105,31 +105,37 @@ function syncPartial() {
   padding: 0 20px;
 }
 
+/* 헤더: TripCraft purple-900 */
 .admin-title {
-  font-size: 1.6rem;
+  font-size: 22px;
   font-weight: 700;
   margin-bottom: 28px;
-  color: var(--color-primary, #2563eb);
+  color: var(--purple-900);
+  letter-spacing: -0.02em;
 }
 
+/* 카드: TripCraft 토큰 + left accent */
 .admin-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--gray-border);
+  border-left: 4px solid var(--purple-900);
+  border-radius: var(--radius-xl);
   padding: 28px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 
 .admin-card h2 {
-  font-size: 1.1rem;
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 6px;
+  color: var(--text-primary);
 }
 
 .desc {
-  color: #6b7280;
-  font-size: .875rem;
+  color: var(--gray-muted);
+  font-size: var(--font-size-md);
   margin-bottom: 20px;
+  line-height: 1.6;
 }
 
 .btn-row {
@@ -140,8 +146,8 @@ function syncPartial() {
 }
 
 .hint {
-  font-size: .8rem;
-  color: #9ca3af;
+  font-size: var(--font-size-sm);
+  color: var(--gray-muted);
 }
 
 .partial-row {
@@ -151,65 +157,86 @@ function syncPartial() {
   flex-wrap: wrap;
 }
 
+/* select: TripCraft 토큰 */
 .partial-row select {
   padding: 7px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: .875rem;
-  background: #fff;
+  border: 0.5px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-family: inherit;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color .12s;
 }
+.partial-row select:hover { border-color: var(--gray-dark); }
+.partial-row select:focus { border-color: var(--purple-900); box-shadow: 0 0 0 3px rgba(83,74,183,.08); }
 
+/* btn-primary: purple-900 */
 .btn-primary {
   padding: 8px 20px;
-  background: var(--color-primary, #2563eb);
+  background: var(--purple-900);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: .9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  transition: opacity .12s, transform .1s;
 }
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-.btn-primary:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
+/* btn-outline: purple-900 border + text */
 .btn-outline {
   padding: 7px 16px;
-  background: #fff;
-  color: var(--color-primary, #2563eb);
-  border: 1px solid var(--color-primary, #2563eb);
-  border-radius: 6px;
-  font-size: .875rem;
+  background: var(--bg-surface);
+  color: var(--purple-900);
+  border: 0.5px solid var(--purple-900);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-family: inherit;
   cursor: pointer;
+  transition: background .12s, transform .1s;
 }
+.btn-outline:hover { background: var(--purple-50); transform: translateY(-1px); }
+.btn-outline:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-.btn-outline:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-
+/* 결과 박스: ok → teal, err → red 유지 */
 .result-box {
   margin-top: 18px;
   padding: 12px 16px;
-  border-radius: 8px;
-  font-size: .9rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
 }
-
-.result-box.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.result-box.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.result-box.ok {
+  background: var(--teal-50);
+  color: var(--teal-600);
+  border: 0.5px solid var(--teal-100);
+}
+.result-box.err {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 0.5px solid #fecaca;
+}
 
 .progress-hint {
   margin-top: 12px;
-  font-size: .8rem;
-  color: #9ca3af;
+  font-size: var(--font-size-sm);
+  color: var(--gray-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
+/* dot-anim: purple-900 */
 .dot-anim {
   display: inline-block;
   animation: pulse 1s infinite;
-  color: var(--color-primary, #2563eb);
+  color: var(--purple-900);
 }
 
 @keyframes pulse {

@@ -2,53 +2,109 @@
   <main id="main">
   <section id="screen-schedule">
 
-    <!-- 후보군 사이드바 -->
-    <aside class="candidate-sidebar"
-           :class="{ 'drop-delete-zone': sidebarDropActive }"
-           @dragover.prevent="onSidebarDragOver"
-           @dragleave="sidebarDragOver = false"
-           @drop="onDropSidebar">
-      <div v-if="sidebarDragOver" class="sidebar-delete-hint">여기에 놓으면 삭제</div>
+    <!-- TOOLBAR -->
+    <div class="schedule-toolbar">
+      <button class="toolbar-toggle" :class="{ open: sidebarOpen }"
+              @click="sidebarOpen = !sidebarOpen" aria-label="후보군 사이드바 토글">
+        <span class="toolbar-toggle-icon">
+          <span></span><span></span><span></span>
+        </span>
+      </button>
 
-      <template v-if="!sidebarDragOver">
-        <div class="schedule-header-row">
-          <select v-if="trips.length" v-model="activeTripId" @change="loadTrip"
-                  style="border:none;background:transparent;font-weight:600;cursor:pointer;font-size:14px;color:var(--text-primary)">
+      <template v-if="trips.length">
+        <div class="toolbar-select-wrap">
+          <select class="toolbar-select" v-model="activeTripId" @change="loadTrip">
             <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
           </select>
-          <span v-else class="schedule-name">일정 없음</span>
+          <span class="toolbar-select-caret">▼</span>
         </div>
+        <span v-if="activeTrip" class="toolbar-divider"></span>
+        <span v-if="activeTrip" class="toolbar-meta">
+          {{ nightsLabel }}
+          <span class="meta-dot">·</span>
+          {{ activeTrip.memberCount }}명
+        </span>
+      </template>
+      <span v-else class="toolbar-trip-name-static">일정 없음</span>
 
-        <div v-if="!activeTrip" style="padding:20px;color:var(--gray-muted);font-size:12px">
-          {{ tripsLoading ? '로딩 중...' : '일정을 선택하세요' }}
-        </div>
+      <span class="toolbar-spacer"></span>
 
-        <template v-else>
-          <div v-for="group in cityGroups" :key="group.city" class="city-group">
-            <button class="city-header" @click="toggleCity(group.city)">
-              <span class="city-chevron" :class="{ open: !collapsedCities[group.city] }">▶</span>
-              <span class="city-name">{{ group.city }}</span>
-              <span class="city-count">{{ group.total }}</span>
-            </button>
-            <Transition name="tree-slide">
-              <div v-if="!collapsedCities[group.city]" class="city-body">
-                <template v-for="sg in group.sgGroups" :key="sg.sg || '__none__'">
-                  <!-- 시군구 레이어 -->
-                  <template v-if="sg.sg">
-                    <button class="sigungu-header" @click.stop="toggleSigungu(group.city, sg.sg)">
-                      <span class="cat-chevron" :class="{ open: !collapsedSigungus[`${group.city}__${sg.sg}`] }">▶</span>
-                      <span class="sigungu-name">{{ sg.sg }}</span>
-                    </button>
-                    <Transition name="tree-slide">
-                      <div v-if="!collapsedSigungus[`${group.city}__${sg.sg}`]" class="sigungu-body">
+      <button class="btn-save-schedule" @click="toast.show('자동 저장됩니다.')">💾 저장</button>
+      <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
+    </div>
+
+    <!-- BODY: 사이드바 + 시간표 -->
+    <div class="schedule-body">
+      <!-- 후보군 사이드바 -->
+      <aside class="candidate-sidebar"
+             :class="{ collapsed: !sidebarOpen, 'drop-delete-zone': sidebarDropActive }"
+             @dragover.prevent="onSidebarDragOver"
+             @dragleave="sidebarDragOver = false"
+             @drop="onDropSidebar">
+        <div v-if="sidebarDragOver" class="sidebar-delete-hint">여기에 놓으면 삭제</div>
+
+        <template v-if="!sidebarDragOver">
+          <div class="cand-sidebar-header">
+            <span class="cand-sidebar-title">후보군</span>
+            <span v-if="candidates.length" class="cand-sidebar-count">{{ candidates.length }}</span>
+          </div>
+
+          <div class="cand-sidebar-body">
+            <div v-if="!activeTrip" class="cand-empty">
+              {{ tripsLoading ? '로딩 중...' : '일정을 선택하세요' }}
+            </div>
+
+            <template v-else>
+              <div v-if="!candidates.length" class="cand-empty">
+                아직 후보가 없어요.<br>아래에서 추가해보세요.
+              </div>
+              <div v-for="group in cityGroups" :key="group.city" class="city-group">
+                <button class="city-header" @click="toggleCity(group.city)">
+                  <span class="city-chevron" :class="{ open: !collapsedCities[group.city] }">▶</span>
+                  <span class="city-name">{{ group.city }}</span>
+                  <span class="city-count">{{ group.total }}</span>
+                </button>
+                <Transition name="tree-slide">
+                  <div v-if="!collapsedCities[group.city]" class="city-body">
+                    <template v-for="sg in group.sgGroups" :key="sg.sg || '__none__'">
+                      <template v-if="sg.sg">
+                        <button class="sigungu-header" @click.stop="toggleSigungu(group.city, sg.sg)">
+                          <span class="cat-chevron" :class="{ open: !collapsedSigungus[`${group.city}__${sg.sg}`] }">▶</span>
+                          <span class="sigungu-name">{{ sg.sg }}</span>
+                        </button>
+                        <Transition name="tree-slide">
+                          <div v-if="!collapsedSigungus[`${group.city}__${sg.sg}`]" class="sigungu-body">
+                            <div v-for="catGroup in sg.catGroups" :key="catGroup.cat" class="cat-group">
+                              <button class="cat-header" @click.stop="toggleCat(`${group.city}__${sg.sg}`, catGroup.cat)">
+                                <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`] }">▶</span>
+                                <span class="cat-name">{{ catGroup.cat }}</span>
+                                <span class="cat-count">({{ catGroup.candidates.length }})</span>
+                              </button>
+                              <Transition name="tree-slide">
+                                <div v-if="!collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`]" class="cat-body">
+                                  <div v-for="c in catGroup.candidates" :key="c.id"
+                                       class="cand-row" :class="{ placed: c.placed }"
+                                       draggable="true"
+                                       @dragstart="onCandDragStart($event, c)"
+                                       @dragend="onDragEnd">
+                                    <span class="drag-dot">⠿</span>
+                                    <span class="cand-row-name">{{ c.attractionName }}</span>
+                                  </div>
+                                </div>
+                              </Transition>
+                            </div>
+                          </div>
+                        </Transition>
+                      </template>
+                      <template v-else>
                         <div v-for="catGroup in sg.catGroups" :key="catGroup.cat" class="cat-group">
-                          <button class="cat-header" @click.stop="toggleCat(`${group.city}__${sg.sg}`, catGroup.cat)">
-                            <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`] }">▶</span>
+                          <button class="cat-header" @click.stop="toggleCat(group.city, catGroup.cat)">
+                            <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${catGroup.cat}`] }">▶</span>
                             <span class="cat-name">{{ catGroup.cat }}</span>
                             <span class="cat-count">({{ catGroup.candidates.length }})</span>
                           </button>
                           <Transition name="tree-slide">
-                            <div v-if="!collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`]" class="cat-body">
+                            <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
                               <div v-for="c in catGroup.candidates" :key="c.id"
                                    class="cand-row" :class="{ placed: c.placed }"
                                    draggable="true"
@@ -60,105 +116,77 @@
                             </div>
                           </Transition>
                         </div>
-                      </div>
-                    </Transition>
-                  </template>
-                  <!-- 시군구 없는 기존 데이터: 2단계 그대로 표시 -->
-                  <template v-else>
-                    <div v-for="catGroup in sg.catGroups" :key="catGroup.cat" class="cat-group">
-                      <button class="cat-header" @click.stop="toggleCat(group.city, catGroup.cat)">
-                        <span class="cat-chevron" :class="{ open: !collapsedCats[`${group.city}__${catGroup.cat}`] }">▶</span>
-                        <span class="cat-name">{{ catGroup.cat }}</span>
-                        <span class="cat-count">({{ catGroup.candidates.length }})</span>
-                      </button>
-                      <Transition name="tree-slide">
-                        <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
-                          <div v-for="c in catGroup.candidates" :key="c.id"
-                               class="cand-row" :class="{ placed: c.placed }"
-                               draggable="true"
-                               @dragstart="onCandDragStart($event, c)"
-                               @dragend="onDragEnd">
-                            <span class="drag-dot">⠿</span>
-                            <span class="cand-row-name">{{ c.attractionName }}</span>
-                          </div>
-                        </div>
-                      </Transition>
-                    </div>
-                  </template>
-                </template>
+                      </template>
+                    </template>
+                  </div>
+                </Transition>
               </div>
-            </Transition>
-          </div>
-        </template>
-
-        <button class="btn-add-from-explore" @click="$router.push('/explore')">
-          + 관광지 탐색으로 추가하기
-        </button>
-      </template>
-    </aside>
-
-    <!-- 시간표 -->
-    <div class="timetable-main">
-      <div class="timeline-toolbar">
-        <span class="toolbar-trip-name">{{ activeTrip?.title || '일정을 선택하세요' }}</span>
-        <span v-if="activeTrip" class="toolbar-trip-meta">{{ nightsLabel }} · {{ activeTrip.memberCount }}명</span>
-        <span class="toolbar-spacer"></span>
-        <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정 만들기</button>
-        <button class="btn-save-schedule" @click="toast.show('자동 저장됩니다.')">💾 저장</button>
-      </div>
-
-      <div class="hint-bar">왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
-
-      <div class="timetable-wrapper" ref="wrapperEl">
-        <div class="timetable-header">
-          <div class="th-gutter"></div>
-          <div v-for="d in days" :key="d.label" class="th-day">
-            <span class="th-badge">{{ d.label }}</span>
-            <span class="th-date">{{ d.date }}</span>
-          </div>
-        </div>
-
-        <div class="timetable-body">
-          <div class="time-axis">
-            <template v-for="h in 24" :key="h">
-              <div class="time-mark" :style="{ top: (h - 1) * 60 + 'px' }">{{ String(h - 1).padStart(2,'0') }}:00</div>
-              <div class="time-mark half" :style="{ top: (h - 1) * 60 + 30 + 'px' }">{{ String(h - 1).padStart(2,'0') }}:30</div>
             </template>
           </div>
 
-          <div class="day-cols">
-            <div v-for="d in days" :key="d.label"
-                 class="day-col" :class="{ 'drag-over': d.dragOver }"
-                 @dragover.prevent="onDragOver($event, d)"
-                 @dragleave="d.dragOver = false"
-                 @drop="onDrop($event, d)">
-              <div v-if="d.dragOver && dragPreview" class="drop-preview"
-                   :style="{ top: dragPreview.top + 'px', height: dragPreview.height + 'px' }">
-                {{ dragState?.data?.attractionName }}
-              </div>
-              <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
-                   class="transit-pill-block transit-pill-clickable"
-                   :class="{ 'transit-pill-none': pill.transportMode === 'NONE' }"
-                   :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes || 24, 24) + 'px' }"
-                   @click="openTransitDetail(pill)">
-                <span class="transit-pill-text">
-                  <template v-if="pill.transportMode === 'NONE'">경로 정보 없음</template>
-                  <template v-else>{{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}</template>
-                </span>
-              </div>
+          <div class="cand-sidebar-footer">
+            <RouterLink to="/explore" class="btn-add-from-explore">
+              + 관광지 탐색에서 추가하기
+            </RouterLink>
+          </div>
+        </template>
+      </aside>
 
-              <div v-for="ev in d.events" :key="ev.id"
-                   class="event-block" :data-color="ev.color"
-                   :class="{ 'event-dragging': ev.dragging, 'event-processing': isProcessing && ev.id === processingEvId }"
-                   draggable="true"
-                   :style="{ top: ev.top + 'px', height: ev.height + 'px' }"
-                   @dragstart="onEventDragStart($event, ev, d)"
-                   @dragend="onDragEnd">
-                <span class="event-name">{{ ev.name }}</span>
-                <span class="event-time">{{ ev.timeLabel }}</span>
-                <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
-                <button class="event-del" @click.stop="removeEvent(d, ev)">✕</button>
-                <div class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
+      <!-- 시간표 -->
+      <div class="timetable-main">
+        <div class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
+
+        <div class="timetable-wrapper" ref="wrapperEl">
+          <div class="timetable-header">
+            <div class="th-gutter"></div>
+            <div v-for="d in days" :key="d.label" class="th-day">
+              <span class="th-badge">{{ d.label }}</span>
+              <span class="th-date">{{ d.date }}</span>
+            </div>
+          </div>
+
+          <div class="timetable-body">
+            <div class="time-axis">
+              <template v-for="h in 24" :key="h">
+                <div class="time-mark" :style="{ top: (h - 1) * 60 + 'px' }">{{ String(h - 1).padStart(2,'0') }}:00</div>
+                <div class="time-mark half" :style="{ top: (h - 1) * 60 + 30 + 'px' }">{{ String(h - 1).padStart(2,'0') }}:30</div>
+              </template>
+            </div>
+
+            <div class="day-cols">
+              <div v-for="d in days" :key="d.label"
+                   class="day-col" :class="{ 'drag-over': d.dragOver }"
+                   @dragover.prevent="onDragOver($event, d)"
+                   @dragleave="d.dragOver = false"
+                   @drop="onDrop($event, d)">
+                <div v-if="d.dragOver && dragPreview" class="drop-preview"
+                     :style="{ top: dragPreview.top + 'px', height: dragPreview.height + 'px' }">
+                  {{ dragState?.data?.attractionName || dragState?.data?.name }}
+                </div>
+                <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
+                     class="transit-pill-block transit-pill-clickable"
+                     :class="{ 'transit-pill-none': pill.transportMode === 'NONE' }"
+                     :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes || 24, 24) + 'px' }"
+                     @click="openTransitDetail(pill)">
+                  <span class="transit-pill-text">
+                    <template v-if="pill.transportMode === 'NONE'">경로 정보 없음</template>
+                    <template v-else>{{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}</template>
+                  </span>
+                </div>
+
+                <div v-for="ev in d.events" :key="ev.id"
+                     class="event-block" :data-color="ev.color"
+                     :class="{ 'event-dragging': ev.dragging, 'event-processing': isProcessing && ev.id === processingEvId }"
+                     draggable="true"
+                     :style="{ top: ev.top + 'px', height: ev.height + 'px' }"
+                     @dragstart="onEventDragStart($event, ev, d)"
+                     @dragend="onDragEnd">
+                  <span class="event-name">{{ ev.name }}</span>
+                  <span class="event-time">{{ ev.timeLabel }}</span>
+                  <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
+                  <button class="event-del" @click.stop="removeEvent(d, ev)">✕</button>
+                  <div class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -192,6 +220,9 @@ const wrapperEl = ref(null)
 const HOUR_PX = 60
 const SNAP = 30
 
+// ── UI state (사이드바 토글) ──
+const sidebarOpen = ref(true)
+
 const trips = ref([])
 const tripsLoading = ref(false)
 const activeTripId = ref(null)
@@ -199,14 +230,12 @@ const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
 
-// transit detail
 const showTransitDetail = ref(false)
 const transitDetail = ref(null)
 const transitDetailLoading = ref(false)
 const selectedPill = ref(null)
 
-// drag state
-let dragState = null // { type: 'candidate'|'event', data, fromDay? }
+let dragState = null
 const dragPreview = ref(null)
 const isProcessing = ref(false)
 const processingEvId = ref(null)
@@ -411,7 +440,6 @@ async function loadTrip() {
   }
 }
 
-// ── 드래그 시작 ──
 function onCandDragStart(e, candidate) {
   if (isProcessing.value) { e.preventDefault(); return }
   dragState = { type: 'candidate', data: candidate, grabOffsetY: 0 }
@@ -427,8 +455,7 @@ function onEventDragStart(e, ev, day) {
   e.dataTransfer.effectAllowed = 'move'
 }
 
-// ── 리사이즈 (체류 시간 조정) ──
-let resizeState = null // { ev, startY, startHeight }
+let resizeState = null
 
 function onResizeStart(e, ev) {
   if (isProcessing.value) return
@@ -475,7 +502,6 @@ function onDragEnd() {
   dragState = null
 }
 
-// ── 타임라인 드래그오버 ──
 function onDragOver(e, day) {
   if (!dragState) return
   day.dragOver = true
@@ -484,7 +510,6 @@ function onDragOver(e, day) {
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
 }
 
-// ── 타임라인 드롭 ──
 async function onDrop(e, day) {
   if (!dragState) return
   day.dragOver = false
@@ -505,7 +530,6 @@ async function onDrop(e, day) {
 async function dropCandidate(day, top, startTime) {
   const candidate = dragState.data
 
-  // 낙관적 업데이트: 즉시 UI에 임시 블록 추가
   const tempEv = {
     id: `temp-${Date.now()}`,
     candidateId: candidate.id,
@@ -534,7 +558,6 @@ async function dropCandidate(day, top, startTime) {
     toast.show(`"${candidate.attractionName}" 추가됐어요`)
     await loadTrip()
   } catch (err) {
-    // 롤백
     const idx = day.events.findIndex(e => e.id === tempEv.id)
     if (idx !== -1) day.events.splice(idx, 1)
     candidate.placed = false
@@ -549,7 +572,6 @@ async function moveEvent(day, top, startTime) {
   const { data: ev, fromDay } = dragState
   if (fromDay === day && top === ev.top) { ev.dragging = false; return }
 
-  // 낙관적 업데이트: 즉시 UI에서 이동
   const newDisplayOrder = fromDay === day ? ev.displayOrder ?? 1 : day.events.length + 1
   ev.dragging = false
   const fromIdx = fromDay.events.indexOf(ev)
@@ -571,14 +593,13 @@ async function moveEvent(day, top, startTime) {
     await loadTrip()
   } catch (err) {
     toast.show(err.message || '이동 실패')
-    await loadTrip() // 에러 시 서버 상태로 복원
+    await loadTrip()
   } finally {
     isProcessing.value = false
     processingEvId.value = null
   }
 }
 
-// ── 사이드바 드롭 (이벤트 삭제) ──
 function onSidebarDragOver() {
   sidebarDragOver.value = dragState?.type === 'event'
 }
@@ -591,7 +612,6 @@ async function onDropSidebar() {
   dragState = null
 }
 
-// ── 이벤트 삭제 공통 ──
 async function removeEventFrom(day, ev) {
   isProcessing.value = true
   try {
