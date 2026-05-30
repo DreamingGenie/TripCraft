@@ -504,7 +504,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: var(--bg-surface);
   cursor: pointer;
   user-select: none;
@@ -526,11 +526,31 @@
   font-size: 13px;
   flex-shrink: 0;
 }
+.tray-header-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  min-width: 0;
+}
 .tray-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
+  color: var(--gray-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  line-height: 1;
+}
+.tray-trip-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 .tray-count {
   font-size: 10px;
@@ -539,33 +559,154 @@
   background: var(--purple-50);
   border-radius: var(--radius-full);
   padding: 2px 8px;
-}
-.tray-toggle {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--gray-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  flex-shrink: 0;
 }
 .tray-toggle-chev {
   display: inline-block;
   font-size: 8px;
   transition: transform .2s ease;
   color: var(--gray-dark);
+  flex-shrink: 0;
 }
 .tray-toggle-chev.open { transform: rotate(180deg); color: var(--purple-900); }
 
 /* ── 트레이 바디 ── */
 .tray-body {
   border-top: 1px solid var(--gray-border);
-  padding: 10px;
+  padding: 8px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
+/* ── 현재 일정 정보 바 ── */
+.tray-trip-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 6px;
+  border-bottom: 1px solid var(--gray-border);
+  margin-bottom: 2px;
+}
+.tray-trip-dates {
+  font-size: 10px;
+  color: var(--gray-muted);
+  flex: 1;
+}
+.tray-trip-members {
+  font-size: 10px;
+  color: var(--gray-muted);
+  flex-shrink: 0;
+}
+.tray-switch-btn {
+  font-size: 10px;
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border: 1px solid var(--purple-100);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.tray-switch-btn:hover { background: var(--purple-100); }
+
+/* ── 후보 목록 빈 상태 ── */
+.tray-cand-empty {
+  text-align: center;
+  padding: 20px 12px;
+  font-size: 12px;
+  color: var(--gray-muted);
+  line-height: 1.8;
+}
+.tray-cand-empty span { font-size: 10px; }
+
+/* ── 후보 아이템 ── */
+.cand-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  transition: background .12s, border-color .12s;
+}
+.cand-item:hover { background: var(--bg-page); }
+.cand-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cand-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+.cand-item-meta {
+  font-size: 10px;
+  color: var(--gray-muted);
+}
+.cand-remove {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: none;
+  border: 1px solid var(--gray-border);
+  color: var(--gray-muted);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.cand-remove:hover {
+  background: var(--pink-50);
+  border-color: var(--pink-100);
+  color: var(--pink-600);
+}
+
+/* ── 일정 선택 목록 ── */
+.trip-select-item {
+  padding: 10px 12px;
+  border: 1px solid var(--gray-border);
+  border-left: 3px solid var(--gray-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.trip-select-item:hover {
+  border-left-color: var(--purple-100);
+  background: var(--bg-page);
+}
+.trip-select-item.active {
+  border-color: var(--purple-100);
+  border-left-color: var(--purple-900);
+  background: var(--purple-50);
+}
+.trip-select-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 3px;
+}
+.trip-select-meta {
+  font-size: 10px;
+  color: var(--gray-muted);
+}
+
+/* ── 새 일정 버튼 ── */
 .tray-empty {
   text-align: center;
   padding: 24px 12px;
@@ -585,77 +726,6 @@
 }
 .tray-empty button:hover { background: var(--purple-100); }
 
-/* ── 일정 카드 (트레이 안) ── */
-.trip-card {
-  position: relative;
-  border: 1px solid var(--gray-border);
-  border-left: 3px solid var(--gray-border);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  background: var(--bg-surface);
-  cursor: pointer;
-  transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
-}
-.trip-card:hover {
-  border-left-color: var(--purple-100);
-  background: var(--bg-page);
-}
-.trip-card.active {
-  border-color: var(--purple-100);
-  border-left-color: var(--purple-900);
-  background: var(--purple-50);
-}
-.trip-card.drop-over {
-  border-color: var(--teal-600);
-  border-left-color: var(--teal-600);
-  background: var(--teal-50);
-  box-shadow: 0 0 0 2px rgba(15,110,86,.20);
-  transform: scale(1.01);
-}
-
-.trip-card-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.trip-card-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
-}
-.trip-card-tick {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--purple-900);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  flex-shrink: 0;
-}
-.trip-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: var(--gray-muted);
-}
-.trip-card-meta .dot { color: var(--gray-border); }
-.trip-card-count {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--purple-900);
-}
-
 .tray-new {
   border: 1px dashed var(--gray-border);
   border-radius: var(--radius-lg);
@@ -666,6 +736,7 @@
   background: none;
   width: 100%;
   cursor: pointer;
+  box-sizing: border-box;
   transition: border-color .12s, color .12s, background .12s;
 }
 .tray-new:hover {
