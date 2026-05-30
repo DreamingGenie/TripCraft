@@ -185,13 +185,35 @@
               추가된 장소가 없어요<br>
               <span>왼쪽 카드를 드래그하거나 + 버튼으로 추가하세요</span>
             </div>
-            <div v-for="c in activeTripCandidates" :key="c.id" class="cand-item">
-              <div class="cand-item-body">
-                <div class="cand-item-name">{{ c.attractionName }}</div>
-                <div class="cand-item-meta">{{ c.category }}<template v-if="c.sigunguName"> · {{ c.sigunguName }}</template></div>
+            <template v-else>
+              <div v-for="rg in groupedCandidates" :key="rg.region">
+                <button class="tray-group-header"
+                        @click="collapsedCandRegions[rg.region] = !collapsedCandRegions[rg.region]">
+                  <span class="group-chevron" :class="{ open: !collapsedCandRegions[rg.region] }">▶</span>
+                  {{ rg.region }}
+                  <span class="tray-group-count">{{ rg.total }}</span>
+                </button>
+                <div v-if="!collapsedCandRegions[rg.region]" class="tray-cat-wrap">
+                  <div v-for="cg in rg.catGroups" :key="cg.cat">
+                    <button class="tray-cat-header"
+                            @click="collapsedCandCats[`${rg.region}__${cg.cat}`] = !collapsedCandCats[`${rg.region}__${cg.cat}`]">
+                      <span class="group-chevron" :class="{ open: !collapsedCandCats[`${rg.region}__${cg.cat}`] }">▶</span>
+                      {{ cg.cat }}
+                      <span class="tray-group-count">{{ cg.items.length }}</span>
+                    </button>
+                    <div v-if="!collapsedCandCats[`${rg.region}__${cg.cat}`]" class="tray-cand-list">
+                      <div v-for="c in cg.items" :key="c.id" class="cand-item">
+                        <div class="cand-item-body">
+                          <div class="cand-item-name">{{ c.attractionName }}</div>
+                          <div v-if="c.sigunguName" class="cand-item-meta">{{ c.sigunguName }}</div>
+                        </div>
+                        <button class="cand-remove" @click="removeByAttraction(c.attractionId)">×</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button class="cand-remove" @click="removeByAttraction(c.attractionId)">×</button>
-            </div>
+            </template>
 
             <div class="tray-new" @click="openScheduleModal()">+ 새 일정 만들기</div>
           </template>
@@ -376,6 +398,25 @@ function toRenderGroups(sg) {
 const collapsedSearchRegions = reactive({})
 const collapsedSearchSigungus = reactive({})
 const collapsedSearchCats = reactive({})
+
+const collapsedCandRegions = reactive({})
+const collapsedCandCats = reactive({})
+
+const groupedCandidates = computed(() => {
+  const regionMap = {}
+  for (const c of activeTripCandidates.value) {
+    const region = c.cityName || '기타'
+    const cat = c.category || '기타'
+    if (!regionMap[region]) regionMap[region] = {}
+    if (!regionMap[region][cat]) regionMap[region][cat] = []
+    regionMap[region][cat].push(c)
+  }
+  return Object.entries(regionMap).map(([region, catMap]) => ({
+    region,
+    total: Object.values(catMap).reduce((s, v) => s + v.length, 0),
+    catGroups: Object.entries(catMap).map(([cat, items]) => ({ cat, items }))
+  }))
+})
 function toggleSearchRegion(region) { collapsedSearchRegions[region] = !collapsedSearchRegions[region] }
 function toggleSearchSigungu(key) { collapsedSearchSigungus[key] = !collapsedSearchSigungus[key] }
 function toggleSearchCat(key) { collapsedSearchCats[key] = !collapsedSearchCats[key] }
