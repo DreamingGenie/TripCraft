@@ -676,6 +676,61 @@
   color: var(--pink-600);
 }
 
+/* ── 트레이 내 그룹 헤더 (지역/카테고리) ── */
+.tray-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 8px 7px 10px;
+  background: var(--purple-50);
+  border: none;
+  border-left: 2px solid var(--purple-900);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--purple-900);
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 6px;
+  transition: background .12s;
+}
+.tray-group-header:first-child { margin-top: 0; }
+.tray-group-header:hover { background: var(--purple-100); }
+
+.tray-cat-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 8px 5px 20px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--gray-border);
+  cursor: pointer;
+  text-align: left;
+  color: var(--gray-dark);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  transition: color .12s, background .12s;
+}
+.tray-cat-header:hover { color: var(--purple-900); background: var(--bg-page); }
+
+.tray-group-count {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--purple-900);
+  background: rgba(83,74,183,.12);
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
+}
+
+.tray-cat-wrap { padding-left: 4px; }
+.tray-cand-list { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 8px; }
+
 /* ── 일정 선택 목록 ── */
 .trip-select-item {
   padding: 10px 12px;
