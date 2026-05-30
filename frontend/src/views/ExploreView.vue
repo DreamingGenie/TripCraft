@@ -138,52 +138,64 @@
     </div>
 
     <!-- 우측 하단 트레이: 내 일정 -->
-    <div class="trip-tray" :class="{ dragging: isDraggingCard }">
+    <div class="trip-tray" :class="{ dragging: isDraggingCard }"
+         @dragover.prevent
+         @drop="onDropToActiveTray">
       <button class="tray-header" @click="trayOpen = !trayOpen">
         <span class="tray-icon">📋</span>
-        <span class="tray-title">내 일정</span>
-        <span class="tray-count">{{ trips.length }}</span>
-        <span class="tray-toggle">
-          <span>{{ trayOpen ? '접기' : '펼치기' }}</span>
-          <span class="tray-toggle-chev" :class="{ open: trayOpen }">▼</span>
-        </span>
+        <div class="tray-header-info">
+          <span class="tray-title">내 일정</span>
+          <span v-if="currentTrip" class="tray-trip-name">{{ currentTrip.title }}</span>
+        </div>
+        <span class="tray-count">{{ activeTripCandidates.length }}</span>
+        <span class="tray-toggle-chev" :class="{ open: trayOpen }">▼</span>
       </button>
 
       <Transition name="tray-slide">
         <div v-show="trayOpen" class="tray-body">
-          <div v-if="isDraggingCard && trips.length" class="tray-drag-hint">
-            아래 일정 위에 놓으세요
-          </div>
 
-          <div v-for="s in trips" :key="s.id"
-               class="trip-card"
-               :class="{ active: activeTrip === s.id, 'drop-over': s.dropOver }"
-               @click="activeTrip = s.id"
-               @dragover.prevent="s.dropOver = true"
-               @dragleave="s.dropOver = false"
-               @drop="onDropToTrip($event, s)">
-            <div class="trip-card-top">
-              <span class="trip-card-name">{{ s.title }}</span>
-              <span v-if="activeTrip === s.id" class="trip-card-tick">✓</span>
+          <!-- 일정 선택 모드 -->
+          <template v-if="trayMode === 'select' || !currentTrip">
+            <div v-for="s in trips" :key="s.id"
+                 class="trip-select-item"
+                 :class="{ active: activeTrip === s.id }"
+                 @click="activeTrip = s.id; trayMode = 'candidates'">
+              <div class="trip-select-name">{{ s.title }}</div>
+              <div class="trip-select-meta">{{ s.startDate }} ~ {{ s.endDate }} · 👥 {{ s.memberCount }}명 · {{ s.candidateCount }}개</div>
             </div>
-            <div class="trip-card-meta">
-              <span>{{ s.startDate }} ~ {{ s.endDate }}</span>
-              <span class="dot">·</span>
-              <span>👥 {{ s.memberCount }}명</span>
-              <span class="trip-card-count">{{ s.candidateCount }}개</span>
+            <div v-if="!tripsLoading && !trips.length" class="tray-empty">
+              <p>등록된 일정이 없습니다</p>
+              <button @click="openScheduleModal()">+ 새 일정 만들기</button>
             </div>
-          </div>
+            <div v-else-if="trips.length" class="tray-new" @click="openScheduleModal()">+ 새 일정 만들기</div>
+            <div v-if="tripsLoading" style="padding:12px;color:var(--gray-muted);font-size:11px;text-align:center">로딩 중...</div>
+          </template>
 
-          <div v-if="!tripsLoading && !trips.length" class="tray-empty">
-            <p>등록된 일정이 없습니다</p>
-            <button @click="openScheduleModal()">+ 새 일정 만들기</button>
-          </div>
-          <div v-else-if="trips.length" class="tray-new">
-            <button @click="openScheduleModal()" style="background:none;border:none;color:inherit;cursor:pointer;width:100%;">
-              + 새 일정 만들기
-            </button>
-          </div>
-          <div v-if="tripsLoading" style="padding:12px;color:var(--gray-muted);font-size:11px;text-align:center">로딩 중...</div>
+          <!-- 후보 목록 모드 -->
+          <template v-else>
+            <div class="tray-trip-bar">
+              <span class="tray-trip-dates">{{ currentTrip.startDate }} ~ {{ currentTrip.endDate }}</span>
+              <span class="tray-trip-members">👥 {{ currentTrip.memberCount }}명</span>
+              <button class="tray-switch-btn" @click="trayMode = 'select'">일정 변경</button>
+            </div>
+
+            <div v-if="isDraggingCard" class="tray-drag-hint">여기에 놓으면 추가돼요</div>
+
+            <div v-if="!activeTripCandidates.length" class="tray-cand-empty">
+              추가된 장소가 없어요<br>
+              <span>왼쪽 카드를 드래그하거나 + 버튼으로 추가하세요</span>
+            </div>
+            <div v-for="c in activeTripCandidates" :key="c.id" class="cand-item">
+              <div class="cand-item-body">
+                <div class="cand-item-name">{{ c.attractionName }}</div>
+                <div class="cand-item-meta">{{ c.category }}<template v-if="c.sigunguName"> · {{ c.sigunguName }}</template></div>
+              </div>
+              <button class="cand-remove" @click="removeByAttraction(c.attractionId)">×</button>
+            </div>
+
+            <div class="tray-new" @click="openScheduleModal()">+ 새 일정 만들기</div>
+          </template>
+
         </div>
       </Transition>
     </div>
@@ -203,7 +215,9 @@ const openScheduleModal = inject('openScheduleModal')
 
 // ── UI state (트레이 토글 / 드래그 감지) ──
 const trayOpen = ref(false)
+const trayMode = ref('candidates') // 'candidates' | 'select'
 const isDraggingCard = ref(false)
+const currentTrip = computed(() => trips.value.find(t => t.id === activeTrip.value))
 
 const trips = ref([])
 const tripsLoading = ref(false)
@@ -582,14 +596,10 @@ function onCardDragEnd() {
   draggedAttraction = null
 }
 
-async function onDropToTrip(e, trip) {
-  trip.dropOver = false
+async function onDropToActiveTray(e) {
   const type = e.dataTransfer.getData('type')
   if (type === 'candidate' || !draggedAttraction) return
-  const prev = activeTrip.value
-  activeTrip.value = trip.id
   await addToTrip(draggedAttraction)
-  if (prev !== trip.id) activeTrip.value = prev
   draggedAttraction = null
   isDraggingCard.value = false
 }
@@ -597,7 +607,7 @@ async function onDropToTrip(e, trip) {
 async function loadTrips() {
   tripsLoading.value = true
   try {
-    trips.value = (await tripApi.list()).map(t => ({ ...t, dropOver: false }))
+    trips.value = await tripApi.list()
     if (trips.value.length) activeTrip.value = trips.value[0].id
   } catch {
     // 비로그인
