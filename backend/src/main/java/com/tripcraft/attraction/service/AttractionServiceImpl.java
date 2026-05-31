@@ -1,6 +1,7 @@
 package com.tripcraft.attraction.service;
 
 import com.tripcraft.attraction.domain.Attraction;
+import com.tripcraft.attraction.dto.AttractionDetailDto;
 import com.tripcraft.attraction.dto.AttractionGroupStat;
 import com.tripcraft.attraction.dto.AttractionListItem;
 import com.tripcraft.attraction.dto.AttractionPageResponse;
@@ -15,7 +16,9 @@ import com.tripcraft.member.domain.Favorite;
 import com.tripcraft.member.mapper.FavoriteMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -182,5 +185,20 @@ public class AttractionServiceImpl implements AttractionService {
     public String getSigunguName(Integer sidoCode, Integer sigunguCode) {
         if (sidoCode == null || sigunguCode == null) return "";
         return sigunguCache.getOrDefault(sidoCode, Map.of()).getOrDefault(sigunguCode, "");
+    }
+
+    @Override
+    public AttractionDetailDto getById(Long id) {
+        Attraction a = attractionMapper.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "관광지를 찾을 수 없습니다."));
+        return new AttractionDetailDto(
+            a.getId(), a.getTitle(), a.getContentTypeId(),
+            CODE_CATEGORY.getOrDefault(a.getContentTypeId(), "기타"),
+            CODE_REGION.getOrDefault(a.getSidoCode(), "기타"),
+            getSigunguName(a.getSidoCode(), a.getSigunguCode()),
+            a.getAddr1(), a.getAddr2(), a.getTel(),
+            a.getOverview(), a.getFirstImage(),
+            a.getLatitude(), a.getLongitude()
+        );
     }
 }
