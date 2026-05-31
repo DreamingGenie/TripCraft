@@ -97,8 +97,15 @@
                         <div v-if="!cg.cat || !collapsedSearchCats[`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`]"
                              class="cards-grid"
                              v-observe="() => loadGroup(rg.region, sg.sg, cg.cat)">
-                          <div v-if="getGroup(rg.region, sg.sg, cg.cat).loading"
-                               style="padding:12px;text-align:center;color:var(--gray-muted);font-size:11px">로딩 중...</div>
+                          <!-- 로드 전: 플레이스홀더로 높이 확보 -->
+                          <div v-if="!getGroup(rg.region, sg.sg, cg.cat).loading && !getGroup(rg.region, sg.sg, cg.cat).loaded"
+                               class="group-placeholder"></div>
+                          <!-- 로딩 중: 스켈레톤 -->
+                          <template v-else-if="getGroup(rg.region, sg.sg, cg.cat).loading">
+                            <div class="skeleton-card"></div>
+                            <div class="skeleton-card"></div>
+                          </template>
+                          <!-- 로드 완료 -->
                           <template v-else>
                             <div v-for="a in getGroup(rg.region, sg.sg, cg.cat).items" :key="a.id"
                                  class="attr-card" :class="{ candidate: addedIds.has(a.id), selected: selectedAttraction?.id === a.id }"
