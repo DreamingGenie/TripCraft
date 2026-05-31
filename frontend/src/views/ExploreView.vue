@@ -365,7 +365,7 @@ const vObserve = {
   mounted(el, binding) {
     groupObserverMap.set(el, binding.value)
     observedElements.add(el)
-    groupObserver?.observe(el)
+    // observe는 layout 확정 후에만 — reobserveAll() 또는 scheduleReobserve()가 처리
   },
   beforeUpdate(el, binding) {
     groupObserverMap.set(el, binding.value)
@@ -375,6 +375,12 @@ const vObserve = {
     groupObserverMap.delete(el)
     observedElements.delete(el)
   }
+}
+
+let reobserveTimer = null
+function scheduleReobserve() {
+  clearTimeout(reobserveTimer)
+  reobserveTimer = setTimeout(reobserveAll, 60)
 }
 
 function reobserveAll() {
@@ -467,9 +473,18 @@ const groupedCandidates = computed(() => {
     catGroups: Object.entries(catMap).map(([cat, items]) => ({ cat, items }))
   }))
 })
-function toggleSearchRegion(region) { collapsedSearchRegions[region] = !collapsedSearchRegions[region] }
-function toggleSearchSigungu(key) { collapsedSearchSigungus[key] = !collapsedSearchSigungus[key] }
-function toggleSearchCat(key) { collapsedSearchCats[key] = !collapsedSearchCats[key] }
+function toggleSearchRegion(region) {
+  collapsedSearchRegions[region] = !collapsedSearchRegions[region]
+  scheduleReobserve()
+}
+function toggleSearchSigungu(key) {
+  collapsedSearchSigungus[key] = !collapsedSearchSigungus[key]
+  scheduleReobserve()
+}
+function toggleSearchCat(key) {
+  collapsedSearchCats[key] = !collapsedSearchCats[key]
+  scheduleReobserve()
+}
 
 const searchResultGroups = computed(() => {
   if (!statsData.value.length) return []
