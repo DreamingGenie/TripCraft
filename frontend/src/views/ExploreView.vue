@@ -73,7 +73,7 @@
             {{ rg.region }}
             <span class="group-count">{{ rg.total }}</span>
           </button>
-          <Transition name="tree-slide">
+          <Transition name="tree-slide" @after-leave="checkVisible">
             <div v-if="!rg.region || !collapsedSearchRegions[rg.region]"
                  :class="{ 'sg-level-indent': !!rg.region }">
               <div v-for="sg in rg.sgGroups" :key="sg.sg ?? '__nosg__'">
@@ -83,7 +83,7 @@
                   {{ sg.sg }}
                   <span class="group-count">{{ sg.total }}</span>
                 </button>
-                <Transition name="tree-slide">
+                <Transition name="tree-slide" @after-leave="checkVisible">
                   <div v-if="!sg.sg || !collapsedSearchSigungus[`${rg.region}__${sg.sg}`]"
                        class="group-cards-wrap">
                     <div v-for="cg in toRenderGroups(sg)" :key="cg.cat ?? '__all__'" class="cat-section-wrap">
@@ -93,7 +93,7 @@
                         {{ cg.cat }}
                         <span class="group-count">{{ cg.total }}</span>
                       </button>
-                      <Transition name="tree-slide">
+                      <Transition name="tree-slide" @after-leave="checkVisible">
                         <div v-if="!cg.cat || !collapsedSearchCats[`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`]"
                              class="cards-grid"
                              v-observe="() => loadGroup(rg.region, sg.sg, cg.cat)">
@@ -115,7 +115,7 @@
                                  @dragend="onCardDragEnd">
                               <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
                               <div class="card-img" :style="{ background: colorFor(a.contentTypeId) }">
-                                <img v-if="a.firstImage" :src="a.firstImage" />
+                                <img v-if="a.firstImage" :src="a.firstImage" loading="lazy" />
                                 <span v-else>{{ emojiFor(a.contentTypeId) }}</span>
                               </div>
                               <div class="card-info">
@@ -357,53 +357,64 @@ const scrollEl = ref(null)
 const filterOpen = ref(true)
 let lastScrollTop = 0
 let accScrollDown = 0
-let groupObserver = null
 const groupObserverMap = new WeakMap()
 const observedElements = new Set()
 
 const vObserve = {
   mounted(el, binding) {
-    groupObserverMap.set(el, binding.value)
+    const callback = () => {
+      observedElements.delete(el)
+      groupObserverMap.delete(el)
+      binding.value()
+    }
+    groupObserverMap.set(el, callback)
     observedElements.add(el)
-    // observe는 layout 확정 후에만 — reobserveAll() 또는 scheduleReobserve()가 처리
   },
   beforeUpdate(el, binding) {
-    groupObserverMap.set(el, binding.value)
+    if (observedElements.has(el)) {
+      groupObserverMap.set(el, () => {
+        observedElements.delete(el)
+        groupObserverMap.delete(el)
+        binding.value()
+      })
+    }
   },
   unmounted(el) {
-    groupObserver?.unobserve(el)
     groupObserverMap.delete(el)
     observedElements.delete(el)
   }
 }
 
-let reobserveTimer = null
-function scheduleReobserve() {
-  clearTimeout(reobserveTimer)
-  reobserveTimer = setTimeout(reobserveAll, 60)
-}
+const VISIBLE_BATCH = 3
 
-function reobserveAll() {
-  if (!groupObserver) return
-  for (const el of observedElements) {
-    groupObserver.unobserve(el)
-    groupObserver.observe(el)
+function checkVisible() {
+  if (!scrollEl.value) return
+  const rootRect = scrollEl.value.getBoundingClientRect()
+  let triggered = 0
+  for (const el of [...observedElements]) {
+    if (triggered >= VISIBLE_BATCH) break
+    const rect = el.getBoundingClientRect()
+    if (rect.height === 0) continue
+    if (rect.bottom > rootRect.top && rect.top < rootRect.bottom) {
+      groupObserverMap.get(el)?.()
+      triggered++
+    }
   }
 }
 
-function setupGroupObserver() {
-  groupObserver?.disconnect()
-  if (!scrollEl.value) return
-  groupObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          groupObserverMap.get(entry.target)?.()
-        }
-      }
-    },
-    { root: scrollEl.value, threshold: 0 }
-  )
+let scrollRafId = null
+function onScrollCheck() {
+  if (scrollRafId) return
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = null
+    checkVisible()
+  })
+}
+
+let checkTimer = null
+function scheduleCheck() {
+  clearTimeout(checkTimer)
+  checkTimer = setTimeout(() => requestAnimationFrame(() => checkVisible()), 60)
 }
 
 function getSigunguKey(regionName, sgName) {
@@ -439,7 +450,10 @@ async function loadGroup(region, sg, cat) {
   } catch {
     if (seq === loadSeq) delete groupItems[key]
   } finally {
-    if (groupItems[key] && seq === loadSeq) groupItems[key].loading = false
+    if (groupItems[key] && seq === loadSeq) {
+      groupItems[key].loading = false
+      scheduleCheck()
+    }
   }
 }
 
@@ -475,15 +489,15 @@ const groupedCandidates = computed(() => {
 })
 function toggleSearchRegion(region) {
   collapsedSearchRegions[region] = !collapsedSearchRegions[region]
-  scheduleReobserve()
+  nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
 function toggleSearchSigungu(key) {
   collapsedSearchSigungus[key] = !collapsedSearchSigungus[key]
-  scheduleReobserve()
+  nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
 function toggleSearchCat(key) {
   collapsedSearchCats[key] = !collapsedSearchCats[key]
-  scheduleReobserve()
+  nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
 
 const searchResultGroups = computed(() => {
@@ -784,7 +798,7 @@ async function loadAttractions() {
     statsData.value = data.groupStats || []
     total.value = data.total
     await nextTick()
-    reobserveAll()
+    requestAnimationFrame(() => requestAnimationFrame(() => checkVisible()))
   } catch {
     if (mySeq === loadSeq) toast.show('관광지 로드 실패')
   } finally {
@@ -876,8 +890,8 @@ async function addToTrip(attraction) {
 }
 
 onMounted(async () => {
-  setupGroupObserver()
   scrollEl.value?.addEventListener('scroll', checkScroll)
+  scrollEl.value?.addEventListener('scroll', onScrollCheck)
 
   loadTrips()
   loadRegions()
@@ -894,6 +908,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   scrollEl.value?.removeEventListener('scroll', checkScroll)
-  groupObserver?.disconnect()
+  scrollEl.value?.removeEventListener('scroll', onScrollCheck)
+  if (scrollRafId) cancelAnimationFrame(scrollRafId)
+  clearTimeout(checkTimer)
 })
 </script>

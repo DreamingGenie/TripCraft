@@ -852,8 +852,6 @@
 }
 
 /* ── 상세 패널 ── */
-.attr-list { position: relative; }
-
 .detail-panel {
   position: absolute;
   inset: 0;
