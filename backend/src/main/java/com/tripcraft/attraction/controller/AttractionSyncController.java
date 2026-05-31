@@ -32,8 +32,8 @@ public class AttractionSyncController {
     /** 특정 지역·콘텐츠 타입만 수집 (테스트용) */
     @PostMapping("/sync/partial")
     public ResponseEntity<ApiResponse<Map<String, Object>>> syncPartial(
-            @RequestParam int areaCode,
-            @RequestParam int contentTypeId) {
+            @RequestParam(name = "areaCode") int areaCode,
+            @RequestParam(name = "contentTypeId") int contentTypeId) {
         log.info("TourAPI 부분 수집 시작: areaCode={}, contentTypeId={}", areaCode, contentTypeId);
         TourApiSyncService.SyncResult result = syncService.syncByArea(areaCode, contentTypeId);
         log.info("TourAPI 부분 수집 완료: {}건, {}ms", result.total(), result.elapsedMs());
