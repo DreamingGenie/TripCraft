@@ -30,12 +30,12 @@ public class AttractionController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<AttractionPageResponse>> search(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String region,
-            @RequestParam(required = false) String sigungu,
-            @RequestParam(required = false) String category,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "region", required = false) String region,
+            @RequestParam(name = "sigungu", required = false) String sigungu,
+            @RequestParam(name = "category", required = false) String category,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal Long memberId) {
 
         AttractionPageResponse result = attractionService.search(keyword, region, sigungu, category, page, size, memberId);

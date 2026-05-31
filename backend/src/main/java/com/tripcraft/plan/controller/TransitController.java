@@ -18,9 +18,9 @@ public class TransitController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<TransitResponse>> getTransitTime(
-            @RequestParam Long fromId,
-            @RequestParam Long toId,
-            @RequestParam(defaultValue = "9") int hour) {
+            @RequestParam(name = "fromId") Long fromId,
+            @RequestParam(name = "toId") Long toId,
+            @RequestParam(name = "hour", defaultValue = "9") int hour) {
 
         return transitService.getTransitTime(fromId, toId, hour)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
@@ -29,10 +29,10 @@ public class TransitController {
 
     @PostMapping("/select")
     public ResponseEntity<ApiResponse<TransitResponse>> selectPath(
-            @RequestParam Long fromId,
-            @RequestParam Long toId,
-            @RequestParam(defaultValue = "9") int hour,
-            @RequestParam int pathIndex) {
+            @RequestParam(name = "fromId") Long fromId,
+            @RequestParam(name = "toId") Long toId,
+            @RequestParam(name = "hour", defaultValue = "9") int hour,
+            @RequestParam(name = "pathIndex") int pathIndex) {
 
         return transitService.selectPath(fromId, toId, hour, pathIndex)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
@@ -41,9 +41,9 @@ public class TransitController {
 
     @GetMapping("/detail")
     public ResponseEntity<ApiResponse<JsonNode>> getPathDetail(
-            @RequestParam Long fromId,
-            @RequestParam Long toId,
-            @RequestParam(defaultValue = "9") int hour) {
+            @RequestParam(name = "fromId") Long fromId,
+            @RequestParam(name = "toId") Long toId,
+            @RequestParam(name = "hour", defaultValue = "9") int hour) {
 
         return transitService.getPathDetail(fromId, toId, hour)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))

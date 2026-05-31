@@ -26,9 +26,9 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PostListPageResponse>> getPosts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPosts(page, size, sort, memberId)));
     }
