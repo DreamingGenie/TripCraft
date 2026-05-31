@@ -1,5 +1,6 @@
 package com.tripcraft.attraction.controller;
 
+import com.tripcraft.attraction.dto.AttractionDetailDto;
 import com.tripcraft.attraction.dto.AttractionPageResponse;
 import com.tripcraft.attraction.dto.RegionWithSigunguDto;
 import com.tripcraft.attraction.service.AttractionService;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,5 +40,10 @@ public class AttractionController {
 
         AttractionPageResponse result = attractionService.search(keyword, region, sigungu, category, page, size, memberId);
         return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<AttractionDetailDto>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(attractionService.getById(id)));
     }
 }

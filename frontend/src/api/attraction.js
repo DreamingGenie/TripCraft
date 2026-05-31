@@ -14,3 +14,7 @@ export function searchAttractions({ keyword, region, sigungu, category, page = 0
   params.set('size', size)
   return http.get(`/api/attractions?${params}`)
 }
+
+export function fetchAttractionDetail(id) {
+  return http.get(`/api/attractions/${id}`)
+}

@@ -1,5 +1,6 @@
 package com.tripcraft.attraction.service;
 
+import com.tripcraft.attraction.dto.AttractionDetailDto;
 import com.tripcraft.attraction.dto.AttractionPageResponse;
 import com.tripcraft.attraction.dto.RegionWithSigunguDto;
 
@@ -13,4 +14,6 @@ public interface AttractionService {
     List<RegionWithSigunguDto> getRegionsWithSigungu();
 
     String getSigunguName(Integer sidoCode, Integer sigunguCode);
+
+    AttractionDetailDto getById(Long id);
 }

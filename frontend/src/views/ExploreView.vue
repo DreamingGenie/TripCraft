@@ -101,8 +101,9 @@
                                style="padding:12px;text-align:center;color:var(--gray-muted);font-size:11px">로딩 중...</div>
                           <template v-else>
                             <div v-for="a in getGroup(rg.region, sg.sg, cg.cat).items" :key="a.id"
-                                 class="attr-card" :class="{ candidate: addedIds.has(a.id) }"
+                                 class="attr-card" :class="{ candidate: addedIds.has(a.id), selected: selectedAttraction?.id === a.id }"
                                  draggable="true"
+                                 @click="selectAttraction(a)"
                                  @dragstart="onCardDragStart($event, a)"
                                  @dragend="onCardDragEnd">
                               <div v-if="addedIds.has(a.id)" class="candidate-badge">✓</div>
@@ -135,6 +136,44 @@
 
         <div v-if="loading" style="padding:20px;text-align:center;color:var(--gray-muted);font-size:12px">목록 로딩 중...</div>
       </div>
+
+      <!-- 상세 패널 (절대 위치 오버레이) -->
+      <Transition name="detail-slide">
+        <div v-if="selectedAttraction" class="detail-panel">
+          <div class="detail-nav">
+            <button class="detail-back" @click="closeDetail()">← 목록</button>
+            <button class="card-add detail-add-btn"
+                    :class="{ added: addedIds.has(selectedAttraction.id) }"
+                    @click.stop="addedIds.has(selectedAttraction.id) ? removeByAttraction(selectedAttraction.id) : addToTrip(selectedAttraction)">
+              {{ addedIds.has(selectedAttraction.id) ? '× 제거' : '+ 추가' }}
+            </button>
+          </div>
+          <div class="detail-scroll">
+            <img v-if="selectedAttraction.firstImage" :src="selectedAttraction.firstImage" class="detail-img" />
+            <div v-else class="detail-img-empty" :style="{ background: colorFor(selectedAttraction.contentTypeId) }">
+              <span>{{ emojiFor(selectedAttraction.contentTypeId) }}</span>
+            </div>
+            <div class="detail-body">
+              <div class="detail-cat-row">
+                <span class="detail-cat-badge" :style="{ background: colorFor(selectedAttraction.contentTypeId) }">{{ selectedAttraction.category }}</span>
+                <span class="detail-region">{{ selectedAttraction.sigunguName || selectedAttraction.region }}</span>
+              </div>
+              <h2 class="detail-title">{{ selectedAttraction.title }}</h2>
+              <div v-if="selectedAttraction.address" class="detail-info-row">
+                <span>📍</span>
+                <span>{{ selectedAttraction.address }}{{ selectedAttractionDetail?.addr2 ? ' ' + selectedAttractionDetail.addr2 : '' }}</span>
+              </div>
+              <div v-if="selectedAttractionDetail?.tel && selectedAttractionDetail.tel.trim()" class="detail-info-row">
+                <span>📞</span><span>{{ selectedAttractionDetail.tel }}</span>
+              </div>
+              <p v-if="detailLoading" class="detail-loading">상세 정보 로딩 중...</p>
+              <p v-if="selectedAttractionDetail?.overview && selectedAttractionDetail.overview.trim()" class="detail-overview">
+                {{ selectedAttractionDetail.overview }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- 우측 하단 트레이: 내 일정 -->
@@ -229,7 +268,7 @@
 <script setup>
 import { ref, computed, reactive, inject, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useToastStore } from '@/stores/toast'
-import { searchAttractions, fetchRegions } from '@/api/attraction'
+import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
 
 const toast = useToastStore()
@@ -251,6 +290,10 @@ const candidateIdMap = ref(new Map())
 const total = ref(0)
 const loading = ref(false)
 let loadSeq = 0
+
+const selectedAttraction = ref(null)
+const selectedAttractionDetail = ref(null)
+const detailLoading = ref(false)
 
 // 그룹별 아이템 캐시: "region__sg__cat" → { items, loading, loaded }
 const groupItems = reactive({})
@@ -468,6 +511,12 @@ const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 
 function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
 function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
 
+const CAT_COLORS = {
+  '관광지': '#8B85E0', '문화시설': '#48B89A', '레포츠': '#55B36E',
+  '숙박': '#6B9FD4', '쇼핑': '#D4844A', '음식점': '#D46070'
+}
+function catColor(cat) { return CAT_COLORS[cat] || '#9E9E9E' }
+
 // ── Naver Maps ──
 const mapEl = ref(null)
 let naverMap = null
@@ -516,6 +565,28 @@ function fitMap() {
   setTimeout(() => { if (naverMap.getZoom() > MAX_ZOOM) naverMap.setZoom(MAX_ZOOM) }, 150)
 }
 
+let selectedMarker = null
+
+function clearSelectedMarker() {
+  selectedMarker?.setMap(null)
+  selectedMarker = null
+}
+
+function updateSelectedMarker(a) {
+  clearSelectedMarker()
+  if (!naverMap || !a?.latitude || !a?.longitude) return
+  const color = catColor(a.category)
+  selectedMarker = new naver.maps.Marker({
+    map: naverMap,
+    position: new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)),
+    icon: {
+      content: `<div style="width:32px;height:32px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.4);box-sizing:border-box;outline:3px solid ${color}"></div>`,
+      anchor: new naver.maps.Point(16, 16)
+    },
+    zIndex: 100
+  })
+}
+
 function clearMarkers() {
   markers.forEach(m => m.setMap(null))
   markers = []
@@ -529,7 +600,14 @@ function updateMarkers() {
   activeTripCandidates.value.forEach(c => {
     if (!c.latitude || !c.longitude) return
     const position = new naver.maps.LatLng(c.latitude, c.longitude)
-    const marker = new naver.maps.Marker({ map: naverMap, position, title: c.attractionName })
+    const color = catColor(c.category)
+    const marker = new naver.maps.Marker({
+      map: naverMap, position, title: c.attractionName,
+      icon: {
+        content: `<div style="width:22px;height:22px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.3);cursor:pointer;box-sizing:border-box"></div>`,
+        anchor: new naver.maps.Point(11, 11)
+      }
+    })
     naver.maps.Event.addListener(marker, 'click', () => {
       infoWindow.setContent(`<div style="padding:6px 10px;font-size:12px;white-space:nowrap">${c.attractionName}</div>`)
       infoWindow.open(naverMap, marker)
@@ -722,6 +800,31 @@ function clearFilters() {
   searchQuery.value = ''
   loadAttractions()
   toast.show('필터가 초기화됐어요')
+}
+
+async function selectAttraction(a) {
+  if (selectedAttraction.value?.id === a.id) { closeDetail(); return }
+  selectedAttraction.value = a
+  selectedAttractionDetail.value = null
+
+  if (naverMap && a.latitude && a.longitude) {
+    naverMap.panTo(new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)))
+    if (naverMap.getZoom() < 13) naverMap.setZoom(13)
+  }
+  updateSelectedMarker(a)
+
+  detailLoading.value = true
+  try {
+    selectedAttractionDetail.value = await fetchAttractionDetail(a.id)
+  } catch { /* 기본 정보로 대체 */ } finally {
+    detailLoading.value = false
+  }
+}
+
+function closeDetail() {
+  selectedAttraction.value = null
+  selectedAttractionDetail.value = null
+  clearSelectedMarker()
 }
 
 async function addToTrip(attraction) {
