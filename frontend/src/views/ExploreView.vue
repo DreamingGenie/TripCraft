@@ -169,28 +169,40 @@
         <div class="detail-scroll">
 
           <!-- 히어로 이미지 -->
-          <div class="detail-hero">
-            <img v-if="selectedMainImage || selectedAttraction.firstImage"
-                 :src="selectedMainImage || selectedAttraction.firstImage"
+          <div class="detail-hero" @click="allImages.length && (lightboxOpen = true)">
+            <img v-if="allImages[currentImageIdx]"
+                 :src="allImages[currentImageIdx].url"
                  class="detail-img"
                  :alt="selectedAttraction.title" />
             <div v-else class="detail-img-empty"
                  :style="{ background: colorFor(selectedAttraction.contentTypeId) }">
               <span class="detail-img-emoji">{{ emojiFor(selectedAttraction.contentTypeId) }}</span>
             </div>
+            <!-- 이전/다음 버튼 -->
+            <button v-if="currentImageIdx > 0"
+                    class="detail-hero-nav detail-hero-prev"
+                    @click.stop="currentImageIdx--"
+                    aria-label="이전 이미지">‹</button>
+            <button v-if="currentImageIdx < allImages.length - 1"
+                    class="detail-hero-nav detail-hero-next"
+                    @click.stop="currentImageIdx++"
+                    aria-label="다음 이미지">›</button>
+            <!-- 이미지 카운터 -->
+            <div v-if="allImages.length > 1" class="detail-hero-counter">
+              {{ currentImageIdx + 1 }} / {{ allImages.length }}
+            </div>
           </div>
 
           <!-- 이미지 갤러리 썸네일 띠 -->
-          <div v-if="selectedAttractionDetail?.images && selectedAttractionDetail.images.length > 1"
-               class="detail-gallery">
+          <div v-if="allImages.length > 1" class="detail-gallery">
             <button
-              v-for="(img, idx) in selectedAttractionDetail.images"
+              v-for="(img, idx) in allImages"
               :key="idx"
               class="detail-gallery-thumb"
-              :class="{ active: (selectedMainImage || selectedAttraction.firstImage) === img.originimgurl }"
+              :class="{ active: idx === currentImageIdx }"
               :aria-label="`이미지 ${idx + 1}`"
-              @click="selectedMainImage = img.originimgurl">
-              <img :src="img.smallimageurl || img.originimgurl" :alt="img.imgname || `이미지 ${idx + 1}`" loading="lazy" />
+              @click="currentImageIdx = idx">
+              <img :src="img.small" :alt="img.name || `이미지 ${idx + 1}`" loading="lazy" />
             </button>
           </div>
 
@@ -320,6 +332,25 @@
       </div>
     </Transition>
 
+    <!-- 라이트박스 -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div v-if="lightboxOpen" class="lightbox-overlay" @click.self="lightboxOpen = false">
+          <button class="lightbox-close" @click="lightboxOpen = false" aria-label="닫기">✕</button>
+          <button v-if="currentImageIdx > 0"
+                  class="lightbox-nav lightbox-prev"
+                  @click="currentImageIdx--"
+                  aria-label="이전">‹</button>
+          <img :src="allImages[currentImageIdx]?.url" class="lightbox-img" :alt="allImages[currentImageIdx]?.name" />
+          <button v-if="currentImageIdx < allImages.length - 1"
+                  class="lightbox-nav lightbox-next"
+                  @click="currentImageIdx++"
+                  aria-label="다음">›</button>
+          <div class="lightbox-counter">{{ currentImageIdx + 1 }} / {{ allImages.length }}</div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- 우측 하단 트레이: 내 일정 -->
     <div class="trip-tray" :class="{ dragging: isDraggingCard }"
          @dragover.prevent
@@ -438,7 +469,8 @@ let loadSeq = 0
 const selectedAttraction = ref(null)
 const selectedAttractionDetail = ref(null)
 const detailLoading = ref(false)
-const selectedMainImage = ref(null)
+const currentImageIdx = ref(0)
+const lightboxOpen = ref(false)
 const detailOpen = ref(false)
 const detailSlideName = ref('detail-slide')
 
@@ -717,6 +749,21 @@ function activeHeritages(intro) {
   return Object.keys(heritageLabels).filter(k => intro[k] === '1').map(k => heritageLabels[k])
 }
 
+const allImages = computed(() => {
+  if (!selectedAttraction.value) return []
+  const imgs = []
+  const f1 = selectedAttraction.value.firstImage || selectedAttractionDetail.value?.firstImage
+  const f2 = selectedAttractionDetail.value?.firstImage2
+  if (f1) imgs.push({ url: f1, small: f1, name: '대표이미지' })
+  if (f2 && f2 !== f1) imgs.push({ url: f2, small: f2, name: '대표이미지2' })
+  for (const img of (selectedAttractionDetail.value?.images ?? [])) {
+    if (img.originimgurl && !imgs.some(i => i.url === img.originimgurl)) {
+      imgs.push({ url: img.originimgurl, small: img.smallimageurl || img.originimgurl, name: img.imgname || '' })
+    }
+  }
+  return imgs
+})
+
 const DETAIL_INFO_LABELS = {
   // 관광지 (12)
   expagerange:      '체험 가능 연령',
@@ -913,6 +960,9 @@ function initMap() {
     zoom: 8,
   })
   infoWindow = new naver.maps.InfoWindow({ zIndex: 1 })
+  naver.maps.Event.addListener(naverMap, 'click', () => {
+    if (!detailOpen.value) closePin()
+  })
   setTimeout(() => {
     naver.maps.Event.once(naverMap, 'resize', () => updateMarkers())
     naver.maps.Event.trigger(naverMap, 'resize')
@@ -947,11 +997,12 @@ function updateSelectedMarker(a) {
   clearSelectedMarker()
   if (!naverMap || !a?.latitude || !a?.longitude) return
   const color = catColor(a.category)
+  window.__naverPinClick = () => { if (!detailOpen.value) showAttractionInfoWindow(a) }
   selectedMarker = new naver.maps.Marker({
     map: naverMap,
     position: new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)),
     icon: {
-      content: `<div style="width:32px;height:32px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.4);box-sizing:border-box;outline:3px solid ${color}"></div>`,
+      content: `<div onclick="event.stopPropagation();window.__naverPinClick()" style="width:32px;height:32px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.4);box-sizing:border-box;outline:3px solid ${color};cursor:pointer"></div>`,
       anchor: new naver.maps.Point(16, 16)
     },
     zIndex: 100
@@ -980,8 +1031,22 @@ function updateMarkers() {
       }
     })
     naver.maps.Event.addListener(marker, 'click', () => {
-      infoWindow.setContent(`<div style="padding:6px 10px;font-size:12px;white-space:nowrap">${c.attractionName}</div>`)
-      infoWindow.open(naverMap, marker)
+      const a = {
+        id: c.attractionId, title: c.attractionName, category: c.category,
+        contentTypeId: null, region: c.cityName, sigunguName: c.sigunguName,
+        sigunguCode: c.sigunguCode, latitude: c.latitude, longitude: c.longitude,
+        firstImage: null, address: null
+      }
+      infoWindow?.close()
+      detailSlideName.value = ''
+      detailOpen.value = false
+      selectedAttractionDetail.value = null
+      currentImageIdx.value = 0
+      lightboxOpen.value = false
+      selectedAttraction.value = a
+      nextTick(() => { detailSlideName.value = 'detail-slide' })
+      updateSelectedMarker(a)
+      showAttractionInfoWindow(a)
     })
     markers.push(marker)
     markerIdSet.add(c.attractionId)
@@ -1183,7 +1248,8 @@ async function selectAttraction(a) {
   detailSlideName.value = ''
   detailOpen.value = false
   selectedAttractionDetail.value = null
-  selectedMainImage.value = null
+  currentImageIdx.value = 0
+  lightboxOpen.value = false
   selectedAttraction.value = a
   nextTick(() => { detailSlideName.value = 'detail-slide' })
 
@@ -1223,7 +1289,8 @@ async function openDetail() {
   infoWindow?.close()
   detailLoading.value = true
   selectedAttractionDetail.value = null
-  selectedMainImage.value = null
+  currentImageIdx.value = 0
+  lightboxOpen.value = false
   try {
     selectedAttractionDetail.value = await fetchAttractionDetail(selectedAttraction.value.id)
   } catch { /* 기본 정보로 대체 */ } finally {
@@ -1234,14 +1301,16 @@ async function openDetail() {
 function closeDetail() {
   detailOpen.value = false
   selectedAttractionDetail.value = null
-  selectedMainImage.value = null
+  currentImageIdx.value = 0
+  lightboxOpen.value = false
   showAttractionInfoWindow(selectedAttraction.value)
 }
 
 function closePin() {
   selectedAttraction.value = null
   selectedAttractionDetail.value = null
-  selectedMainImage.value = null
+  currentImageIdx.value = 0
+  lightboxOpen.value = false
   detailOpen.value = false
   clearSelectedMarker()
   infoWindow?.close()

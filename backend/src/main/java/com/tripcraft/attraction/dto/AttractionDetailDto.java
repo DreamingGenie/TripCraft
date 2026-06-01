@@ -23,6 +23,7 @@ public class AttractionDetailDto {
     private BigDecimal latitude;
     private BigDecimal longitude;
     private String firstImage;
+    private String firstImage2;
     // detailCommon2
     private String overview;
     private String homepage;
