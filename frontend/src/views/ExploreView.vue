@@ -146,9 +146,9 @@
 
     </div>
 
-    <!-- 상세 패널 (attr-list 오른쪽에 슬라이드인) -->
-    <Transition name="detail-slide">
-      <div v-if="selectedAttraction" class="detail-panel">
+    <!-- 상세 패널 (attr-list 위에 슬라이드인) -->
+    <Transition :name="detailSlideName">
+      <div v-if="detailOpen && selectedAttraction" class="detail-panel">
 
         <!-- 상단 액션 바 -->
         <div class="detail-nav">
@@ -439,6 +439,8 @@ const selectedAttraction = ref(null)
 const selectedAttractionDetail = ref(null)
 const detailLoading = ref(false)
 const selectedMainImage = ref(null)
+const detailOpen = ref(false)
+const detailSlideName = ref('detail-slide')
 
 // 그룹별 아이템 캐시: "region__sg__cat" → { items, loading, loaded }
 const groupItems = reactive({})
@@ -1172,29 +1174,73 @@ function clearFilters() {
 }
 
 async function selectAttraction(a) {
-  if (selectedAttraction.value?.id === a.id) { closeDetail(); return }
-  selectedAttraction.value = a
+  if (selectedAttraction.value?.id === a.id) {
+    if (detailOpen.value) closeDetail()
+    else closePin()
+    return
+  }
+  infoWindow?.close()
+  detailSlideName.value = ''
+  detailOpen.value = false
   selectedAttractionDetail.value = null
   selectedMainImage.value = null
+  selectedAttraction.value = a
+  nextTick(() => { detailSlideName.value = 'detail-slide' })
 
   if (naverMap && a.latitude && a.longitude) {
-    naverMap.panTo(new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)))
-    if (naverMap.getZoom() < 13) naverMap.setZoom(13)
+    const latlng = new naver.maps.LatLng(Number(a.latitude), Number(a.longitude))
+    naverMap.morph(latlng, Math.max(naverMap.getZoom(), 13))
+    updateSelectedMarker(a)
+    let shown = false
+    const tryShow = () => {
+      if (shown) return
+      shown = true
+      if (selectedAttraction.value?.id === a.id && !detailOpen.value) showAttractionInfoWindow(a)
+    }
+    naver.maps.Event.once(naverMap, 'idle', tryShow)
+    setTimeout(tryShow, 400)
+  } else {
+    updateSelectedMarker(a)
+    showAttractionInfoWindow(a)
   }
-  updateSelectedMarker(a)
+}
 
+function showAttractionInfoWindow(a) {
+  if (!naverMap || !a?.latitude || !a?.longitude) return
+  const color = catColor(a.category)
+  window.__naverOpenDetail = openDetail
+  infoWindow.setContent(`<div style="padding:10px 12px;font-family:inherit;min-width:160px;max-width:220px"><div style="font-size:11px;color:${color};font-weight:700;margin-bottom:3px">${a.category}</div><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:8px;line-height:1.3">${a.title}</div><button onclick="window.__naverOpenDetail()" style="width:100%;padding:6px 0;background:${color};color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">상세정보 보기 →</button></div>`)
+  infoWindow.open(naverMap, new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)))
+}
+
+async function openDetail() {
+  if (!selectedAttraction.value) return
+  detailOpen.value = true
+  infoWindow?.close()
   detailLoading.value = true
+  selectedAttractionDetail.value = null
+  selectedMainImage.value = null
   try {
-    selectedAttractionDetail.value = await fetchAttractionDetail(a.id)
+    selectedAttractionDetail.value = await fetchAttractionDetail(selectedAttraction.value.id)
   } catch { /* 기본 정보로 대체 */ } finally {
     detailLoading.value = false
   }
 }
 
 function closeDetail() {
+  detailOpen.value = false
+  selectedAttractionDetail.value = null
+  selectedMainImage.value = null
+  showAttractionInfoWindow(selectedAttraction.value)
+}
+
+function closePin() {
   selectedAttraction.value = null
   selectedAttractionDetail.value = null
+  selectedMainImage.value = null
+  detailOpen.value = false
   clearSelectedMarker()
+  infoWindow?.close()
 }
 
 async function addToTrip(attraction) {
