@@ -3,6 +3,10 @@ package com.tripcraft.attraction.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tripcraft.attraction.client.dto.TourApiDetailCommonItem;
+import com.tripcraft.attraction.client.dto.TourApiDetailImageItem;
+import com.tripcraft.attraction.client.dto.TourApiDetailInfoItem;
+import com.tripcraft.attraction.client.dto.TourApiDetailIntroItem;
 import com.tripcraft.attraction.client.dto.TourApiItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +24,7 @@ public class TourApiClient {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final TourApiCallLimiter limiter;
 
     @Value("${tour-api.service-key}")
     private String serviceKey;
@@ -36,6 +41,99 @@ public class TourApiClient {
             log.error("TourAPI 호출 실패 areaCode={} contentTypeId={} pageNo={}: {}", areaCode, contentTypeId, pageNo, e.getMessage());
             return List.of();
         }
+    }
+
+    public TourApiDetailCommonItem fetchDetailCommon(String contentId) {
+        if (!limiter.tryConsume()) return null;
+        String url = baseUrl + "/detailCommon2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&contentId=" + contentId;
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            JsonNode root = objectMapper.readTree(response).path("response");
+            if (!"0000".equals(root.path("header").path("resultCode").asText())) return null;
+            JsonNode item = parseSingleItem(root);
+            return item == null ? null : objectMapper.treeToValue(item, TourApiDetailCommonItem.class);
+        } catch (Exception e) {
+            log.warn("detailCommon2 실패 contentId={}: {}", contentId, e.getMessage());
+            return null;
+        }
+    }
+
+    public TourApiDetailIntroItem fetchDetailIntro(String contentId, int contentTypeId) {
+        if (!limiter.tryConsume()) return null;
+        String url = baseUrl + "/detailIntro2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&contentId=" + contentId
+            + "&contentTypeId=" + contentTypeId;
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            JsonNode root = objectMapper.readTree(response).path("response");
+            if (!"0000".equals(root.path("header").path("resultCode").asText())) return null;
+            JsonNode item = parseSingleItem(root);
+            return item == null ? null : objectMapper.treeToValue(item, TourApiDetailIntroItem.class);
+        } catch (Exception e) {
+            log.warn("detailIntro2 실패 contentId={}: {}", contentId, e.getMessage());
+            return null;
+        }
+    }
+
+    public List<TourApiDetailImageItem> fetchDetailImage(String contentId) {
+        if (!limiter.tryConsume()) return List.of();
+        String url = baseUrl + "/detailImage2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&contentId=" + contentId;
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            return parseListItems(response, TourApiDetailImageItem.class);
+        } catch (Exception e) {
+            log.warn("detailImage2 실패 contentId={}: {}", contentId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<TourApiDetailInfoItem> fetchDetailInfo(String contentId, int contentTypeId) {
+        if (!limiter.tryConsume()) return List.of();
+        String url = baseUrl + "/detailInfo2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&contentId=" + contentId
+            + "&contentTypeId=" + contentTypeId;
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            return parseListItems(response, TourApiDetailInfoItem.class);
+        } catch (Exception e) {
+            log.warn("detailInfo2 실패 contentId={}: {}", contentId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private JsonNode parseSingleItem(JsonNode root) {
+        JsonNode body = root.path("body");
+        JsonNode itemsNode = body.path("items");
+        if (itemsNode.isTextual() || itemsNode.isMissingNode()) return null;
+        JsonNode itemNode = itemsNode.path("item");
+        if (itemNode.isMissingNode() || itemNode.isNull()) return null;
+        if (itemNode.isArray()) {
+            return itemNode.isEmpty() ? null : itemNode.get(0);
+        }
+        return itemNode.isObject() ? itemNode : null;
+    }
+
+    private <T> List<T> parseListItems(String json, Class<T> clazz) throws Exception {
+        JsonNode root = objectMapper.readTree(json).path("response");
+        if (!"0000".equals(root.path("header").path("resultCode").asText())) return List.of();
+        JsonNode body = root.path("body");
+        JsonNode itemsNode = body.path("items");
+        if (itemsNode.isTextual() || itemsNode.isMissingNode()) return List.of();
+        JsonNode itemNode = itemsNode.path("item");
+        if (itemNode.isMissingNode() || itemNode.isNull()) return List.of();
+        if (itemNode.isObject()) return List.of(objectMapper.treeToValue(itemNode, clazz));
+        return objectMapper.treeToValue(itemNode,
+            objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
     }
 
     private String buildUrl(int areaCode, int contentTypeId, int pageNo, int numOfRows) {

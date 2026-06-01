@@ -20,4 +20,16 @@ public class TourApiItem {
     private String tel;
     private String createdtime;
     private String modifiedtime;
+    private String firstimage2;
+    private String mlevel;
+    private String cat1;
+    private String cat2;
+    private String cat3;
+    private String zipcode;
+    private String lDongRegnCd;
+    private String lDongSignguCd;
+    private String lclsSystm1;
+    private String lclsSystm2;
+    private String lclsSystm3;
+    private String cpyrhtDivCd;
 }
