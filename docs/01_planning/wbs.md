@@ -170,6 +170,26 @@
 
 ---
 
+### 이동수단 모드 확장 (Week 7 후반 — F08 고도화)
+
+**Backend**
+- [x] T Map API 클라이언트 구현 (자동차 경로·택시요금 / 도보 경로)
+- [x] TransitService: 모드(PUBLIC_TRANSIT·DRIVING·WALKING) 분기 처리
+- [x] transit_cache: request_mode·taxi_fare·route_coords 컬럼 추가 (모드별 독립 캐시)
+- [x] trip: default_transit_mode 컬럼 추가 및 블록 배치 시 자동 적용
+- [x] `PATCH /api/trips/{id}/default-transit-mode` 엔드포인트 추가
+- [x] TransitController: `mode` 파라미터 수신 및 모드별 API 분기
+- [x] DB 마이그레이션 스크립트 작성 (`docs/02_design/migration_transit_mode.sql`)
+
+**Frontend**
+- [x] 일정 생성 모달: 주요 이동수단 선택 UI (대중교통 / 자동차 / 도보)
+- [x] TransitPill 클릭 → 드롭다운 (3모드 병렬 조회 + 소요시간·택시비 표시)
+- [x] 드롭다운 선택 → 블록 transitMode 업데이트 즉시 저장
+- [x] 툴바 "지도로 보기" 버튼 → 네이버 지도 슬라이드인 패널
+- [x] 지도 패널: 날짜별 장소 마커 + 경로 폴리라인 (T Map routeCoords 기반)
+
+---
+
 ### F08 · F09 — 커뮤니티 (공유 게시판 · 공지사항) (Week 7)
 
 **Backend**

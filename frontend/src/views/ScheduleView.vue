@@ -29,11 +29,11 @@
 
       <span class="toolbar-spacer"></span>
 
-      <button class="btn-save-schedule" @click="toast.show('자동 저장됩니다.')">💾 저장</button>
+      <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
       <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
     </div>
 
-    <!-- BODY: 사이드바 + 시간표 -->
+    <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
     <div class="schedule-body">
       <!-- 후보군 사이드바 -->
       <aside class="candidate-sidebar"
@@ -136,7 +136,7 @@
       <div class="timetable-main">
         <div class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
-        <div class="timetable-wrapper" ref="wrapperEl">
+        <div class="timetable-wrapper" ref="wrapperEl" @scroll="openPillKey = null">
           <div class="timetable-header">
             <div class="th-gutter"></div>
             <div v-for="d in days" :key="d.label" class="th-day">
@@ -145,7 +145,7 @@
             </div>
           </div>
 
-          <div class="timetable-body">
+          <div class="timetable-body" @click="openPillKey = null">
             <div class="time-axis">
               <template v-for="h in 24" :key="h">
                 <div class="time-mark" :style="{ top: (h - 1) * 60 + 'px' }">{{ String(h - 1).padStart(2,'0') }}:00</div>
@@ -163,13 +163,17 @@
                      :style="{ top: dragPreview.top + 'px', height: dragPreview.height + 'px' }">
                   {{ dragState?.data?.attractionName || dragState?.data?.name }}
                 </div>
+
                 <div v-for="pill in getTransitPills(d)" :key="`pill-${pill.top}`"
                      class="transit-pill-block transit-pill-clickable"
-                     :class="{ 'transit-pill-none': pill.transportMode === 'NONE' }"
+                     :class="{
+                       'transit-pill-none': pill.transportMode === 'NONE',
+                       'transit-pill-open': openPillKey === pillKey(pill)
+                     }"
                      :style="{ top: pill.top + 'px', height: Math.max(pill.durationMinutes || 24, 24) + 'px' }"
-                     @click="openTransitDetail(pill)">
+                     @click.stop="togglePillDropdown(pill, $event)">
                   <span class="transit-pill-text">
-                    <template v-if="pill.transportMode === 'NONE'">경로 정보 없음</template>
+                    <template v-if="pill.transportMode === 'NONE'">경로 없음</template>
                     <template v-else>{{ pill.durationMinutes }}분 · {{ displayModes(pill.transportMode) }}</template>
                   </span>
                 </div>
@@ -192,35 +196,79 @@
           </div>
         </div>
       </div>
+
+      <!-- 지도 패널 -->
+      <Transition name="map-panel-slide">
+        <div v-if="showMapPanel" class="map-panel">
+          <div class="map-panel-header">
+            <div class="map-day-tabs">
+              <button v-for="d in days" :key="d.label"
+                      class="map-day-tab" :class="{ active: mapDay === d }"
+                      @click="selectMapDay(d)">{{ d.label }}</button>
+            </div>
+            <button class="map-panel-close" @click="showMapPanel = false">✕</button>
+          </div>
+          <div ref="mapEl" class="map-el"></div>
+        </div>
+      </Transition>
     </div>
 
   </section>
 
-  <TransitDetailPanel
-    v-if="showTransitDetail"
-    :detail="transitDetail"
-    :loading="transitDetailLoading"
-    @close="showTransitDetail = false; selectedPill = null"
-    @select="handleTransitSelect"
-  />
+  <!-- 이동수단 드롭다운 (overflow 탈출용 Teleport) -->
+  <Teleport to="body">
+    <div v-if="openPillKey && currentPillData"
+         class="pill-dropdown"
+         :style="{
+           position: 'fixed',
+           left: pillDropdownPos.x + 'px',
+           top: pillDropdownPos.y + 'px',
+           minWidth: Math.max(pillDropdownPos.width, 170) + 'px',
+           zIndex: 9999
+         }"
+         @click.stop>
+      <div v-for="opt in modeOptions" :key="opt.mode"
+           class="pill-dropdown-option"
+           :class="{
+             active: currentPillData.transportMode === opt.mode,
+             loading: pillLoadingModes[`${openPillKey}-${opt.mode}`]
+           }"
+           @click="selectPillMode(currentPillData, opt.mode)">
+        <span class="pill-opt-icon">{{ opt.icon }}</span>
+        <span class="pill-opt-label">{{ opt.label }}</span>
+        <span v-if="pillLoadingModes[`${openPillKey}-${opt.mode}`]" class="pill-opt-spinner"></span>
+        <template v-else-if="pillResults[openPillKey]?.[opt.mode] !== undefined">
+          <span v-if="pillResults[openPillKey][opt.mode] && pillResults[openPillKey][opt.mode].durationMinutes > 0"
+                class="pill-opt-detail">
+            {{ pillResults[openPillKey][opt.mode].durationMinutes }}분
+            <template v-if="opt.mode === 'DRIVING' && pillResults[openPillKey][opt.mode].taxiFare">
+              · ₩{{ pillResults[openPillKey][opt.mode].taxiFare.toLocaleString() }}
+            </template>
+          </span>
+          <span v-else class="pill-opt-detail pill-opt-none">경로 없음</span>
+        </template>
+      </div>
+    </div>
+  </Teleport>
+
   </main>
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
-import { getTransitDetail, selectTransitPath } from '@/api/transit'
-import TransitDetailPanel from '@/components/TransitDetailPanel.vue'
+import { getTransitByMode } from '@/api/transit'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
 const wrapperEl = ref(null)
+const mapEl = ref(null)
 
 const HOUR_PX = 60
 const SNAP = 30
 
-// ── UI state (사이드바 토글) ──
+// ── UI state ──
 const sidebarOpen = ref(true)
 
 const trips = ref([])
@@ -230,10 +278,25 @@ const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
 
-const showTransitDetail = ref(false)
-const transitDetail = ref(null)
-const transitDetailLoading = ref(false)
-const selectedPill = ref(null)
+// ── 이동수단 드롭다운 ──
+const openPillKey = ref(null)
+const currentPillData = ref(null)
+const pillDropdownPos = reactive({ x: 0, y: 0, width: 0 })
+const pillResults = reactive({})
+const pillLoadingModes = reactive({})
+
+const modeOptions = [
+  { mode: 'PUBLIC_TRANSIT', icon: '🚌', label: '대중교통' },
+  { mode: 'DRIVING', icon: '🚗', label: '자동차' },
+  { mode: 'WALKING', icon: '🚶', label: '도보' },
+]
+
+// ── 지도 패널 ──
+const showMapPanel = ref(false)
+const mapDay = ref(null)
+let naverMapInstance = null
+let routePolylines = []
+let routeMarkers = []
 
 let dragState = null
 const dragPreview = ref(null)
@@ -382,48 +445,216 @@ function getTransitPills(day) {
         fromAttractionId: prevCand?.attractionId,
         toAttractionId: currCand?.attractionId,
         departureHour: Math.min(Math.floor(pillTop / 60), 23),
+        toBlockId: curr.id,
+        toBlockDate: curr.tripDate,
+        toBlockStartTime: topToTime(curr.top) + ':00',
+        toBlockDuration: curr.height,
+        toBlockOrder: curr.displayOrder ?? 1,
       })
     }
   }
   return pills
 }
 
-async function openTransitDetail(pill) {
-  if (pill.transportMode === 'NONE') {
-    toast.show('이 구간의 대중교통 경로 정보가 없습니다. 택시 또는 자가용을 이용하세요.')
+function pillKey(pill) {
+  return `${pill.fromAttractionId}-${pill.toAttractionId}-${pill.departureHour}`
+}
+
+function togglePillDropdown(pill, event) {
+  event.stopPropagation()
+  const key = pillKey(pill)
+  if (openPillKey.value === key) {
+    openPillKey.value = null
+    currentPillData.value = null
     return
   }
-  if (!pill.fromAttractionId || !pill.toAttractionId) {
-    toast.show('경로 정보를 불러올 수 없어요')
-    return
-  }
-  selectedPill.value = pill
-  showTransitDetail.value = true
-  transitDetailLoading.value = true
-  transitDetail.value = null
+  const rect = event.currentTarget.getBoundingClientRect()
+  pillDropdownPos.x = rect.left
+  pillDropdownPos.y = rect.bottom + 4
+  pillDropdownPos.width = rect.width
+  openPillKey.value = key
+  currentPillData.value = pill
+  if (!pill.fromAttractionId || !pill.toAttractionId) return
+  modeOptions.forEach(opt => fetchPillMode(pill, opt.mode))
+}
+
+async function fetchPillMode(pill, mode) {
+  const key = pillKey(pill)
+  const loadKey = `${key}-${mode}`
+  if (pillLoadingModes[loadKey] || pillResults[key]?.[mode] !== undefined) return
+  pillLoadingModes[loadKey] = true
   try {
-    transitDetail.value = await getTransitDetail(pill.fromAttractionId, pill.toAttractionId)
+    const result = await getTransitByMode(pill.fromAttractionId, pill.toAttractionId, mode, pill.departureHour)
+    if (!pillResults[key]) pillResults[key] = {}
+    pillResults[key][mode] = result
   } catch {
-    toast.show('경로 정보를 불러오지 못했어요')
-    showTransitDetail.value = false
+    if (!pillResults[key]) pillResults[key] = {}
+    pillResults[key][mode] = null
   } finally {
-    transitDetailLoading.value = false
+    pillLoadingModes[loadKey] = false
   }
 }
 
-async function handleTransitSelect(pathIndex) {
-  if (!selectedPill.value) return
+async function selectPillMode(pill, mode) {
+  if (!pill?.toBlockId) return
+  const key = pillKey(pill)
+  if (pillResults[key]?.[mode] === undefined && !pillLoadingModes[`${key}-${mode}`]) {
+    await fetchPillMode(pill, mode)
+  }
+  const r = pillResults[key]?.[mode]
   try {
-    await selectTransitPath(selectedPill.value.fromAttractionId, selectedPill.value.toAttractionId, pathIndex)
-    showTransitDetail.value = false
-    selectedPill.value = null
+    await tripApi.updateBlock(activeTripId.value, pill.toBlockId, {
+      tripDate: pill.toBlockDate,
+      startTime: pill.toBlockStartTime,
+      durationMinutes: pill.toBlockDuration,
+      displayOrder: pill.toBlockOrder,
+      transitMode: mode,
+      transitDurationMinutes: r?.durationMinutes ?? null,
+      taxiFare: r?.taxiFare ?? null,
+    })
+    openPillKey.value = null
+    currentPillData.value = null
     await loadTrip()
-    toast.show('경로가 저장됐어요')
-  } catch {
-    toast.show('경로 저장 실패')
+    toast.show('이동 수단이 변경됐어요')
+  } catch (err) {
+    toast.show(err.message || '변경 실패')
   }
 }
 
+// ── 지도 ──
+function loadNaverMapScript() {
+  return new Promise((resolve, reject) => {
+    if (window.naver?.maps) { resolve(); return }
+    const existing = document.getElementById('naver-map-sdk')
+    if (existing) { existing.addEventListener('load', resolve); return }
+    const script = document.createElement('script')
+    script.id = 'naver-map-sdk'
+    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+async function openMapPanel() {
+  if (!activeTrip.value) { toast.show('일정을 먼저 선택하세요'); return }
+  showMapPanel.value = true
+  mapDay.value = days.value[0] || null
+  await nextTick()
+  try {
+    await loadNaverMapScript()
+    await initNaverMap()
+  } catch {
+    toast.show('지도 초기화에 실패했어요')
+  }
+}
+
+async function initNaverMap() {
+  if (!mapEl.value) return
+  const { naver } = window
+  mapEl.value.innerHTML = ''
+  naverMapInstance = new naver.maps.Map(mapEl.value, {
+    zoom: 12,
+    center: new naver.maps.LatLng(37.5665, 126.9780),
+    mapDataControl: false,
+  })
+  await drawDayRoute()
+}
+
+async function selectMapDay(day) {
+  mapDay.value = day
+  await drawDayRoute()
+}
+
+function getRouteColor(mode) {
+  if (mode === 'DRIVING') return '#e06343'
+  if (mode === 'WALKING') return '#4caf50'
+  return '#534ab7'
+}
+
+async function drawDayRoute() {
+  if (!naverMapInstance || !mapDay.value) return
+  const { naver } = window
+  routePolylines.forEach(p => p.setMap(null))
+  routeMarkers.forEach(m => m.setMap(null))
+  routePolylines = []
+  routeMarkers = []
+
+  const day = mapDay.value
+  const sorted = [...day.events].sort((a, b) => a.top - b.top)
+  if (!sorted.length) return
+
+  const bounds = new naver.maps.LatLngBounds()
+  let hasCoords = false
+
+  for (let i = 0; i < sorted.length; i++) {
+    const ev = sorted[i]
+    const cand = candidates.value.find(c => c.id === ev.candidateId)
+    const lat = cand?.latitude ? parseFloat(cand.latitude) : 0
+    const lng = cand?.longitude ? parseFloat(cand.longitude) : 0
+    if (!lat || !lng) continue
+    const pos = new naver.maps.LatLng(lat, lng)
+    bounds.extend(pos)
+    hasCoords = true
+    const marker = new naver.maps.Marker({
+      position: pos,
+      map: naverMapInstance,
+      title: ev.name,
+      icon: {
+        content: `<div class="map-route-marker">${i + 1}. ${ev.name}</div>`,
+        anchor: new naver.maps.Point(0, 20),
+      },
+    })
+    routeMarkers.push(marker)
+  }
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const curr = sorted[i]
+    if (!curr.transitMode || curr.transitMode === 'NONE') continue
+    const prevCand = candidates.value.find(c => c.id === prev.candidateId)
+    const currCand = candidates.value.find(c => c.id === curr.candidateId)
+    const pillTop = prev.top + prev.height
+    const hour = Math.min(Math.floor(pillTop / 60), 23)
+    const key = `${prevCand?.attractionId}-${currCand?.attractionId}-${hour}`
+
+    let result = pillResults[key]?.[curr.transitMode]
+    if (result === undefined && prevCand?.attractionId && currCand?.attractionId) {
+      try {
+        result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, curr.transitMode, hour)
+        if (!pillResults[key]) pillResults[key] = {}
+        pillResults[key][curr.transitMode] = result
+      } catch { result = null }
+    }
+
+    if (result?.routeCoords) {
+      try {
+        const coords = JSON.parse(result.routeCoords)
+        const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
+        routePolylines.push(new naver.maps.Polyline({
+          path, strokeColor: getRouteColor(curr.transitMode),
+          strokeWeight: 5, strokeOpacity: 0.85, map: naverMapInstance,
+        }))
+      } catch {}
+    } else {
+      const prevLat = prevCand?.latitude ? parseFloat(prevCand.latitude) : 0
+      const prevLng = prevCand?.longitude ? parseFloat(prevCand.longitude) : 0
+      const currLat = currCand?.latitude ? parseFloat(currCand.latitude) : 0
+      const currLng = currCand?.longitude ? parseFloat(currCand.longitude) : 0
+      if (prevLat && prevLng && currLat && currLng) {
+        routePolylines.push(new naver.maps.Polyline({
+          path: [new naver.maps.LatLng(prevLat, prevLng), new naver.maps.LatLng(currLat, currLng)],
+          strokeColor: getRouteColor(curr.transitMode),
+          strokeWeight: 3, strokeOpacity: 0.4, strokeStyle: 'shortdot', map: naverMapInstance,
+        }))
+      }
+    }
+  }
+
+  if (hasCoords) naverMapInstance.fitBounds(bounds, { top: 50, right: 30, bottom: 30, left: 30 })
+}
+
+// ── 일정 로드 ──
 async function loadTrip() {
   if (!activeTripId.value) return
   try {
@@ -435,11 +666,13 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
+    if (showMapPanel.value && naverMapInstance) await drawDayRoute()
   } catch {
     toast.show('일정 로드 실패')
   }
 }
 
+// ── 드래그 앤 드롭 ──
 function onCandDragStart(e, candidate) {
   if (isProcessing.value) { e.preventDefault(); return }
   dragState = { type: 'candidate', data: candidate, grabOffsetY: 0 }
@@ -630,12 +863,21 @@ async function removeEvent(day, ev) {
   await removeEventFrom(day, ev)
 }
 
+function onDocumentClick() {
+  openPillKey.value = null
+  currentPillData.value = null
+}
+
 onUnmounted(() => {
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeEnd)
+  document.removeEventListener('click', onDocumentClick)
+  routePolylines.forEach(p => p.setMap(null))
+  routeMarkers.forEach(m => m.setMap(null))
 })
 
 onMounted(async () => {
+  document.addEventListener('click', onDocumentClick)
   tripsLoading.value = true
   try {
     trips.value = await tripApi.list()
