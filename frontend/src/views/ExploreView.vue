@@ -509,13 +509,13 @@ const vObserve = {
     observedElements.add(el)
   },
   beforeUpdate(el, binding) {
-    if (observedElements.has(el)) {
-      groupObserverMap.set(el, () => {
-        observedElements.delete(el)
-        groupObserverMap.delete(el)
-        binding.value()
-      })
+    const callback = () => {
+      observedElements.delete(el)
+      groupObserverMap.delete(el)
+      binding.value()
     }
+    groupObserverMap.set(el, callback)
+    observedElements.add(el)
   },
   unmounted(el) {
     groupObserverMap.delete(el)
