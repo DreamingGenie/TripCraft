@@ -57,39 +57,116 @@ CREATE TABLE sigungu (
 ) DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
--- 4. 관광지 (attraction)
+-- 4. 관광지 (attraction) — areaBasedList2 필드 기준
 -- ---------------------------------------------
 CREATE TABLE attraction (
-    id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT '내부 PK',
-    content_id      VARCHAR(20)   NOT NULL COMMENT 'TourAPI contentid (숫자 문자열)',
-    content_type_id TINYINT       NOT NULL COMMENT '12:관광지 14:문화시설 28:레포츠 32:숙박 38:쇼핑 39:음식점',
-    title           VARCHAR(200)  NOT NULL COMMENT '장소명',
-    sido_code       TINYINT       NOT NULL COMMENT '시도 코드 (1=서울 6=부산 등, 최대 33)',
-    sigungu_code    TINYINT       NOT NULL COMMENT '시군구 코드',
-    addr1           VARCHAR(300)  NULL     COMMENT 'TourAPI addr1 (결측 허용)',
-    addr2           VARCHAR(100)  NULL     COMMENT 'TourAPI addr2 (결측 허용)',
-    latitude        DECIMAL(10,7) NULL     COMMENT '위도 (TourAPI mapy 변환 저장)',
-    longitude       DECIMAL(10,7) NULL     COMMENT '경도 (TourAPI mapx 변환 저장)',
-    tel             VARCHAR(50)   NULL     COMMENT '전화번호',
-    overview        TEXT          NULL     COMMENT '장소 소개',
-    first_image     VARCHAR(500)  NULL     COMMENT '대표 이미지 URL (TourAPI firstimage)',
-    api_created_at  DATETIME      NULL     COMMENT 'TourAPI createdtime 변환 저장',
-    api_modified_at DATETIME      NULL     COMMENT 'TourAPI modifiedtime — 증분 배치 기준',
-    synced_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                           ON UPDATE CURRENT_TIMESTAMP
-                                           COMMENT '마지막 DB 동기화 시각',
+    id               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '내부 PK',
+    content_id       VARCHAR(20)   NOT NULL COMMENT 'TourAPI contentid (숫자 문자열)',
+    content_type_id  TINYINT       NOT NULL COMMENT '12:관광지 14:문화시설 28:레포츠 32:숙박 38:쇼핑 39:음식점',
+    title            VARCHAR(200)  NOT NULL COMMENT '장소명',
+    sido_code        TINYINT       NOT NULL COMMENT '시도 코드 (1=서울 6=부산 등, 최대 33)',
+    sigungu_code     TINYINT       NOT NULL COMMENT '시군구 코드',
+    addr1            VARCHAR(300)  NULL     COMMENT 'TourAPI addr1',
+    addr2            VARCHAR(100)  NULL     COMMENT 'TourAPI addr2',
+    zipcode          VARCHAR(10)   NULL     COMMENT '우편번호',
+    latitude         DECIMAL(10,7) NULL     COMMENT '위도 (TourAPI mapy 변환 저장)',
+    longitude        DECIMAL(10,7) NULL     COMMENT '경도 (TourAPI mapx 변환 저장)',
+    tel              VARCHAR(50)   NULL     COMMENT '전화번호',
+    first_image      VARCHAR(500)  NULL     COMMENT '대표 이미지 URL (firstimage)',
+    first_image2     VARCHAR(500)  NULL     COMMENT '대표 이미지2 URL (firstimage2)',
+    mlevel           TINYINT       NULL     COMMENT '지도 레벨',
+    cat1             VARCHAR(10)   NULL     COMMENT '대분류 코드',
+    cat2             VARCHAR(10)   NULL     COMMENT '중분류 코드',
+    cat3             VARCHAR(10)   NULL     COMMENT '소분류 코드',
+    l_dong_regn_cd   VARCHAR(20)   NULL     COMMENT '법정동 지역 코드',
+    l_dong_signgu_cd VARCHAR(20)   NULL     COMMENT '법정동 시군구 코드',
+    lcls_systm1      VARCHAR(200)  NULL     COMMENT '분류체계1',
+    lcls_systm2      VARCHAR(200)  NULL     COMMENT '분류체계2',
+    lcls_systm3      VARCHAR(200)  NULL     COMMENT '분류체계3',
+    cpyrht_div_cd    VARCHAR(10)   NULL     COMMENT '저작권 구분 코드',
+    api_created_at   DATETIME      NULL     COMMENT 'TourAPI createdtime 변환 저장',
+    api_modified_at  DATETIME      NULL     COMMENT 'TourAPI modifiedtime — 증분 배치 기준',
+    synced_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                            ON UPDATE CURRENT_TIMESTAMP
+                                            COMMENT '마지막 DB 동기화 시각',
     PRIMARY KEY (id),
     UNIQUE KEY uq_attraction_content_id (content_id),
-    -- 단일 필터
     INDEX idx_sido         (sido_code),
     INDEX idx_sigungu      (sigungu_code),
     INDEX idx_content_type (content_type_id),
-    -- 복합 필터 (지역 + 카테고리 동시 조회가 핵심 쿼리)
     INDEX idx_sido_type    (sido_code,    content_type_id),
     INDEX idx_sigungu_type (sigungu_code, content_type_id),
-    -- 증분 배치 동기화용
     INDEX idx_api_modified (api_modified_at)
-) COMMENT='한국관광공사 TourAPI 관광지 데이터. 초기 1회 전체 수집 후 증분 배치 운용'
+) COMMENT='한국관광공사 TourAPI 관광지 데이터. areaBasedList2 필드만 저장. 상세정보는 attraction_detail_* 테이블 참조'
+  DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 4-1. 관광지 공통 상세 (attraction_detail_common) — detailCommon2
+-- ---------------------------------------------
+CREATE TABLE attraction_detail_common (
+    content_id VARCHAR(20)  NOT NULL COMMENT 'TourAPI contentid (FK)',
+    overview   TEXT         NULL     COMMENT '장소 소개글',
+    homepage   VARCHAR(500) NULL     COMMENT '홈페이지 URL (HTML 태그 포함 가능)',
+    telname    VARCHAR(100) NULL     COMMENT '전화번호 명칭',
+    synced_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                     ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (content_id),
+    FOREIGN KEY fk_detail_common (content_id) REFERENCES attraction(content_id) ON DELETE CASCADE
+) COMMENT='detailCommon2 추가 필드 (overview·homepage·telname)'
+  DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 4-2. 관광지 유형별 소개 (attraction_detail_intro) — detailIntro2
+-- ---------------------------------------------
+CREATE TABLE attraction_detail_intro (
+    content_id      VARCHAR(20) NOT NULL COMMENT 'TourAPI contentid (FK)',
+    content_type_id TINYINT     NOT NULL COMMENT 'contenttypeid (JSON 해석 기준)',
+    intro_data      JSON        NULL     COMMENT 'contenttypeid별 소개 필드 전체 JSON',
+    synced_at       TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                         ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (content_id),
+    FOREIGN KEY fk_detail_intro (content_id) REFERENCES attraction(content_id) ON DELETE CASCADE
+) COMMENT='detailIntro2 응답 전체 JSON 저장. 검색 조건 필요 시 컬럼 추가 마이그레이션'
+  DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 4-3. 관광지 이미지 (attraction_detail_image) — detailImage2
+-- ---------------------------------------------
+CREATE TABLE attraction_detail_image (
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    content_id     VARCHAR(20)  NOT NULL COMMENT 'TourAPI contentid (FK)',
+    serialnum      VARCHAR(10)  NULL     COMMENT '이미지 순번',
+    originimgurl   VARCHAR(500) NULL     COMMENT '원본 이미지 URL',
+    smallimageurl  VARCHAR(500) NULL     COMMENT '썸네일 이미지 URL',
+    imgname        VARCHAR(200) NULL     COMMENT '이미지 파일명',
+    cpyrht_div_cd  VARCHAR(10)  NULL     COMMENT '저작권 구분 코드',
+    PRIMARY KEY (id),
+    INDEX idx_image_content (content_id),
+    FOREIGN KEY fk_detail_image (content_id) REFERENCES attraction(content_id) ON DELETE CASCADE
+) COMMENT='detailImage2 이미지 목록'
+  DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 4-4. 관광지 이용 안내 (attraction_detail_info) — detailInfo2
+-- ---------------------------------------------
+CREATE TABLE attraction_detail_info (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    content_id        VARCHAR(20)  NOT NULL COMMENT 'TourAPI contentid (FK)',
+    serialnum         VARCHAR(10)  NULL     COMMENT '항목 순번',
+    fldgubun          VARCHAR(10)  NULL     COMMENT '필드 구분',
+    infoname          VARCHAR(200) NULL     COMMENT '안내 항목명',
+    infotext          TEXT         NULL     COMMENT '안내 내용',
+    subcontentid      VARCHAR(20)  NULL     COMMENT '서브 콘텐츠 ID (여행코스)',
+    subdetailalt      VARCHAR(200) NULL,
+    subdetailimg      VARCHAR(500) NULL,
+    subdetailoverview TEXT         NULL,
+    subname           VARCHAR(200) NULL,
+    subnum            VARCHAR(10)  NULL,
+    room_data         JSON         NULL     COMMENT '숙박(contenttypeid=32) 객실 정보 JSON (room* 필드)',
+    PRIMARY KEY (id),
+    INDEX idx_info_content (content_id),
+    FOREIGN KEY fk_detail_info (content_id) REFERENCES attraction(content_id) ON DELETE CASCADE
+) COMMENT='detailInfo2 이용 안내 항목. 숙박 객실 정보는 room_data JSON 컬럼에 저장'
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
