@@ -420,19 +420,129 @@
 
 /* ── 댓글 ── */
 .comment-section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 댓글 헤더 타이틀 */
+.comment-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  padding: 0 4px;
+}
+.comment-count {
+  color: var(--gray-muted);
+  font-weight: 400;
+}
+
+/* 댓글 목록 박스 */
+.comment-list {
   background: var(--bg-surface);
   border: 1px solid var(--gray-border);
   border-radius: var(--radius-xl);
-  padding: 22px 28px;
+  overflow: hidden;
 }
-.comment-title {
+
+/* 댓글 단건 */
+.comment-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-border);
+}
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+/* 댓글 헤더 행: 아바타 + 닉네임 + 시간 + 삭제 */
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.comment-author {
   font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  flex: 1;
 }
-.comment-count { color: var(--gray-muted); font-weight: 400; }
+.comment-date {
+  font-size: 12px;
+  color: var(--gray-muted);
+}
+.comment-delete {
+  font-size: 12px;
+  color: var(--gray-muted);
+  background: none;
+  border: 1px solid var(--gray-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.comment-delete:hover {
+  color: var(--danger, #e53e3e);
+  border-color: var(--danger, #e53e3e);
+}
+
+/* 댓글 본문 */
+.comment-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding-left: 36px; /* 아바타 너비(28px) + gap(8px) */
+  margin: 0;
+}
+
+/* 댓글 없음 */
+.comment-empty {
+  font-size: 13px;
+  color: var(--gray-muted);
+  padding: 20px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+}
+
+/* 댓글 작성 폼 박스 */
+.comment-form {
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.comment-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  line-height: 1.5;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.comment-input:focus {
+  outline: none;
+  border-color: var(--purple-900);
+}
+.comment-input::placeholder {
+  color: var(--gray-muted);
+}
+.comment-submit {
+  align-self: flex-end;
+}
 
 /* ================================================================
    글쓰기 모달
