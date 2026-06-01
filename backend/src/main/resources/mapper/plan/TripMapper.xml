@@ -12,17 +12,18 @@
         <result column="end_date" property="endDate"/>
         <result column="member_count" property="memberCount"/>
         <result column="is_public" property="isPublic"/>
+        <result column="default_transit_mode" property="defaultTransitMode"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="tripMap">
-        SELECT id, member_id, title, start_date, end_date, member_count, is_public, created_at, updated_at
+        SELECT id, member_id, title, start_date, end_date, member_count, is_public, default_transit_mode, created_at, updated_at
         FROM trip WHERE id = #{id}
     </select>
 
     <select id="findByMemberId" parameterType="long" resultMap="tripMap">
-        SELECT id, member_id, title, start_date, end_date, member_count, is_public, created_at, updated_at
+        SELECT id, member_id, title, start_date, end_date, member_count, is_public, default_transit_mode, created_at, updated_at
         FROM trip WHERE member_id = #{memberId}
         ORDER BY created_at DESC
     </select>
@@ -32,16 +33,21 @@
     </select>
 
     <insert id="insert" parameterType="com.tripcraft.plan.domain.Trip" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO trip (member_id, title, start_date, end_date, member_count, is_public)
-        VALUES (#{memberId}, #{title}, #{startDate}, #{endDate}, #{memberCount}, #{isPublic})
+        INSERT INTO trip (member_id, title, start_date, end_date, member_count, is_public, default_transit_mode)
+        VALUES (#{memberId}, #{title}, #{startDate}, #{endDate}, #{memberCount}, #{isPublic}, #{defaultTransitMode})
     </insert>
 
     <update id="update" parameterType="com.tripcraft.plan.domain.Trip">
         UPDATE trip
         SET title = #{title}, start_date = #{startDate}, end_date = #{endDate},
             member_count = #{memberCount}, is_public = #{isPublic},
+            default_transit_mode = #{defaultTransitMode},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
+    </update>
+
+    <update id="updateDefaultTransitMode">
+        UPDATE trip SET default_transit_mode = #{mode}, updated_at = CURRENT_TIMESTAMP WHERE id = #{id}
     </update>
 
     <delete id="deleteById" parameterType="long">

@@ -23,4 +23,7 @@ public class TransitCache {
     private Integer totalWalkM;
     private String pathDetail;
     private LocalDateTime cachedAt;
+    private String requestMode;
+    private Integer taxiFare;
+    private String routeCoords;
 }

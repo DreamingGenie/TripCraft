@@ -27,4 +27,6 @@ public interface TripService {
     void updateBlock(Long tripId, Long blockId, BlockUpdateRequest request, Long memberId);
 
     void removeBlock(Long tripId, Long blockId, Long memberId);
+
+    void updateDefaultTransitMode(Long tripId, String mode, Long memberId);
 }

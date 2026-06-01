@@ -1,9 +1,11 @@
 package com.tripcraft.plan.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
+@Builder
 @AllArgsConstructor
 public class TransitResponse {
     private Integer durationMinutes;
@@ -11,4 +13,6 @@ public class TransitResponse {
     private Integer transferCount;
     private Integer fare;
     private Integer totalWalkM;
+    private Integer taxiFare;
+    private String routeCoords;
 }

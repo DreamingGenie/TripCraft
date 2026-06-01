@@ -20,9 +20,10 @@ public class TransitController {
     public ResponseEntity<ApiResponse<TransitResponse>> getTransitTime(
             @RequestParam(name = "fromId") Long fromId,
             @RequestParam(name = "toId") Long toId,
-            @RequestParam(name = "hour", defaultValue = "9") int hour) {
+            @RequestParam(name = "hour", defaultValue = "9") int hour,
+            @RequestParam(name = "mode", defaultValue = "PUBLIC_TRANSIT") String mode) {
 
-        return transitService.getTransitTime(fromId, toId, hour)
+        return transitService.getTransitTime(fromId, toId, hour, mode)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }
