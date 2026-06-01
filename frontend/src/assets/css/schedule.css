@@ -780,3 +780,185 @@
   white-space: nowrap;
   letter-spacing: .1px;
 }
+.transit-pill-open {
+  z-index: 20 !important;
+  border-color: #0a5240 !important;
+}
+
+/* ================================================================
+   지도로 보기 버튼
+   ================================================================ */
+.btn-map-view {
+  background: none;
+  border: 1px solid var(--gray-border);
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+  font-family: inherit;
+}
+.btn-map-view:hover {
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border-color: var(--purple-100);
+}
+
+/* ================================================================
+   이동수단 드롭다운
+   ================================================================ */
+.pill-dropdown {
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(20,20,30,.14);
+  overflow: hidden;
+}
+.pill-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background .1s;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.pill-dropdown-option:hover { background: var(--purple-50); }
+.pill-dropdown-option.active {
+  background: var(--purple-50);
+  color: var(--purple-900);
+  font-weight: 600;
+}
+.pill-dropdown-option.active::before {
+  content: '✓';
+  font-size: 10px;
+  margin-right: -4px;
+  color: var(--purple-900);
+}
+.pill-dropdown-option.loading { pointer-events: none; opacity: .65; }
+.pill-opt-icon { font-size: 14px; flex-shrink: 0; }
+.pill-opt-label { flex: 1; }
+.pill-opt-detail {
+  font-size: 10px;
+  color: var(--gray-dark);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pill-opt-none { color: var(--gray-muted); }
+.pill-opt-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: hint-spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   지도 패널 (우측 슬라이드인)
+   ================================================================ */
+.map-panel {
+  width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--gray-border);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.map-panel-slide-enter-active {
+  transition: width .25s ease, opacity .2s ease;
+  overflow: hidden;
+}
+.map-panel-slide-leave-active {
+  transition: width .2s ease, opacity .15s ease;
+  overflow: hidden;
+}
+.map-panel-slide-enter-from { width: 0; opacity: 0; }
+.map-panel-slide-leave-to   { width: 0; opacity: 0; }
+
+.map-panel-header {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--gray-border);
+  gap: 8px;
+}
+.map-day-tabs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.map-day-tabs::-webkit-scrollbar { display: none; }
+.map-day-tab {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--gray-border);
+  background: var(--bg-page);
+  color: var(--gray-dark);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.map-day-tab:hover,
+.map-day-tab.active {
+  background: var(--purple-900);
+  color: #fff;
+  border-color: var(--purple-900);
+}
+.map-panel-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-border);
+  background: var(--bg-surface);
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s, color .12s, border-color .12s;
+  font-family: inherit;
+}
+.map-panel-close:hover {
+  background: var(--pink-50);
+  color: var(--pink-600);
+  border-color: var(--pink-600);
+}
+.map-el {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 지도 마커 레이블 */
+.map-route-marker {
+  background: var(--purple-900);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(83,74,183,.35);
+  pointer-events: none;
+  line-height: 1.4;
+}
