@@ -144,44 +144,181 @@
         <div v-if="loading" style="padding:20px;text-align:center;color:var(--gray-muted);font-size:12px">목록 로딩 중...</div>
       </div>
 
-      <!-- 상세 패널 (절대 위치 오버레이) -->
-      <Transition name="detail-slide">
-        <div v-if="selectedAttraction" class="detail-panel">
-          <div class="detail-nav">
-            <button class="detail-back" @click="closeDetail()">← 목록</button>
-            <button class="card-add detail-add-btn"
-                    :class="{ added: addedIds.has(selectedAttraction.id) }"
-                    @click.stop="addedIds.has(selectedAttraction.id) ? removeByAttraction(selectedAttraction.id) : addToTrip(selectedAttraction)">
-              {{ addedIds.has(selectedAttraction.id) ? '× 제거' : '+ 추가' }}
+    </div>
+
+    <!-- 상세 패널 (attr-list 오른쪽에 슬라이드인) -->
+    <Transition name="detail-slide">
+      <div v-if="selectedAttraction" class="detail-panel">
+
+        <!-- 상단 액션 바 -->
+        <div class="detail-nav">
+          <button class="detail-back" @click="closeDetail()" aria-label="닫기">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.5 2L3.5 7L8.5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            목록
+          </button>
+          <button class="card-add detail-add-btn"
+                  :class="{ added: addedIds.has(selectedAttraction.id) }"
+                  @click.stop="addedIds.has(selectedAttraction.id) ? removeByAttraction(selectedAttraction.id) : addToTrip(selectedAttraction)">
+            {{ addedIds.has(selectedAttraction.id) ? '× 제거' : '+ 추가' }}
+          </button>
+        </div>
+
+        <!-- 스크롤 영역 -->
+        <div class="detail-scroll">
+
+          <!-- 히어로 이미지 -->
+          <div class="detail-hero">
+            <img v-if="selectedMainImage || selectedAttraction.firstImage"
+                 :src="selectedMainImage || selectedAttraction.firstImage"
+                 class="detail-img"
+                 :alt="selectedAttraction.title" />
+            <div v-else class="detail-img-empty"
+                 :style="{ background: colorFor(selectedAttraction.contentTypeId) }">
+              <span class="detail-img-emoji">{{ emojiFor(selectedAttraction.contentTypeId) }}</span>
+            </div>
+          </div>
+
+          <!-- 이미지 갤러리 썸네일 띠 -->
+          <div v-if="selectedAttractionDetail?.images && selectedAttractionDetail.images.length > 1"
+               class="detail-gallery">
+            <button
+              v-for="(img, idx) in selectedAttractionDetail.images"
+              :key="idx"
+              class="detail-gallery-thumb"
+              :class="{ active: (selectedMainImage || selectedAttraction.firstImage) === img.originimgurl }"
+              :aria-label="`이미지 ${idx + 1}`"
+              @click="selectedMainImage = img.originimgurl">
+              <img :src="img.smallimageurl || img.originimgurl" :alt="img.imgname || `이미지 ${idx + 1}`" loading="lazy" />
             </button>
           </div>
-          <div class="detail-scroll">
-            <img v-if="selectedAttraction.firstImage" :src="selectedAttraction.firstImage" class="detail-img" />
-            <div v-else class="detail-img-empty" :style="{ background: colorFor(selectedAttraction.contentTypeId) }">
-              <span>{{ emojiFor(selectedAttraction.contentTypeId) }}</span>
+
+          <!-- 본문 -->
+          <div class="detail-body">
+
+            <!-- 뱃지 + 지역 -->
+            <div class="detail-cat-row">
+              <span class="detail-cat-badge"
+                    :style="{ background: colorFor(selectedAttraction.contentTypeId) }">
+                {{ selectedAttraction.category }}
+              </span>
+              <span class="detail-region">{{ selectedAttraction.sigunguName || selectedAttraction.region }}</span>
             </div>
-            <div class="detail-body">
-              <div class="detail-cat-row">
-                <span class="detail-cat-badge" :style="{ background: colorFor(selectedAttraction.contentTypeId) }">{{ selectedAttraction.category }}</span>
-                <span class="detail-region">{{ selectedAttraction.sigunguName || selectedAttraction.region }}</span>
-              </div>
-              <h2 class="detail-title">{{ selectedAttraction.title }}</h2>
-              <div v-if="selectedAttraction.address" class="detail-info-row">
-                <span>📍</span>
-                <span>{{ selectedAttraction.address }}{{ selectedAttractionDetail?.addr2 ? ' ' + selectedAttractionDetail.addr2 : '' }}</span>
-              </div>
-              <div v-if="selectedAttractionDetail?.tel && selectedAttractionDetail.tel.trim()" class="detail-info-row">
-                <span>📞</span><span>{{ selectedAttractionDetail.tel }}</span>
-              </div>
-              <p v-if="detailLoading" class="detail-loading">상세 정보 로딩 중...</p>
-              <p v-if="selectedAttractionDetail?.overview && selectedAttractionDetail.overview.trim()" class="detail-overview">
-                {{ selectedAttractionDetail.overview }}
-              </p>
+
+            <!-- 제목 -->
+            <h2 class="detail-title">{{ selectedAttraction.title }}</h2>
+
+            <!-- 기본 정보 행들 -->
+            <div class="detail-info-list">
+
+              <!-- 주소 (클립보드 복사) -->
+              <button v-if="selectedAttraction.address || selectedAttractionDetail?.addr1"
+                      class="detail-info-row detail-info-row--clickable"
+                      :title="'주소 복사'"
+                      @click="copyAddress">
+                <span class="detail-info-icon">
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M7 1C4.79 1 3 2.79 3 5c0 3.25 4 8 4 8s4-4.75 4-8c0-2.21-1.79-4-4-4z" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                    <circle cx="7" cy="5" r="1.3" fill="currentColor"/>
+                  </svg>
+                </span>
+                <span class="detail-info-text">
+                  {{ selectedAttractionDetail?.addr1 || selectedAttraction.address }}{{ selectedAttractionDetail?.addr2 ? ' ' + selectedAttractionDetail.addr2 : '' }}
+                </span>
+                <span class="detail-info-copy-hint">복사</span>
+              </button>
+
+              <!-- 전화 -->
+              <a v-if="selectedAttractionDetail?.tel && selectedAttractionDetail.tel.trim()"
+                 :href="`tel:${selectedAttractionDetail.tel.trim()}`"
+                 class="detail-info-row detail-info-row--link">
+                <span class="detail-info-icon">
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M2 2.5C2 2.5 3.5 1 4.5 2.5L5.5 4C6 4.8 5.3 5.4 5 5.7c.5 1 1.3 1.8 2.3 2.3.3-.3.9-1 1.7-.5l1.5 1C12 9.5 10.5 11 10.5 11 8 13 1 7 2 2.5z" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                  </svg>
+                </span>
+                <span class="detail-info-text">
+                  {{ selectedAttractionDetail.tel.trim() }}
+                  <template v-if="selectedAttractionDetail.telname && selectedAttractionDetail.telname.trim()">
+                    ({{ selectedAttractionDetail.telname.trim() }})
+                  </template>
+                </span>
+              </a>
+
+              <!-- 홈페이지 -->
+              <a v-if="selectedAttractionDetail?.homepage && selectedAttractionDetail.homepage.trim()"
+                 :href="stripHtml(selectedAttractionDetail.homepage)"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="detail-info-row detail-info-row--link">
+                <span class="detail-info-icon">
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
+                    <path d="M7 1.5C7 1.5 5 4 5 7s2 5.5 2 5.5M7 1.5C7 1.5 9 4 9 7s-2 5.5-2 5.5M1.5 7h11" stroke="currentColor" stroke-width="1.2"/>
+                  </svg>
+                </span>
+                <span class="detail-info-text detail-info-text--url">홈페이지 방문</span>
+                <span class="detail-info-ext-icon">↗</span>
+              </a>
+
             </div>
+
+            <!-- 로딩 표시 -->
+            <div v-if="detailLoading" class="detail-loading-state">
+              <span class="detail-loading-dot"></span>
+              <span class="detail-loading-dot"></span>
+              <span class="detail-loading-dot"></span>
+              <span class="detail-loading-label">상세 정보 불러오는 중</span>
+            </div>
+
+            <!-- intro 기본 운영 정보 테이블 -->
+            <template v-if="selectedAttractionDetail?.intro && Object.keys(selectedAttractionDetail.intro).length">
+              <div class="detail-section-divider"></div>
+
+              <!-- heritage 배지 행 -->
+              <div v-if="activeHeritages(selectedAttractionDetail.intro).length" class="detail-heritage-row">
+                <span
+                  v-for="label in activeHeritages(selectedAttractionDetail.intro)"
+                  :key="label"
+                  class="detail-heritage-badge">
+                  {{ label }}
+                </span>
+              </div>
+
+              <!-- intro 테이블 (heritage* / 빈 chk* 제외) -->
+              <div v-if="filteredIntroEntries(selectedAttractionDetail.intro).length" class="detail-info-table">
+                <template v-for="[key, val] in filteredIntroEntries(selectedAttractionDetail.intro)" :key="key">
+                  <div class="detail-table-row">
+                    <span class="detail-table-label">{{ DETAIL_INFO_LABELS[key] || key }}</span>
+                    <span class="detail-table-val" v-html="sanitizeHtml(String(val))"></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- infoList 추가 정보 테이블 -->
+            <template v-if="selectedAttractionDetail?.infoList && selectedAttractionDetail.infoList.length">
+              <div class="detail-section-divider"></div>
+              <div class="detail-info-table">
+                <div v-for="(info, idx) in selectedAttractionDetail.infoList" :key="idx"
+                     class="detail-table-row">
+                  <span class="detail-table-label">{{ info.infoname }}</span>
+                  <span class="detail-table-val" v-html="sanitizeHtml(String(info.infotext || ''))"></span>
+                </div>
+              </div>
+            </template>
+
+            <!-- overview 소개글 -->
+            <template v-if="selectedAttractionDetail?.overview && selectedAttractionDetail.overview.trim()">
+              <div class="detail-section-divider"></div>
+              <p class="detail-overview">{{ selectedAttractionDetail.overview }}</p>
+            </template>
+
           </div>
         </div>
-      </Transition>
-    </div>
+      </div>
+    </Transition>
 
     <!-- 우측 하단 트레이: 내 일정 -->
     <div class="trip-tray" :class="{ dragging: isDraggingCard }"
@@ -301,6 +438,7 @@ let loadSeq = 0
 const selectedAttraction = ref(null)
 const selectedAttractionDetail = ref(null)
 const detailLoading = ref(false)
+const selectedMainImage = ref(null)
 
 // 그룹별 아이템 캐시: "region__sg__cat" → { items, loading, loaded }
 const groupItems = reactive({})
@@ -546,6 +684,201 @@ const COLORS = { 12: '#C8C5F5', 14: '#9BD4C0', 28: '#AFE8C0', 32: '#AFC9E8', 38:
 const EMOJIS = { 12: '🏯', 14: '🎨', 28: '🏄', 32: '🏨', 38: '🛍️', 39: '🍜' }
 function colorFor(typeId) { return COLORS[typeId] || '#e0e0e0' }
 function emojiFor(typeId) { return EMOJIS[typeId] || '📍' }
+
+// ── Heritage 배지 / chk* 필터 헬퍼 ──
+const heritageLabels = { heritage1: '세계문화유산', heritage2: '세계자연유산', heritage3: '세계기록유산' }
+const CHK_FILTER_KEYS = new Set([
+  'chkcreditcard', 'chkbabycarriage', 'chkpet',
+  'chkcreditcardculture', 'chkbabycarriageculture', 'chkpetculture',
+  'chkcreditcardleports', 'chkbabycarriageleports', 'chkpetleports',
+  'chkcreditcardfood', 'chkbabycarriageshopping', 'chkcreditcardshopping', 'chkpetshopping',
+  // 예약 — 없으면 의미 없음
+  'reservation', 'reservationfood', 'reservationlodging',
+  // 편의시설 — 없으면 의미 없음
+  'kidsfacility', 'karaoke', 'sauna', 'beauty', 'beverage', 'barbecue',
+  'campfire', 'fitness', 'bicycle', 'sports', 'seminar', 'publicbath', 'publicpc', 'pickup',
+  // 기타
+  'culturecenter', 'restroom', 'smoking', 'packing',
+])
+
+function filteredIntroEntries(intro) {
+  if (!intro) return []
+  return Object.entries(intro).filter(([key, val]) => {
+    if (Object.prototype.hasOwnProperty.call(heritageLabels, key)) return false // 별도 칩으로 처리
+    if (CHK_FILTER_KEYS.has(key)) return val && val !== '없음' && val !== '0'
+    return val && String(val).trim()
+  })
+}
+
+function activeHeritages(intro) {
+  if (!intro) return []
+  return Object.keys(heritageLabels).filter(k => intro[k] === '1').map(k => heritageLabels[k])
+}
+
+const DETAIL_INFO_LABELS = {
+  // 관광지 (12)
+  expagerange:      '체험 가능 연령',
+  expguide:         '체험 안내',
+  infocenter:       '문의',
+  opendate:         '개장일',
+  parking:          '주차',
+  restdate:         '쉬는날',
+  taketime:         '관람 소요시간',
+  theme:            '테마',
+  accomcount:       '수용 인원',
+  chkbabycarriage:  '유모차 대여',
+  chkcreditcard:    '신용카드',
+  chkpet:           '반려동물 동반',
+  useseason:        '이용 시기',
+  usetime:          '이용 시간',
+
+  // 문화시설 (14)
+  accomcountculture:      '수용 인원',
+  chkbabycarriageculture: '유모차 대여',
+  chkcreditcardculture:   '신용카드',
+  chkpetculture:          '반려동물 동반',
+  infocenterculture:      '문의',
+  parkingculture:         '주차',
+  parkingfee:             '주차 요금',
+  restdateculture:        '쉬는날',
+  scale:                  '규모',
+  spendtime:              '관람 소요시간',
+  usefee:                 '이용 요금',
+  usetimeculture:         '이용 시간',
+
+  // 행사/공연/축제 (15)
+  agelimit:             '관람 가능 연령',
+  bookingplace:         '예매처',
+  discountinfofestival: '할인 정보',
+  eventhomepage:        '행사 홈페이지',
+  eventplace:           '행사 장소',
+  eventstartdate:       '행사 시작일',
+  eventenddate:         '행사 종료일',
+  festivalgrade:        '축제 등급',
+  playtime:             '공연 시간',
+  program:              '행사 프로그램',
+  spendtimefestival:    '관람 소요시간',
+  sponsor1:             '주최자',
+  sponsor1tel:          '주최자 연락처',
+  sponsor2:             '주관사',
+  sponsor2tel:          '주관사 연락처',
+  subevent:             '부대행사',
+  usetimefestival:      '이용 요금',
+
+  // 여행코스 (25)
+  distance:             '코스 거리',
+  infocentertourcourse: '문의',
+  schedule:             '코스 일정',
+  taketime_tourcourse:  '소요 시간',
+  theme_tourcourse:     '테마',
+
+  // 레포츠 (28)
+  accomcountleports:      '수용 인원',
+  chkbabycarriageleports: '유모차 대여',
+  chkcreditcardleports:   '신용카드',
+  chkpetleports:          '반려동물 동반',
+  expagerangeleports:     '체험 가능 연령',
+  infocenterleports:      '문의',
+  openperiod:             '개장 기간',
+  parkingfeeleports:      '주차 요금',
+  parkingleports:         '주차',
+  reservation:            '예약 안내',
+  restdateleports:        '쉬는날',
+  scaleleports:           '규모',
+  usetimeleports:         '이용 시간',
+  usefeeleports:          '이용 요금',
+
+  // 숙박 (32)
+  accomcountlodging:  '수용 인원',
+  barbecue:           '바비큐',
+  beauty:             '뷰티 시설',
+  beverage:           '음료 판매',
+  bicycle:            '자전거 대여',
+  campfire:           '캠프파이어',
+  checkintime:        '체크인',
+  checkouttime:       '체크아웃',
+  chkcooking:         '취사',
+  fitness:            '피트니스',
+  foodplace:          '식사 장소',
+  infocenterlodging:  '문의',
+  karaoke:            '노래방',
+  parkinglodging:     '주차',
+  pickup:             '픽업 서비스',
+  placeinfo:          '장소 정보',
+  publicbath:         '공용 목욕탕',
+  publicpc:           '공용 PC',
+  refundregulation:   '환불 규정',
+  reservationlodging: '예약 안내',
+  reservationurl:     '예약 사이트',
+  roomcount:          '객실 수',
+  roomtype:           '객실 유형',
+  sauna:              '사우나',
+  scalelodging:       '규모',
+  seminar:            '세미나실',
+  sports:             '스포츠 시설',
+  subfacility:        '부대 시설',
+
+  // 쇼핑 (38)
+  chkbabycarriageshopping: '유모차 대여',
+  chkcreditcardshopping:   '신용카드',
+  chkpetshopping:          '반려동물 동반',
+  culturecenter:           '문화센터',
+  fairday:                 '장서는날',
+  infocentershopping:      '문의',
+  opendateshopping:        '개장일',
+  opentime:                '영업 시간',
+  parkingshopping:         '주차',
+  restdateshopping:        '쉬는날',
+  restroom:                '화장실',
+  saleitem:                '판매 품목',
+  saleitemcost:            '판매 품목 가격',
+  scaleshopping:           '규모',
+  shopguide:               '매장 안내',
+
+  // 음식점 (39)
+  chkcreditcardfood:  '신용카드',
+  discountinfo:       '할인 정보',
+  firstmenu:          '대표 메뉴',
+  infocenterfood:     '문의',
+  kidsfacility:       '어린이 시설',
+  lcnsno:             '인허가 번호',
+  opendatefood:       '개업일',
+  opentimefood:       '영업 시간',
+  packing:            '포장 가능',
+  parkingfood:        '주차',
+  reservationfood:    '예약 안내',
+  restdatefood:       '쉬는날',
+  scalefood:          '규모',
+  seat:               '좌석 수',
+  smoking:            '흡연',
+  treatmenu:          '취급 메뉴',
+}
+
+function stripHtml(str) {
+  if (!str) return ''
+  // href 속성이 있으면 URL을 추출 (homepage 필드가 <a href='...'> 형태일 때)
+  const hrefMatch = str.match(/href=['"]([^'"]+)['"]/i)
+  if (hrefMatch) return hrefMatch[1].trim()
+  return str.replace(/<[^>]+>/g, '').trim()
+}
+
+function sanitizeHtml(str) {
+  if (!str) return ''
+  // <br>, <br/> 만 허용하고 나머지 태그 제거
+  return str.replace(/<(?!br\s*\/?)[^>]+>/gi, '').trim()
+}
+
+async function copyAddress() {
+  const addr = (selectedAttractionDetail.value?.addr1 || selectedAttraction.value?.address || '')
+    + (selectedAttractionDetail.value?.addr2 ? ' ' + selectedAttractionDetail.value.addr2 : '')
+  if (!addr.trim()) return
+  try {
+    await navigator.clipboard.writeText(addr.trim())
+    toast.show('주소가 복사됐어요')
+  } catch {
+    toast.show('복사에 실패했어요')
+  }
+}
 
 const CAT_COLORS = {
   '관광지': '#8B85E0', '문화시설': '#48B89A', '레포츠': '#55B36E',
@@ -842,6 +1175,7 @@ async function selectAttraction(a) {
   if (selectedAttraction.value?.id === a.id) { closeDetail(); return }
   selectedAttraction.value = a
   selectedAttractionDetail.value = null
+  selectedMainImage.value = null
 
   if (naverMap && a.latitude && a.longitude) {
     naverMap.panTo(new naver.maps.LatLng(Number(a.latitude), Number(a.longitude)))
