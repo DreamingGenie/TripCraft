@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.community.mapper.PostCommentMapper">
+
+    <resultMap id="commentDomainMap" type="com.tripcraft.community.domain.PostComment">
+        <id     column="id"         property="id"/>
+        <result column="post_id"    property="postId"/>
+        <result column="member_id"  property="memberId"/>
+        <result column="content"    property="content"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 게시글의 댓글 목록 (등록순) -->
+    <select id="findByPostId" resultType="com.tripcraft.community.dto.CommentItem">
+        SELECT c.id,
+               c.post_id                                     AS postId,
+               COALESCE(m.nickname, '탈퇴한 사용자')          AS authorNickname,
+               c.content,
+               c.created_at                                  AS createdAt,
+               (c.member_id IS NOT NULL AND c.member_id = #{memberId}) AS mine
+        FROM post_comment c
+        LEFT JOIN member m ON m.id = c.member_id
+        WHERE c.post_id = #{postId}
+        ORDER BY c.created_at ASC
+    </select>
+
+    <!-- 단건 조회 (권한 검증용) -->
+    <select id="findById" parameterType="long" resultMap="commentDomainMap">
+        SELECT * FROM post_comment WHERE id = #{id}
+    </select>
+
+    <!-- 댓글 등록 -->
+    <insert id="insert" parameterType="com.tripcraft.community.domain.PostComment"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post_comment (post_id, member_id, content)
+        VALUES (#{postId}, #{memberId}, #{content})
+    </insert>
+
+    <!-- 댓글 삭제 -->
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM post_comment WHERE id = #{id}
+    </delete>
+
+</mapper>

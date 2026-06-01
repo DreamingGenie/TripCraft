@@ -82,7 +82,36 @@
         </article>
 
         <section class="comment-section">
-          <p class="comment-title">댓글 <span class="comment-count">준비 중</span></p>
+          <p class="comment-title">댓글 <span class="comment-count">{{ comments.length }}</span></p>
+
+          <!-- 댓글 목록 -->
+          <div v-if="comments.length" class="comment-list">
+            <div v-for="c in comments" :key="c.id" class="comment-item">
+              <div class="comment-header">
+                <div class="avatar avatar-sm">{{ (c.authorNickname || '?')[0] }}</div>
+                <span class="comment-author">{{ c.authorNickname }}</span>
+                <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
+                <button v-if="c.mine" class="comment-delete" @click="deleteComment(c.id)">삭제</button>
+              </div>
+              <p class="comment-body">{{ c.content }}</p>
+            </div>
+          </div>
+          <p v-else class="comment-empty">첫 댓글을 남겨보세요.</p>
+
+          <!-- 댓글 입력 -->
+          <div class="comment-form">
+            <textarea
+              class="comment-input"
+              v-model="newComment"
+              placeholder="댓글을 입력하세요 (최대 1000자)"
+              maxlength="1000"
+              rows="2"
+              @keydown.ctrl.enter="submitComment"
+            ></textarea>
+            <button class="btn-primary comment-submit" :disabled="!newComment.trim() || commentSubmitting" @click="submitComment">
+              등록
+            </button>
+          </div>
         </section>
       </div>
     </div>
@@ -113,7 +142,7 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toast'
-import { postApi } from '@/api/post'
+import { postApi, commentApi } from '@/api/post'
 
 const toast = useToastStore()
 
@@ -132,6 +161,11 @@ const postDetail = ref(null)
 const writeModal = ref(false)
 const submitting = ref(false)
 const newPost = reactive({ title: '', body: '' })
+
+// 댓글
+const comments = ref([])
+const newComment = ref('')
+const commentSubmitting = ref(false)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
@@ -178,12 +212,41 @@ function goPage(p) {
 async function openPost(post) {
   selectedPost.value = post
   postDetail.value = null
+  comments.value = []
+  newComment.value = ''
   try {
-    postDetail.value = await postApi.get(post.id)
+    // 게시글 상세와 댓글 목록을 병렬 조회
+    ;[postDetail.value, comments.value] = await Promise.all([
+      postApi.get(post.id),
+      commentApi.list(post.id),
+    ])
     post.viewCount = postDetail.value.viewCount
   } catch {
     toast.show('게시글 로드 실패')
     selectedPost.value = null
+  }
+}
+
+async function submitComment() {
+  if (!newComment.value.trim()) return
+  commentSubmitting.value = true
+  try {
+    await commentApi.create(postDetail.value.id, newComment.value.trim())
+    newComment.value = ''
+    comments.value = await commentApi.list(postDetail.value.id)
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : '댓글 등록 실패')
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+async function deleteComment(commentId) {
+  try {
+    await commentApi.delete(postDetail.value.id, commentId)
+    comments.value = comments.value.filter(c => c.id !== commentId)
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : '댓글 삭제 실패')
   }
 }
 
@@ -236,3 +299,7 @@ onMounted(() => {
   loadNotices()
 })
 </script>
+
+<style scoped>
+@import '@/assets/css/community.css';
+</style>
