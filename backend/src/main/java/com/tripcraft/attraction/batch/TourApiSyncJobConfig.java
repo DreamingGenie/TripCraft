@@ -1,8 +1,14 @@
 package com.tripcraft.attraction.batch;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tripcraft.attraction.client.TourApiCallLimiter;
 import com.tripcraft.attraction.client.TourApiClient;
 import com.tripcraft.attraction.client.dto.TourApiItem;
 import com.tripcraft.attraction.domain.Attraction;
+import com.tripcraft.attraction.mapper.AttractionDetailCommonMapper;
+import com.tripcraft.attraction.mapper.AttractionDetailImageMapper;
+import com.tripcraft.attraction.mapper.AttractionDetailInfoMapper;
+import com.tripcraft.attraction.mapper.AttractionDetailIntroMapper;
 import com.tripcraft.attraction.mapper.AttractionMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -44,9 +50,10 @@ public class TourApiSyncJobConfig {
     // ───────── Job ─────────
 
     @Bean
-    public Job tourApiSyncJob(JobRepository jobRepository, Step tourApiSyncStep) {
+    public Job tourApiSyncJob(JobRepository jobRepository, Step tourApiSyncStep, Step tourApiDetailSyncStep) {
         return new JobBuilder("tourApiSyncJob", jobRepository)
                 .start(tourApiSyncStep)
+                .next(tourApiDetailSyncStep)
                 .build();
     }
 
@@ -88,5 +95,26 @@ public class TourApiSyncJobConfig {
     @org.springframework.batch.core.configuration.annotation.StepScope
     public TourApiItemWriter tourApiItemWriter(AttractionMapper attractionMapper) {
         return new TourApiItemWriter(attractionMapper);
+    }
+
+    // ───────── Detail Sync Step ─────────
+
+    @Bean
+    public Step tourApiDetailSyncStep(JobRepository jobRepository,
+                                      PlatformTransactionManager transactionManager,
+                                      AttractionMapper attractionMapper,
+                                      AttractionDetailCommonMapper detailCommonMapper,
+                                      AttractionDetailIntroMapper detailIntroMapper,
+                                      AttractionDetailImageMapper detailImageMapper,
+                                      AttractionDetailInfoMapper detailInfoMapper,
+                                      TourApiClient tourApiClient,
+                                      TourApiCallLimiter limiter,
+                                      ObjectMapper objectMapper) {
+        return new StepBuilder("tourApiDetailSyncStep", jobRepository)
+                .tasklet(new AttractionDetailSyncTasklet(attractionMapper, detailCommonMapper,
+                        detailIntroMapper, detailImageMapper, detailInfoMapper,
+                        tourApiClient, limiter, objectMapper),
+                        transactionManager)
+                .build();
     }
 }
