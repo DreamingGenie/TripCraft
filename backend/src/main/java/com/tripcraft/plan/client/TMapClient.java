@@ -29,7 +29,7 @@ public class TMapClient {
 
     public TMapDrivingResult fetchTaxiRoute(BigDecimal fromLat, BigDecimal fromLng,
                                              BigDecimal toLat, BigDecimal toLng) {
-        String url = baseUrl + "/routes/taxi";
+        String url = baseUrl + "/routes?version=1";
         String body = String.format(
             "{\"startX\":\"%s\",\"startY\":\"%s\",\"endX\":\"%s\",\"endY\":\"%s\"," +
             "\"reqCoordType\":\"WGS84GEO\",\"resCoordType\":\"WGS84GEO\"," +
@@ -77,7 +77,7 @@ public class TMapClient {
 
     public TMapDrivingResult fetchWalkingRoute(BigDecimal fromLat, BigDecimal fromLng,
                                                 BigDecimal toLat, BigDecimal toLng) {
-        String url = baseUrl + "/routes/pedestrian";
+        String url = baseUrl + "/routes/pedestrian?version=1";
         String body = String.format(
             "{\"startX\":\"%s\",\"startY\":\"%s\",\"endX\":\"%s\",\"endY\":\"%s\"," +
             "\"reqCoordType\":\"WGS84GEO\",\"resCoordType\":\"WGS84GEO\"," +
