@@ -51,6 +51,18 @@ public class TourApiItemProcessor implements ItemProcessor<TourApiItem, Attracti
             a.setLatitude(parseBigDecimal(item.getMapy()));
             a.setTel(item.getTel());
             a.setFirstImage(item.getFirstimage());
+            a.setFirstImage2(item.getFirstimage2());
+            a.setMlevel(parseIntSafe(item.getMlevel()) == 0 ? null : parseIntSafe(item.getMlevel()));
+            a.setZipcode(item.getZipcode());
+            a.setCat1(item.getCat1());
+            a.setCat2(item.getCat2());
+            a.setCat3(item.getCat3());
+            a.setLDongRegnCd(item.getLDongRegnCd());
+            a.setLDongSignguCd(item.getLDongSignguCd());
+            a.setLclsSystm1(item.getLclsSystm1());
+            a.setLclsSystm2(item.getLclsSystm2());
+            a.setLclsSystm3(item.getLclsSystm3());
+            a.setCpyrhtDivCd(item.getCpyrhtDivCd());
             a.setApiCreatedAt(parseDateTime(item.getCreatedtime()));
             a.setApiModifiedAt(parseDateTime(item.getModifiedtime()));
             return a;
