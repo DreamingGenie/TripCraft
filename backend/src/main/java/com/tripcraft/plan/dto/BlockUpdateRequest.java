@@ -12,4 +12,7 @@ public class BlockUpdateRequest {
     private LocalTime startTime;
     private Integer durationMinutes;
     private Integer displayOrder;
+    private String transitMode;
+    private Integer transitDurationMinutes;
+    private Integer taxiFare;
 }

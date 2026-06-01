@@ -2,6 +2,7 @@ package com.tripcraft.plan.mapper;
 
 import com.tripcraft.plan.domain.Trip;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,4 +21,6 @@ public interface TripMapper {
     void update(Trip trip);
 
     void deleteById(Long id);
+
+    void updateDefaultTransitMode(@Param("id") Long id, @Param("mode") String mode);
 }

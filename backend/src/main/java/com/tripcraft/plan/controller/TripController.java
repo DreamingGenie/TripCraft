@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/trips")
@@ -101,6 +103,16 @@ public class TripController {
             @PathVariable Long blockId,
             @AuthenticationPrincipal Long memberId) {
         tripService.removeBlock(id, blockId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @PatchMapping("/{tripId}/default-transit-mode")
+    public ResponseEntity<ApiResponse<Void>> updateDefaultTransitMode(
+            @PathVariable Long tripId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Long memberId) {
+        String mode = body.get("mode");
+        tripService.updateDefaultTransitMode(tripId, mode, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 }
