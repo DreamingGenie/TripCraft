@@ -1,14 +1,5 @@
 <template>
   <div id="landing-page">
-    <!-- 랜딩 전용 GNB -->
-    <nav class="landing-gnb">
-      <RouterLink class="landing-gnb-logo" to="/">TripCraft</RouterLink>
-      <div class="landing-gnb-actions">
-        <RouterLink class="landing-btn-login" to="/auth">로그인</RouterLink>
-        <RouterLink class="landing-btn-explore" to="/explore">탐색 시작하기</RouterLink>
-      </div>
-    </nav>
-
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="hero-inner">
