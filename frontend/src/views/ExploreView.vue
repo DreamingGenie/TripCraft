@@ -1189,16 +1189,20 @@ async function selectAttraction(a) {
 
   if (naverMap && a.latitude && a.longitude) {
     const latlng = new naver.maps.LatLng(Number(a.latitude), Number(a.longitude))
-    naverMap.morph(latlng, Math.max(naverMap.getZoom(), 13))
+    const targetZoom = Math.max(naverMap.getZoom(), 13)
+    const cur = naverMap.getCenter()
+    const needsMove = naverMap.getZoom() < 13
+      || Math.abs(cur.lat() - Number(a.latitude)) > 0.0001
+      || Math.abs(cur.lng() - Number(a.longitude)) > 0.0001
+    naverMap.morph(latlng, targetZoom)
     updateSelectedMarker(a)
-    let shown = false
-    const tryShow = () => {
-      if (shown) return
-      shown = true
-      if (selectedAttraction.value?.id === a.id && !detailOpen.value) showAttractionInfoWindow(a)
+    if (needsMove) {
+      naver.maps.Event.once(naverMap, 'idle', () => {
+        if (selectedAttraction.value?.id === a.id && !detailOpen.value) showAttractionInfoWindow(a)
+      })
+    } else {
+      showAttractionInfoWindow(a)
     }
-    naver.maps.Event.once(naverMap, 'idle', tryShow)
-    setTimeout(tryShow, 400)
   } else {
     updateSelectedMarker(a)
     showAttractionInfoWindow(a)
