@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripcraft.attraction.mapper.AttractionDetailIntroMapper">
+
+    <resultMap id="introMap" type="com.tripcraft.attraction.domain.AttractionDetailIntro">
+        <id   column="content_id"      property="contentId"/>
+        <result column="content_type_id" property="contentTypeId"/>
+        <result column="intro_data"      property="introData"/>
+        <result column="synced_at"       property="syncedAt"/>
+    </resultMap>
+
+    <select id="findByContentId" resultMap="introMap">
+        SELECT * FROM attraction_detail_intro WHERE content_id = #{contentId}
+    </select>
+
+    <insert id="upsert" parameterType="com.tripcraft.attraction.domain.AttractionDetailIntro">
+        INSERT INTO attraction_detail_intro (content_id, content_type_id, intro_data)
+        VALUES (#{contentId}, #{contentTypeId}, #{introData})
+        ON DUPLICATE KEY UPDATE
+            intro_data = VALUES(intro_data),
+            synced_at  = CURRENT_TIMESTAMP
+    </insert>
+
+</mapper>

@@ -13,11 +13,22 @@
         <result column="sigungu_code" property="sigunguCode"/>
         <result column="addr1" property="addr1"/>
         <result column="addr2" property="addr2"/>
+        <result column="zipcode"          property="zipcode"/>
         <result column="latitude" property="latitude"/>
         <result column="longitude" property="longitude"/>
         <result column="tel" property="tel"/>
-        <result column="overview" property="overview"/>
         <result column="first_image" property="firstImage"/>
+        <result column="first_image2"     property="firstImage2"/>
+        <result column="mlevel"           property="mlevel"/>
+        <result column="cat1"             property="cat1"/>
+        <result column="cat2"             property="cat2"/>
+        <result column="cat3"             property="cat3"/>
+        <result column="l_dong_regn_cd"   property="lDongRegnCd"/>
+        <result column="l_dong_signgu_cd" property="lDongSignguCd"/>
+        <result column="lcls_systm1"      property="lclsSystm1"/>
+        <result column="lcls_systm2"      property="lclsSystm2"/>
+        <result column="lcls_systm3"      property="lclsSystm3"/>
+        <result column="cpyrht_div_cd"    property="cpyrhtDivCd"/>
         <result column="api_created_at" property="apiCreatedAt"/>
         <result column="api_modified_at" property="apiModifiedAt"/>
         <result column="synced_at" property="syncedAt"/>
@@ -80,24 +91,41 @@
 
     <insert id="insertAll" parameterType="list">
         INSERT INTO attraction (content_id, content_type_id, title, sido_code, sigungu_code,
-                                addr1, addr2, latitude, longitude, tel, overview, first_image,
+                                addr1, addr2, zipcode, latitude, longitude, tel,
+                                first_image, first_image2, mlevel,
+                                cat1, cat2, cat3,
+                                l_dong_regn_cd, l_dong_signgu_cd,
+                                lcls_systm1, lcls_systm2, lcls_systm3, cpyrht_div_cd,
                                 api_created_at, api_modified_at)
         VALUES
         <foreach item="a" collection="list" separator=",">
             (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.sidoCode}, #{a.sigunguCode},
-             #{a.addr1}, #{a.addr2}, #{a.latitude}, #{a.longitude}, #{a.tel}, #{a.overview},
-             #{a.firstImage}, #{a.apiCreatedAt}, #{a.apiModifiedAt})
+             #{a.addr1}, #{a.addr2}, #{a.zipcode}, #{a.latitude}, #{a.longitude}, #{a.tel},
+             #{a.firstImage}, #{a.firstImage2}, #{a.mlevel},
+             #{a.cat1}, #{a.cat2}, #{a.cat3},
+             #{a.lDongRegnCd}, #{a.lDongSignguCd},
+             #{a.lclsSystm1}, #{a.lclsSystm2}, #{a.lclsSystm3}, #{a.cpyrhtDivCd},
+             #{a.apiCreatedAt}, #{a.apiModifiedAt})
         </foreach>
         ON DUPLICATE KEY UPDATE
-            title = VALUES(title), addr1 = VALUES(addr1), overview = VALUES(overview),
+            title = VALUES(title), addr1 = VALUES(addr1),
             api_modified_at = VALUES(api_modified_at), synced_at = CURRENT_TIMESTAMP
     </insert>
 
     <update id="update" parameterType="com.tripcraft.attraction.domain.Attraction">
         UPDATE attraction
-        SET title = #{title}, addr1 = #{addr1}, addr2 = #{addr2}, overview = #{overview},
+        SET title = #{title}, addr1 = #{addr1}, addr2 = #{addr2},
             api_modified_at = #{apiModifiedAt}, synced_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
+
+    <select id="findWithoutDetailSync" resultMap="attractionMap">
+        SELECT a.id, a.content_id, a.content_type_id
+        FROM attraction a
+        LEFT JOIN attraction_detail_common adc ON a.content_id = adc.content_id
+        WHERE adc.content_id IS NULL
+        ORDER BY a.id
+        LIMIT #{limit}
+    </select>
 
 </mapper>

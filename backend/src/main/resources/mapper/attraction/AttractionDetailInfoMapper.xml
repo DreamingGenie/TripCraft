@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripcraft.attraction.mapper.AttractionDetailInfoMapper">
+
+    <resultMap id="infoMap" type="com.tripcraft.attraction.domain.AttractionDetailInfo">
+        <id   column="id"                property="id"/>
+        <result column="content_id"       property="contentId"/>
+        <result column="serialnum"        property="serialnum"/>
+        <result column="fldgubun"         property="fldgubun"/>
+        <result column="infoname"         property="infoname"/>
+        <result column="infotext"         property="infotext"/>
+        <result column="subcontentid"     property="subcontentid"/>
+        <result column="subdetailalt"     property="subdetailalt"/>
+        <result column="subdetailimg"     property="subdetailimg"/>
+        <result column="subdetailoverview" property="subdetailoverview"/>
+        <result column="subname"          property="subname"/>
+        <result column="subnum"           property="subnum"/>
+        <result column="room_data"        property="roomData"/>
+    </resultMap>
+
+    <select id="findByContentId" resultMap="infoMap">
+        SELECT * FROM attraction_detail_info WHERE content_id = #{contentId} ORDER BY serialnum
+    </select>
+
+    <delete id="deleteByContentId">
+        DELETE FROM attraction_detail_info WHERE content_id = #{contentId}
+    </delete>
+
+    <insert id="insertAll">
+        INSERT INTO attraction_detail_info
+            (content_id, serialnum, fldgubun, infoname, infotext,
+             subcontentid, subdetailalt, subdetailimg, subdetailoverview,
+             subname, subnum, room_data)
+        VALUES
+        <foreach item="info" collection="list" separator=",">
+            (#{contentId}, #{info.serialnum}, #{info.fldgubun}, #{info.infoname}, #{info.infotext},
+             #{info.subcontentid}, #{info.subdetailalt}, #{info.subdetailimg}, #{info.subdetailoverview},
+             #{info.subname}, #{info.subnum}, #{info.roomData})
+        </foreach>
+    </insert>
+
+</mapper>
