@@ -59,6 +59,7 @@ public class TransitServiceImpl implements TransitService {
                     .transferCount(c.getTransferCount())
                     .fare(c.getFare())
                     .totalWalkM(c.getTotalWalkM())
+                    .totalDistanceM(c.getTotalDistanceM())
                     .taxiFare(c.getTaxiFare())
                     .routeCoords(c.getRouteCoords())
                     .build());
@@ -183,7 +184,7 @@ public class TransitServiceImpl implements TransitService {
                                                               BigDecimal toLat, BigDecimal toLng,
                                                               boolean isTaxi) {
         TMapClient.TMapDrivingResult result = isTaxi
-                ? tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng)
+                ? tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, "00", departureHour)
                 : tMapClient.fetchWalkingRoute(fromLat, fromLng, toLat, toLng);
 
         String resolvedMode = isTaxi ? MODE_DRIVING : MODE_WALKING;
@@ -207,7 +208,7 @@ public class TransitServiceImpl implements TransitService {
         cache.setTransportMode(resolvedMode);
         cache.setTransferCount(0);
         cache.setFare(0);
-        cache.setTotalDistanceM(0);
+        cache.setTotalDistanceM(result.totalDistanceM());
         cache.setTotalWalkM(0);
         cache.setPathDetail("{}");
         cache.setTaxiFare(result.taxiFare());
@@ -215,7 +216,7 @@ public class TransitServiceImpl implements TransitService {
 
         try {
             transitCacheMapper.insert(cache);
-            log.debug("TMap {}캐시 저장: total={}분, from={}, to={}", resolvedMode, result.durationMinutes(), fromId, toId);
+            log.debug("TMap {}캐시 저장: total={}분, {}m, from={}, to={}", resolvedMode, result.durationMinutes(), result.totalDistanceM(), fromId, toId);
         } catch (Exception e) {
             log.warn("TMap 캐시 저장 실패: {}", e.getMessage());
         }
@@ -226,6 +227,7 @@ public class TransitServiceImpl implements TransitService {
                 .transferCount(0)
                 .fare(0)
                 .totalWalkM(0)
+                .totalDistanceM(result.totalDistanceM())
                 .taxiFare(result.taxiFare())
                 .routeCoords(result.routeCoords())
                 .build());
@@ -364,6 +366,38 @@ public class TransitServiceImpl implements TransitService {
             node.set("subPath", local.pathNode().path("subPath"));
         }
         return node;
+    }
+
+    private static final String[] DRIVING_LABELS = {"추천", "최단시간", "무료도로", "최소거리"};
+    private static final String[] DRIVING_SEARCH_OPTIONS = {"00", "02", "01", "10"};
+
+    @Override
+    public List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour) {
+        Attraction from = attractionMapper.findById(fromId).orElse(null);
+        Attraction to   = attractionMapper.findById(toId).orElse(null);
+        if (from == null || to == null
+                || from.getLatitude() == null || from.getLongitude() == null
+                || to.getLatitude() == null   || to.getLongitude() == null) {
+            return List.of();
+        }
+        BigDecimal fromLat = from.getLatitude(), fromLng = from.getLongitude();
+        BigDecimal toLat   = to.getLatitude(),   toLng   = to.getLongitude();
+
+        List<TransitResponse> results = new ArrayList<>();
+        for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
+            TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], departureHour);
+            if (result != null && result.durationMinutes() > 0) {
+                results.add(TransitResponse.builder()
+                        .durationMinutes(result.durationMinutes())
+                        .transportMode(MODE_DRIVING)
+                        .taxiFare(result.taxiFare())
+                        .totalDistanceM(result.totalDistanceM())
+                        .roadSummary(result.roadSummary())
+                        .label(DRIVING_LABELS[i])
+                        .build());
+            }
+        }
+        return results;
     }
 
     private record RouteEnrichment(
