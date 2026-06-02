@@ -726,6 +726,19 @@
 }
 .btn-danger:hover { opacity: .88; }
 
+/* ── 일정 공유 경고 (모달 내부 인라인) ── */
+.trip-share-warning {
+  padding: 28px 26px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+.trip-share-warning .confirm-icon { font-size: 32px; }
+.trip-share-warning .confirm-msg { font-size: 14px; line-height: 1.7; color: var(--text-primary); margin: 0; }
+.trip-share-warning .confirm-actions { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
+
 /* ── 글쓰기 모달 선택 옵션 레이블 ── */
 .field-optional { font-weight: 400; color: var(--gray-dark); margin-left: 4px; }
 
