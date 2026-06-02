@@ -198,7 +198,7 @@
       </div>
 
       <!-- 지도 패널 -->
-      <Transition name="map-panel-slide">
+      <Transition name="map-panel-slide" @after-enter="onMapPanelEntered">
         <div v-if="showMapPanel" class="map-panel">
           <div class="map-panel-header">
             <div class="map-day-tabs">
@@ -907,7 +907,7 @@ function loadNaverMapScript() {
     if (existing) { existing.addEventListener('load', resolve); return }
     const script = document.createElement('script')
     script.id = 'naver-map-sdk'
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
     script.onload = resolve
     script.onerror = reject
     document.head.appendChild(script)
@@ -918,9 +918,15 @@ async function openMapPanel() {
   if (!activeTrip.value) { toast.show('일정을 먼저 선택하세요'); return }
   showMapPanel.value = true
   mapDay.value = days.value[0] || null
-  await nextTick()
   try {
     await loadNaverMapScript()
+  } catch {
+    toast.show('지도 초기화에 실패했어요')
+  }
+}
+
+async function onMapPanelEntered() {
+  try {
     await initNaverMap()
   } catch {
     toast.show('지도 초기화에 실패했어요')
@@ -1044,7 +1050,11 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
-    if (showMapPanel.value && naverMapInstance) await drawDayRoute()
+    if (showMapPanel.value && mapDay.value) {
+      const updated = days.value.find(d => d.isoDate === mapDay.value.isoDate)
+      if (updated) mapDay.value = updated
+      if (naverMapInstance) await drawDayRoute()
+    }
   } catch {
     toast.show('일정 로드 실패')
   }
