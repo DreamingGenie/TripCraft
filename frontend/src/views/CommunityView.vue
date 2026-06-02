@@ -155,18 +155,6 @@
   </div>
   </main>
 
-  <!-- 일정 공유 경고 팝업 -->
-  <div v-if="tripShareWarning" class="modal-overlay" @click.self="tripShareWarning = false">
-    <div class="confirm-modal-box">
-      <div class="confirm-icon">⚠️</div>
-      <p class="confirm-msg">이 일정을 공유하면 <strong>다른 사람들이 일정 내용(장소, 날짜 등)을 확인</strong>할 수 있습니다.<br>계속 진행하시겠습니까?</p>
-      <div class="confirm-actions">
-        <button class="btn-ghost" @click="cancelTripSelect">취소</button>
-        <button class="btn-primary" @click="tripShareWarning = false">확인</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 게시글 삭제 확인 팝업 -->
   <div v-if="deleteConfirm" class="modal-overlay" @click.self="deleteConfirm = false">
     <div class="confirm-modal-box">
@@ -189,23 +177,36 @@
         <span class="modal-title">새 글 작성</span>
         <button class="modal-close" @click="writeModal = false">✕</button>
       </div>
-      <div class="modal-body">
-        <label class="field-label"><span class="required">*</span> 제목</label>
-        <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
-        <label class="field-label"><span class="required">*</span> 내용</label>
-        <textarea class="field-textarea" v-model="newPost.body" rows="8" placeholder="내용을 입력하세요" style="margin-bottom:16px"></textarea>
-        <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
-        <select class="field-input" v-model="newPost.tripId" @change="onTripSelect">
-          <option :value="null">연결 안 함</option>
-          <option v-for="t in myTrips" :key="t.id" :value="t.id">
-            {{ t.title }} ({{ t.startDate }} ~ {{ t.endDate }})
-          </option>
-        </select>
+
+      <!-- 일정 공유 경고 (모달 내부 인라인) -->
+      <div v-if="tripShareWarning" class="trip-share-warning">
+        <div class="confirm-icon">⚠️</div>
+        <p class="confirm-msg">이 일정을 공유하면 <strong>다른 사람들이 일정 내용(장소, 날짜 등)을 확인</strong>할 수 있습니다.<br>계속 진행하시겠습니까?</p>
+        <div class="confirm-actions">
+          <button class="btn-ghost" @click="cancelTripSelect">취소</button>
+          <button class="btn-primary" :disabled="submitting" @click="doSubmitPost">확인 후 등록</button>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-ghost" @click="writeModal = false">취소</button>
-        <button class="btn-primary" :disabled="submitting" @click="submitPost">등록</button>
-      </div>
+
+      <template v-else>
+        <div class="modal-body">
+          <label class="field-label"><span class="required">*</span> 제목</label>
+          <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
+          <label class="field-label"><span class="required">*</span> 내용</label>
+          <textarea class="field-textarea" v-model="newPost.body" rows="8" placeholder="내용을 입력하세요" style="margin-bottom:16px"></textarea>
+          <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
+          <select class="field-input" v-model="newPost.tripId">
+            <option :value="null">연결 안 함</option>
+            <option v-for="t in myTrips" :key="t.id" :value="t.id">
+              {{ t.title }} ({{ t.startDate }} ~ {{ t.endDate }})
+            </option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" @click="writeModal = false">취소</button>
+          <button class="btn-primary" :disabled="submitting" @click="submitPost">등록</button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -382,12 +383,7 @@ async function confirmDeletePost() {
   }
 }
 
-function onTripSelect() {
-  if (newPost.tripId) tripShareWarning.value = true
-}
-
 function cancelTripSelect() {
-  newPost.tripId = null
   tripShareWarning.value = false
 }
 
@@ -408,6 +404,15 @@ async function submitPost() {
     toast.show('제목과 내용을 입력해주세요.')
     return
   }
+  // 일정이 선택된 경우 경고 확인 먼저
+  if (newPost.tripId) {
+    tripShareWarning.value = true
+    return
+  }
+  await doSubmitPost()
+}
+
+async function doSubmitPost() {
   submitting.value = true
   try {
     const body = { title: newPost.title, content: newPost.body }
@@ -415,6 +420,7 @@ async function submitPost() {
     await postApi.create(body)
     newPost.title = newPost.body = ''
     newPost.tripId = null
+    tripShareWarning.value = false
     writeModal.value = false
     toast.show('게시글이 등록됐어요.')
     page.value = 0
@@ -435,6 +441,7 @@ onMounted(async () => {
     const tripId = Number(route.query.shareTrip)
     if (myTrips.value.some(t => t.id === tripId)) {
       newPost.tripId = tripId
+      // 경고는 등록 버튼 클릭 시 표시 — 여기서는 선택만 해둠
     }
   }
 })
