@@ -162,6 +162,8 @@ public class TransitServiceImpl implements TransitService {
         cache.setTotalDistanceM(best.result().totalDistanceM());
         cache.setTotalWalkM(best.result().totalWalkM());
         cache.setPathDetail(buildPathDetail(enriched));
+        String publicRouteCoords = extractPublicTransitCoords(best.result().pathDetail());
+        cache.setRouteCoords(publicRouteCoords);
 
         try {
             transitCacheMapper.insert(cache);
@@ -176,6 +178,7 @@ public class TransitServiceImpl implements TransitService {
                 .transferCount(best.result().transferCount())
                 .fare(best.result().fare())
                 .totalWalkM(best.result().totalWalkM())
+                .routeCoords(publicRouteCoords)
                 .build());
     }
 
@@ -342,6 +345,28 @@ public class TransitServiceImpl implements TransitService {
             log.debug("NONE 캐시 저장: from={}, to={}, mode={}", fromId, toId, requestMode);
         } catch (Exception e) {
             log.warn("NONE 캐시 저장 실패: {}", e.getMessage());
+        }
+    }
+
+    private String extractPublicTransitCoords(String pathDetail) {
+        try {
+            JsonNode path = objectMapper.readTree(pathDetail);
+            JsonNode subPaths = path.path("subPath");
+            List<double[]> coords = new ArrayList<>();
+            for (int i = 0; i < subPaths.size(); i++) {
+                JsonNode sub = subPaths.get(i);
+                double startX = sub.path("startX").asDouble(0);
+                double startY = sub.path("startY").asDouble(0);
+                double endX   = sub.path("endX").asDouble(0);
+                double endY   = sub.path("endY").asDouble(0);
+                if (startX == 0 || startY == 0) continue;
+                if (coords.isEmpty()) coords.add(new double[]{startX, startY});
+                if (endX != 0 && endY != 0) coords.add(new double[]{endX, endY});
+            }
+            return coords.size() >= 2 ? objectMapper.writeValueAsString(coords) : null;
+        } catch (Exception e) {
+            log.warn("PUBLIC_TRANSIT routeCoords 추출 실패: {}", e.getMessage());
+            return null;
         }
     }
 
