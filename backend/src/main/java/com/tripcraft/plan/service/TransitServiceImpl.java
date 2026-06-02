@@ -221,6 +221,11 @@ public class TransitServiceImpl implements TransitService {
             log.warn("TMap 캐시 저장 실패: {}", e.getMessage());
         }
 
+        String walkRoadSummary = buildRoadSummary(result.segments());
+        String walkSegJson;
+        try { walkSegJson = objectMapper.writeValueAsString(result.segments()); }
+        catch (Exception e) { walkSegJson = "[]"; }
+
         return Optional.of(TransitResponse.builder()
                 .durationMinutes(result.durationMinutes())
                 .transportMode(resolvedMode)
@@ -230,6 +235,8 @@ public class TransitServiceImpl implements TransitService {
                 .totalDistanceM(result.totalDistanceM())
                 .taxiFare(result.taxiFare())
                 .routeCoords(result.routeCoords())
+                .roadSummary(walkRoadSummary)
+                .routeSegmentsJson(walkSegJson)
                 .build());
     }
 
