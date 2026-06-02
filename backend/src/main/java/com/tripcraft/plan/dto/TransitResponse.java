@@ -15,7 +15,9 @@ public class TransitResponse {
     private Integer totalWalkM;
     private Integer totalDistanceM;
     private Integer taxiFare;
+    private Integer tollFare;
     private String routeCoords;
     private String roadSummary;
+    private String routeSegmentsJson;
     private String label;
 }
