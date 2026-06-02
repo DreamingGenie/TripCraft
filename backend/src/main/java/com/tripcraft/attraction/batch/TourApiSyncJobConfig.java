@@ -16,6 +16,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -50,7 +51,9 @@ public class TourApiSyncJobConfig {
     // ───────── Job ─────────
 
     @Bean
-    public Job tourApiSyncJob(JobRepository jobRepository, Step tourApiSyncStep, Step tourApiDetailSyncStep) {
+    public Job tourApiSyncJob(JobRepository jobRepository,
+                              @Qualifier("tourApiSyncStep") Step tourApiSyncStep,
+                              @Qualifier("tourApiDetailSyncStep") Step tourApiDetailSyncStep) {
         return new JobBuilder("tourApiSyncJob", jobRepository)
                 .start(tourApiSyncStep)
                 .next(tourApiDetailSyncStep)

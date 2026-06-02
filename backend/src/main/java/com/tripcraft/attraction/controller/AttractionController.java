@@ -43,7 +43,7 @@ public class AttractionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<AttractionDetailDto>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AttractionDetailDto>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.ok(attractionService.getById(id)));
     }
 }

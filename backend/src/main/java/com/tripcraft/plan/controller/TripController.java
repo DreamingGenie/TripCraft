@@ -4,6 +4,7 @@ import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateAddRequest;
+import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
@@ -47,14 +48,14 @@ public class TripController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TripDetailResponse>> getTrip(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getTripDetail(id, memberId)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         tripService.deleteTrip(id, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
@@ -62,7 +63,7 @@ public class TripController {
 
     @PostMapping("/{id}/candidates")
     public ResponseEntity<ApiResponse<Long>> addCandidate(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody CandidateAddRequest request,
             @AuthenticationPrincipal Long memberId) {
         Long candidateId = tripService.addCandidate(id, request.getAttractionId(), memberId);
@@ -71,8 +72,8 @@ public class TripController {
 
     @DeleteMapping("/{id}/candidates/{candidateId}")
     public ResponseEntity<ApiResponse<Void>> removeCandidate(
-            @PathVariable Long id,
-            @PathVariable Long candidateId,
+            @PathVariable("id") Long id,
+            @PathVariable("candidateId") Long candidateId,
             @AuthenticationPrincipal Long memberId) {
         tripService.removeCandidate(id, candidateId, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
@@ -80,7 +81,7 @@ public class TripController {
 
     @PostMapping("/{id}/blocks")
     public ResponseEntity<ApiResponse<Long>> placeBlock(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody BlockCreateRequest request,
             @AuthenticationPrincipal Long memberId) {
         Long blockId = tripService.placeBlock(id, request, memberId);
@@ -89,8 +90,8 @@ public class TripController {
 
     @PutMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<ApiResponse<Void>> updateBlock(
-            @PathVariable Long id,
-            @PathVariable Long blockId,
+            @PathVariable("id") Long id,
+            @PathVariable("blockId") Long blockId,
             @RequestBody BlockUpdateRequest request,
             @AuthenticationPrincipal Long memberId) {
         tripService.updateBlock(id, blockId, request, memberId);
@@ -99,16 +100,22 @@ public class TripController {
 
     @DeleteMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<ApiResponse<Void>> removeBlock(
-            @PathVariable Long id,
-            @PathVariable Long blockId,
+            @PathVariable("id") Long id,
+            @PathVariable("blockId") Long blockId,
             @AuthenticationPrincipal Long memberId) {
         tripService.removeBlock(id, blockId, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @GetMapping("/{id}/blocks-summary")
+    public ResponseEntity<ApiResponse<TripBlockSummaryResponse>> getBlocksSummary(
+            @PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getBlocksSummary(id)));
+    }
+
     @PatchMapping("/{tripId}/default-transit-mode")
     public ResponseEntity<ApiResponse<Void>> updateDefaultTransitMode(
-            @PathVariable Long tripId,
+            @PathVariable("tripId") Long tripId,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal Long memberId) {
         String mode = body.get("mode");
