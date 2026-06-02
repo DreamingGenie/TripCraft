@@ -135,6 +135,7 @@ public class TMapClient {
             int durationSeconds = 0;
             int totalDistanceM = 0;
             List<double[]> coords = new ArrayList<>();
+            List<RouteSegment> segments = new ArrayList<>();
 
             for (JsonNode feature : root.path("features")) {
                 String geomType = feature.path("geometry").path("type").asText();
@@ -147,12 +148,22 @@ public class TMapClient {
                     for (JsonNode coord : feature.path("geometry").path("coordinates")) {
                         coords.add(new double[]{coord.get(0).asDouble(), coord.get(1).asDouble()});
                     }
+                    String roadName = props.path("name").asText("");
+                    if (roadName.isEmpty()) continue;
+                    int dist = props.path("distance").asInt(0);
+                    int time = props.path("time").asInt(0);
+                    if (!segments.isEmpty() && segments.getLast().name().equals(roadName)) {
+                        RouteSegment last = segments.removeLast();
+                        segments.add(new RouteSegment(roadName, last.distanceM() + dist, last.timeSec() + time, 0, 0));
+                    } else {
+                        segments.add(new RouteSegment(roadName, dist, time, 0, 0));
+                    }
                 }
             }
 
             int durationMinutes = Math.max(1, (int) Math.ceil(durationSeconds / 60.0));
             String routeJson = objectMapper.writeValueAsString(coords);
-            return new TMapDrivingResult(durationMinutes, 0, 0, routeJson, totalDistanceM, List.of());
+            return new TMapDrivingResult(durationMinutes, 0, 0, routeJson, totalDistanceM, segments);
         } catch (Exception e) {
             log.warn("T Map 도보 경로 조회 실패: {}", e.getMessage());
             return null;
