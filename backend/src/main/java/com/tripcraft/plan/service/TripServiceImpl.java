@@ -203,10 +203,17 @@ public class TripServiceImpl implements TripService {
         block.setStartTime(req.getStartTime());
         block.setDurationMinutes(req.getDurationMinutes());
         block.setDisplayOrder(req.getDisplayOrder());
-        blockMapper.update(block);
-        recalculateTransitForDate(tripId, req.getTripDate());
-        if (!oldDate.equals(req.getTripDate())) {
-            recalculateTransitForDate(tripId, oldDate);
+
+        if (req.getTransitMode() != null) {
+            block.setTransitMode(req.getTransitMode());
+            block.setTransitDurationMinutes(req.getTransitDurationMinutes());
+            blockMapper.update(block);
+        } else {
+            blockMapper.update(block);
+            recalculateTransitForDate(tripId, req.getTripDate());
+            if (!oldDate.equals(req.getTripDate())) {
+                recalculateTransitForDate(tripId, oldDate);
+            }
         }
     }
 
