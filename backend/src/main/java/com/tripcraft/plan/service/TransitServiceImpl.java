@@ -407,19 +407,31 @@ public class TransitServiceImpl implements TransitService {
     }
 
     private String buildRoadSummary(List<TMapClient.RouteSegment> segments) {
-        List<TMapClient.RouteSegment> pool = segments.stream()
-                .filter(s -> s.roadType() == 1)
-                .collect(java.util.stream.Collectors.toList());
-        if (pool.isEmpty()) pool = new ArrayList<>(segments);
+        java.util.Comparator<TMapClient.RouteSegment> byDistDesc =
+                java.util.Comparator.comparingInt(TMapClient.RouteSegment::distanceM).reversed();
 
-        java.util.Set<String> selected = pool.stream()
-                .sorted(java.util.Comparator.comparingInt(TMapClient.RouteSegment::timeSec).reversed())
+        List<String> selected = new ArrayList<>();
+        segments.stream()
+                .filter(s -> s.roadType() == 1)
+                .sorted(byDistDesc)
                 .limit(4)
                 .map(TMapClient.RouteSegment::name)
-                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+                .forEach(selected::add);
 
+        if (selected.size() < 4) {
+            java.util.Set<String> already = new java.util.HashSet<>(selected);
+            segments.stream()
+                    .filter(s -> s.roadType() != 1)
+                    .sorted(byDistDesc)
+                    .map(TMapClient.RouteSegment::name)
+                    .filter(already::add)
+                    .limit(4 - selected.size())
+                    .forEach(selected::add);
+        }
+
+        java.util.Set<String> selectedSet = new java.util.HashSet<>(selected);
         return segments.stream()
-                .filter(s -> selected.contains(s.name()))
+                .filter(s -> selectedSet.contains(s.name()))
                 .map(TMapClient.RouteSegment::name)
                 .distinct()
                 .collect(java.util.stream.Collectors.joining(" → "));
