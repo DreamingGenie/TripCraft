@@ -387,17 +387,42 @@ public class TransitServiceImpl implements TransitService {
         for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
             TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], departureHour);
             if (result != null && result.durationMinutes() > 0) {
+                String roadSummary = buildRoadSummary(result.segments());
+                String segJson;
+                try { segJson = objectMapper.writeValueAsString(result.segments()); }
+                catch (Exception e) { segJson = "[]"; }
                 results.add(TransitResponse.builder()
                         .durationMinutes(result.durationMinutes())
                         .transportMode(MODE_DRIVING)
                         .taxiFare(result.taxiFare())
+                        .tollFare(result.tollFare())
                         .totalDistanceM(result.totalDistanceM())
-                        .roadSummary(result.roadSummary())
+                        .roadSummary(roadSummary)
+                        .routeSegmentsJson(segJson)
                         .label(DRIVING_LABELS[i])
                         .build());
             }
         }
         return results;
+    }
+
+    private String buildRoadSummary(List<TMapClient.RouteSegment> segments) {
+        List<TMapClient.RouteSegment> pool = segments.stream()
+                .filter(s -> s.roadType() == 1)
+                .collect(java.util.stream.Collectors.toList());
+        if (pool.isEmpty()) pool = new ArrayList<>(segments);
+
+        java.util.Set<String> selected = pool.stream()
+                .sorted(java.util.Comparator.comparingInt(TMapClient.RouteSegment::timeSec).reversed())
+                .limit(4)
+                .map(TMapClient.RouteSegment::name)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+
+        return segments.stream()
+                .filter(s -> selected.contains(s.name()))
+                .map(TMapClient.RouteSegment::name)
+                .distinct()
+                .collect(java.util.stream.Collectors.joining(" → "));
     }
 
     private record RouteEnrichment(
