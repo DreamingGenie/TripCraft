@@ -270,11 +270,14 @@ public class TripServiceImpl implements TripService {
                     if (fromCand.isPresent() && toCand.isPresent()) {
                         long fromAttrId = fromCand.get().getAttractionId();
                         long toAttrId   = toCand.get().getAttractionId();
-                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, transitMode);
+                        String effectiveMode = block.getTransitMode() != null ? block.getTransitMode() : transitMode;
+                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, effectiveMode);
                         block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
-                        block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
+                        if (block.getTransitMode() == null) {
+                            block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
+                        }
                         log.debug("Transit 계산: from={} to={} → {}분 ({}) mode={}",
-                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode(), transitMode);
+                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode(), effectiveMode);
                     } else {
                         block.setTransitDurationMinutes(null);
                         block.setTransitMode(null);
