@@ -28,7 +28,8 @@ public class TMapClient {
     @Value("${tmap.base-url}")
     private String baseUrl;
 
-    public record TMapDrivingResult(int durationMinutes, int taxiFare, String routeCoords, int totalDistanceM, String roadSummary) {}
+    public record RouteSegment(String name, int distanceM, int timeSec, int speedKmh, int roadType) {}
+    public record TMapDrivingResult(int durationMinutes, int taxiFare, int tollFare, String routeCoords, int totalDistanceM, List<RouteSegment> segments) {}
 
     public TMapDrivingResult fetchTaxiRoute(BigDecimal fromLat, BigDecimal fromLng,
                                              BigDecimal toLat, BigDecimal toLng) {
@@ -66,11 +67,11 @@ public class TMapClient {
             JsonNode root = objectMapper.readTree(response);
             int durationSeconds = 0;
             int taxiFare = 0;
-            List<double[]> coords = new ArrayList<>();
-            List<String> roads = new ArrayList<>();
-            String lastRoad = null;
-
+            int tollFare = 0;
             int totalDistanceM = 0;
+            List<double[]> coords = new ArrayList<>();
+            List<RouteSegment> segments = new ArrayList<>();
+
             for (JsonNode feature : root.path("features")) {
                 String geomType = feature.path("geometry").path("type").asText();
                 JsonNode props = feature.path("properties");
@@ -78,6 +79,7 @@ public class TMapClient {
                 if ("Point".equals(geomType) && props.has("totalTime")) {
                     durationSeconds = props.path("totalTime").asInt(0);
                     taxiFare = props.path("taxiFare").asInt(0);
+                    tollFare = props.path("totalFare").asInt(0);
                     totalDistanceM = props.path("totalDistance").asInt(0);
                 }
                 if ("LineString".equals(geomType)) {
@@ -85,17 +87,25 @@ public class TMapClient {
                         coords.add(new double[]{coord.get(0).asDouble(), coord.get(1).asDouble()});
                     }
                     String roadName = props.path("name").asText("");
-                    if (!roadName.isEmpty() && !"일반도로".equals(roadName) && !roadName.equals(lastRoad)) {
-                        roads.add(roadName);
-                        lastRoad = roadName;
+                    if (roadName.isEmpty() || "일반도로".equals(roadName)) continue;
+                    int dist  = props.path("distance").asInt(0);
+                    int time  = props.path("time").asInt(0);
+                    int speed = props.path("speed").asInt(0);
+                    int type  = props.path("roadType").asInt(0);
+                    if (!segments.isEmpty() && segments.getLast().name().equals(roadName)) {
+                        RouteSegment last = segments.removeLast();
+                        segments.add(new RouteSegment(roadName,
+                            last.distanceM() + dist, last.timeSec() + time,
+                            speed > 0 ? speed : last.speedKmh(), last.roadType()));
+                    } else {
+                        segments.add(new RouteSegment(roadName, dist, time, speed, type));
                     }
                 }
             }
 
             int durationMinutes = Math.max(1, (int) Math.ceil(durationSeconds / 60.0));
             String routeJson = objectMapper.writeValueAsString(coords);
-            String roadSummary = roads.stream().limit(4).collect(Collectors.joining(" → "));
-            return new TMapDrivingResult(durationMinutes, taxiFare, routeJson, totalDistanceM, roadSummary);
+            return new TMapDrivingResult(durationMinutes, taxiFare, tollFare, routeJson, totalDistanceM, segments);
         } catch (Exception e) {
             log.warn("TMap prediction 경로 조회 실패 (searchOption={}) from=({},{}) to=({},{}): {}",
                 searchOption, fromLat, fromLng, toLat, toLng, e.getMessage());
@@ -142,7 +152,7 @@ public class TMapClient {
 
             int durationMinutes = Math.max(1, (int) Math.ceil(durationSeconds / 60.0));
             String routeJson = objectMapper.writeValueAsString(coords);
-            return new TMapDrivingResult(durationMinutes, 0, routeJson, totalDistanceM, "");
+            return new TMapDrivingResult(durationMinutes, 0, 0, routeJson, totalDistanceM, List.of());
         } catch (Exception e) {
             log.warn("T Map 도보 경로 조회 실패: {}", e.getMessage());
             return null;
