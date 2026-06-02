@@ -43,14 +43,14 @@ public class PostController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PostDetail>> getPost(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPost(id, memberId)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         postService.deletePost(id, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
@@ -58,7 +58,7 @@ public class PostController {
 
     @PostMapping("/{id}/likes")
     public ResponseEntity<ApiResponse<Void>> toggleLike(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         postService.toggleLike(id, memberId);
         return ResponseEntity.ok(ApiResponse.ok());
