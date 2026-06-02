@@ -14,4 +14,7 @@ export const tripApi = {
   placeBlock: (tripId, body) => http.post(`/api/trips/${tripId}/blocks`, body),
   updateBlock: (tripId, blockId, body) => http.put(`/api/trips/${tripId}/blocks/${blockId}`, body),
   removeBlock: (tripId, blockId) => http.del(`/api/trips/${tripId}/blocks/${blockId}`),
+
+  updateDefaultTransitMode: (tripId, mode) =>
+    http.patch(`/api/trips/${tripId}/default-transit-mode`, { mode }),
 }

@@ -780,3 +780,361 @@
   white-space: nowrap;
   letter-spacing: .1px;
 }
+.transit-pill-open {
+  z-index: 20 !important;
+  border-color: #0a5240 !important;
+}
+
+/* ================================================================
+   지도로 보기 버튼
+   ================================================================ */
+.btn-map-view {
+  background: none;
+  border: 1px solid var(--gray-border);
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+  font-family: inherit;
+}
+.btn-map-view:hover {
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border-color: var(--purple-100);
+}
+
+/* ================================================================
+   이동수단 드롭다운
+   ================================================================ */
+.pill-dropdown {
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(20,20,30,.14);
+  overflow: hidden;
+}
+.pill-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background .1s;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.pill-dropdown-option:hover { background: var(--purple-50); }
+.pill-dropdown-option.active {
+  background: var(--purple-50);
+  color: var(--purple-900);
+  font-weight: 600;
+}
+.pill-dropdown-option.active::before {
+  content: '✓';
+  font-size: 10px;
+  margin-right: -4px;
+  color: var(--purple-900);
+}
+.pill-dropdown-option.loading { pointer-events: none; opacity: .65; }
+.pill-opt-icon { font-size: 14px; flex-shrink: 0; }
+.pill-opt-label { flex: 1; }
+.pill-opt-detail {
+  font-size: 10px;
+  color: var(--gray-dark);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pill-opt-none { color: var(--gray-muted); }
+.pill-opt-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: hint-spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+.pill-opt-expand {
+  margin-left: auto;
+  font-size: 0.6rem;
+  color: var(--gray-muted);
+  flex-shrink: 0;
+}
+.pill-paths-loading {
+  padding: 7px 14px;
+  font-size: 0.78rem;
+  color: var(--gray-muted);
+  text-align: center;
+  border-top: 1px solid #f0f0f4;
+}
+.pill-path-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 22px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  border-top: 1px solid #f0f0f4;
+  transition: background 0.15s;
+}
+.pill-path-option:hover { background: var(--purple-50); }
+.pill-path-option.pill-path-none {
+  color: var(--gray-muted);
+  cursor: default;
+}
+.pill-path-option.pill-path-none:hover { background: none; }
+.pill-path-time {
+  font-weight: 600;
+  color: var(--purple-900);
+  min-width: 34px;
+}
+.pill-path-modes { flex: 1; color: #555; }
+.pill-path-fare { font-size: 0.73rem; color: var(--gray-muted); }
+
+/* ================================================================
+   지도 패널 (우측 슬라이드인)
+   ================================================================ */
+.map-panel {
+  width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--gray-border);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.map-panel-slide-enter-active {
+  transition: width .25s ease, opacity .2s ease;
+  overflow: hidden;
+}
+.map-panel-slide-leave-active {
+  transition: width .2s ease, opacity .15s ease;
+  overflow: hidden;
+}
+.map-panel-slide-enter-from { width: 0; opacity: 0; }
+.map-panel-slide-leave-to   { width: 0; opacity: 0; }
+
+.map-panel-header {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--gray-border);
+  gap: 8px;
+}
+.map-day-tabs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.map-day-tabs::-webkit-scrollbar { display: none; }
+.map-day-tab {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--gray-border);
+  background: var(--bg-page);
+  color: var(--gray-dark);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.map-day-tab:hover,
+.map-day-tab.active {
+  background: var(--purple-900);
+  color: #fff;
+  border-color: var(--purple-900);
+}
+.map-panel-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-border);
+  background: var(--bg-surface);
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s, color .12s, border-color .12s;
+  font-family: inherit;
+}
+.map-panel-close:hover {
+  background: var(--pink-50);
+  color: var(--pink-600);
+  border-color: var(--pink-600);
+}
+.map-el {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 지도 마커 레이블 */
+.map-route-marker {
+  background: var(--purple-900);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(83,74,183,.35);
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+/* ================================================================
+   이동수단 선택 모달
+   ================================================================ */
+.transit-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.transit-modal {
+  background: #fff; border-radius: 14px;
+  width: 380px; max-width: calc(100vw - 32px); max-height: 82vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.transit-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.transit-modal-title { font-weight: 700; font-size: 15px; color: #222; }
+.transit-modal-close { background: none; border: none; font-size: 16px; color: #999; cursor: pointer; padding: 2px 4px; }
+.transit-modal-close:hover { color: #333; }
+
+.transit-mode-tabs {
+  display: flex; gap: 6px;
+  padding: 10px 16px 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.transit-mode-tab {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 6px 12px;
+  border: 1px solid #e0e0e0; border-radius: 8px;
+  background: #fafafa; cursor: pointer;
+  white-space: nowrap; color: #666; font-family: inherit;
+  transition: all .15s;
+}
+.transit-mode-tab.active { border-color: #534AB7; background: #f0eeff; color: #534AB7; }
+.transit-mode-tab:hover:not(.active) { background: #f5f5f5; }
+.transit-tab-icon { font-size: 1.1rem; }
+.transit-tab-label { font-size: 12px; font-weight: 600; }
+.transit-tab-time { font-size: 11px; }
+.transit-tab-spinner {
+  width: 8px; height: 8px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: hint-spin .7s linear infinite;
+}
+
+.transit-modal-body { padding: 12px 16px 4px; overflow-y: auto; flex: 1; }
+.transit-modal-body::-webkit-scrollbar { width: 4px; }
+.transit-modal-body::-webkit-scrollbar-thumb { background: #e4e4f0; border-radius: 4px; }
+
+.transit-body-hint {
+  padding: 22px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #999;
+}
+
+/* 대중교통 경로 탭 */
+.transit-route-tabs {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+.transit-route-tab {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 6px 12px;
+  border: 1px solid #e0e0e0; border-radius: 8px;
+  background: #fafafa; cursor: pointer;
+  white-space: nowrap; font-size: 12px; color: #666;
+  font-family: inherit; transition: all .15s; flex-shrink: 0;
+}
+.transit-route-tab.active { border-color: #534AB7; background: #f0eeff; color: #534AB7; }
+.transit-route-tab:hover:not(.active) { background: #f5f5f5; }
+.transit-route-tab-label { font-weight: 600; }
+.transit-route-tab-time { font-size: 11px; }
+
+/* Steps */
+.transit-steps { display: flex; flex-direction: column; }
+.transit-step {
+  display: flex; align-items: flex-start;
+  gap: 10px; padding: 8px 10px; border-radius: 8px;
+  background: #f8f8f8;
+}
+.transit-step--walk   { background: #f5f5f5; }
+.transit-step--subway { background: #eef3ff; }
+.transit-step--bus    { background: #fff8ec; }
+.transit-step--rail   { background: #f0faf4; }
+.transit-step-icon { font-size: 18px; line-height: 1.5; flex-shrink: 0; }
+.transit-step-body {
+  flex: 1; display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 8px; min-width: 0;
+}
+.transit-step-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.transit-step-title  { font-size: 13px; font-weight: 600; color: #222; }
+.transit-step-route  { font-size: 12px; color: #555; }
+.transit-step-detail { font-size: 11px; color: #888; }
+.transit-step-time   { font-size: 13px; font-weight: 700; color: #534AB7; white-space: nowrap; flex-shrink: 0; padding-top: 1px; }
+.transit-connector {
+  width: 2px; height: 12px; background: #ddd;
+  margin: 2px 0 2px 19px;
+}
+
+/* 하단 푸터 */
+.transit-footer {
+  border-top: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
+}
+.transit-summary { display: flex; }
+.transit-summary-item {
+  display: flex; flex-direction: column; align-items: center; flex: 1;
+}
+.transit-summary-item + .transit-summary-item { border-left: 1px solid #f0f0f0; }
+.transit-summary-label { font-size: 11px; color: #999; margin-bottom: 2px; }
+.transit-summary-value { font-size: 14px; font-weight: 700; color: #222; }
+.transit-save-btn {
+  width: 100%; padding: 10px;
+  background: #534AB7; color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.transit-save-btn:hover { background: #4339a0; }
+
+.transit-road-summary {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin-top: 10px; padding: 8px 10px;
+  background: #f8f8f8; border-radius: 8px;
+  font-size: 12px; color: #555; line-height: 1.5;
+}
+.transit-road-summary-icon { flex-shrink: 0; font-size: 14px; }

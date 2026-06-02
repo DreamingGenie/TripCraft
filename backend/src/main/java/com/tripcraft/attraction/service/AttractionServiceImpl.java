@@ -274,6 +274,7 @@ public class AttractionServiceImpl implements AttractionService {
             .addr2(a.getAddr2())
             .tel(a.getTel())
             .firstImage(a.getFirstImage())
+            .firstImage2(a.getFirstImage2())
             .latitude(a.getLatitude())
             .longitude(a.getLongitude())
             .overview(common != null ? common.getOverview() : null)
