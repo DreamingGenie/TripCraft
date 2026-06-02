@@ -17,4 +17,6 @@ export const tripApi = {
 
   updateDefaultTransitMode: (tripId, mode) =>
     http.patch(`/api/trips/${tripId}/default-transit-mode`, { mode }),
+
+  getBlocksSummary: (tripId) => http.get(`/api/trips/${tripId}/blocks-summary`),
 }

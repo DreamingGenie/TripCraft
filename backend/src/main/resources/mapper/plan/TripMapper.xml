@@ -32,6 +32,19 @@
         SELECT COUNT(*) > 0 FROM post WHERE trip_id = #{tripId}
     </select>
 
+    <select id="findBlocksSummary" parameterType="long"
+            resultType="com.tripcraft.plan.dto.TripBlockSummaryResponse$BlockRow">
+        SELECT tb.trip_date         AS tripDate,
+               a.title              AS attractionName,
+               tb.start_time        AS startTime,
+               tb.duration_minutes  AS durationMinutes
+        FROM trip_block tb
+        JOIN trip_candidate tc ON tc.id = tb.candidate_id
+        JOIN attraction a      ON a.id  = tc.attraction_id
+        WHERE tc.trip_id = #{tripId}
+        ORDER BY tb.trip_date, tb.display_order
+    </select>
+
     <insert id="insert" parameterType="com.tripcraft.plan.domain.Trip" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO trip (member_id, title, start_date, end_date, member_count, is_public, default_transit_mode)
         VALUES (#{memberId}, #{title}, #{startDate}, #{endDate}, #{memberCount}, #{isPublic}, #{defaultTransitMode})
