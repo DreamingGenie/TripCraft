@@ -199,7 +199,7 @@
       </div>
 
       <!-- 지도 패널 -->
-      <Transition name="map-panel-slide">
+      <Transition name="map-panel-slide" @after-enter="onMapPanelEntered">
         <div v-if="showMapPanel" class="map-panel">
           <div class="map-panel-header">
             <div class="map-day-tabs">
@@ -232,7 +232,6 @@
                   class="transit-mode-tab"
                   :class="{ active: selectedModalMode === opt.mode }"
                   @click="selectedModalMode = opt.mode; selectedPublicPathIndex = 0">
-            <span class="transit-tab-icon">{{ opt.icon }}</span>
             <span class="transit-tab-label">{{ opt.label }}</span>
             <span v-if="pillLoadingModes[`${openPillKey}-${opt.mode}`]" class="transit-tab-spinner"></span>
             <span v-else-if="pillResults[openPillKey]?.[opt.mode]?.durationMinutes > 0"
@@ -282,7 +281,7 @@
             </template>
           </template>
 
-          <!-- 자동차: 4가지 경로 옵션 탭 -->
+          <!-- 자동차: 세로 카드 리스트 -->
           <template v-else-if="selectedModalMode === 'DRIVING'">
             <div v-if="pillDrivingOptions[openPillKey] === undefined" class="transit-body-hint">
               경로 계산 중...
@@ -297,23 +296,70 @@
                   <span class="transit-route-tab-time">{{ opt.durationMinutes }}분</span>
                 </button>
               </div>
-              <div v-if="currentDrivingOption?.roadSummary" class="transit-road-summary">
-                <span class="transit-road-summary-icon">🛣</span>
-                {{ currentDrivingOption.roadSummary }}
+              <div v-if="currentDrivingOption" class="transit-steps">
+                <!-- 요약 첫 줄 -->
+                <div class="transit-step transit-step--drive-summary">
+                  <span class="transit-step-icon">🚗</span>
+                  <div class="transit-step-body">
+                    <div class="transit-step-main">
+                      <span class="transit-step-title">{{ currentDrivingOption.roadSummary || '경로' }}</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- 전체 구간 -->
+                <template v-for="(seg, si) in currentDrivingSegments" :key="si">
+                  <div class="transit-connector"></div>
+                  <div class="transit-step transit-step--walk">
+                    <span class="transit-step-icon">🛣</span>
+                    <div class="transit-step-body">
+                      <div class="transit-step-main">
+                        <span class="transit-step-title">{{ seg.name }}</span>
+                        <span class="transit-step-route">
+                          {{ (seg.distanceM / 1000).toFixed(1) }}km · {{ Math.ceil(seg.timeSec / 60) }}분
+                          <template v-if="seg.speedKmh > 0"> · {{ seg.speedKmh }}km/h</template>
+                        </span>
+                        <span v-if="ROAD_TYPE_LABEL[seg.roadType]" class="transit-step-detail">{{ ROAD_TYPE_LABEL[seg.roadType] }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
             <div v-else class="transit-body-hint">경로를 찾을 수 없어요</div>
           </template>
 
-          <!-- 도보: 단일 결과 -->
-          <template v-else>
-            <div v-if="pillLoadingModes[`${openPillKey}-${selectedModalMode}`]" class="transit-body-hint">
+          <!-- 도보: 단일 결과 + 구간 스텝 -->
+          <template v-else-if="selectedModalMode === 'WALKING'">
+            <div v-if="pillLoadingModes[`${openPillKey}-WALKING`]" class="transit-body-hint">
               경로 계산 중...
             </div>
-            <div v-else-if="pillResults[openPillKey]?.[selectedModalMode] !== undefined && !pillResults[openPillKey][selectedModalMode]?.durationMinutes"
-                 class="transit-body-hint">
-              경로를 찾을 수 없어요
-            </div>
+            <template v-else-if="currentWalkingResult?.durationMinutes">
+              <div class="transit-steps">
+                <div class="transit-step transit-step--drive-summary">
+                  <span class="transit-step-icon">🚶</span>
+                  <div class="transit-step-body">
+                    <div class="transit-step-main">
+                      <span class="transit-step-title">{{ currentWalkingResult.roadSummary || '도보 경로' }}</span>
+                    </div>
+                  </div>
+                </div>
+                <template v-for="(seg, si) in currentWalkingSegments" :key="si">
+                  <div class="transit-connector"></div>
+                  <div class="transit-step transit-step--walk">
+                    <span class="transit-step-icon">🚶</span>
+                    <div class="transit-step-body">
+                      <div class="transit-step-main">
+                        <span class="transit-step-title">{{ seg.name }}</span>
+                        <span class="transit-step-route">
+                          {{ (seg.distanceM / 1000).toFixed(1) }}km · {{ Math.ceil(seg.timeSec / 60) }}분
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <div v-else class="transit-body-hint">경로를 찾을 수 없어요</div>
           </template>
         </div>
 
@@ -325,8 +371,12 @@
               <span class="transit-summary-value">{{ footerMinutes }}분</span>
             </div>
             <div v-if="footerFare > 0" class="transit-summary-item">
-              <span class="transit-summary-label">요금</span>
+              <span class="transit-summary-label">{{ footerFareLabel }}</span>
               <span class="transit-summary-value">{{ footerFare.toLocaleString() }}원</span>
+            </div>
+            <div v-if="footerTollFare > 0" class="transit-summary-item">
+              <span class="transit-summary-label">통행료</span>
+              <span class="transit-summary-value">{{ footerTollFare.toLocaleString() }}원</span>
             </div>
             <div v-if="footerDist" class="transit-summary-item">
               <span class="transit-summary-label">거리</span>
@@ -399,6 +449,24 @@ const currentDrivingOption = computed(() =>
   pillDrivingOptions[openPillKey.value]?.[selectedDrivingOptionIndex.value]
 )
 
+const ROAD_TYPE_LABEL = { 1: '고속도로', 2: '자동차전용', 3: '국도', 4: '지방도' }
+
+const currentDrivingSegments = computed(() => {
+  const json = currentDrivingOption.value?.routeSegmentsJson
+  if (!json) return []
+  try { return JSON.parse(json) } catch { return [] }
+})
+
+const currentWalkingResult = computed(() =>
+  pillResults[openPillKey.value]?.['WALKING']
+)
+
+const currentWalkingSegments = computed(() => {
+  const json = currentWalkingResult.value?.routeSegmentsJson
+  if (!json) return []
+  try { return JSON.parse(json) } catch { return [] }
+})
+
 const footerVisible = computed(() => {
   if (!openPillKey.value) return false
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return !!currentPublicPath.value
@@ -429,6 +497,17 @@ const footerFare = computed(() => {
   }
   return 0
 })
+
+const footerTollFare = computed(() => {
+  if (selectedModalMode.value !== 'DRIVING') return 0
+  return pillDrivingOptions[openPillKey.value]?.length > 0
+    ? (currentDrivingOption.value?.tollFare ?? 0)
+    : 0
+})
+
+const footerFareLabel = computed(() =>
+  selectedModalMode.value === 'DRIVING' ? '택시요금' : '요금'
+)
 
 const footerDist = computed(() => {
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return ''
@@ -831,7 +910,7 @@ function loadNaverMapScript() {
     if (existing) { existing.addEventListener('load', resolve); return }
     const script = document.createElement('script')
     script.id = 'naver-map-sdk'
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
     script.onload = resolve
     script.onerror = reject
     document.head.appendChild(script)
@@ -847,9 +926,15 @@ async function openMapPanel() {
   if (!activeTrip.value) { toast.show('일정을 먼저 선택하세요'); return }
   showMapPanel.value = true
   mapDay.value = days.value[0] || null
-  await nextTick()
   try {
     await loadNaverMapScript()
+  } catch {
+    toast.show('지도 초기화에 실패했어요')
+  }
+}
+
+async function onMapPanelEntered() {
+  try {
     await initNaverMap()
   } catch {
     toast.show('지도 초기화에 실패했어요')
@@ -973,7 +1058,11 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
-    if (showMapPanel.value && naverMapInstance) await drawDayRoute()
+    if (showMapPanel.value && mapDay.value) {
+      const updated = days.value.find(d => d.isoDate === mapDay.value.isoDate)
+      if (updated) mapDay.value = updated
+      if (naverMapInstance) await drawDayRoute()
+    }
   } catch {
     toast.show('일정 로드 실패')
   }

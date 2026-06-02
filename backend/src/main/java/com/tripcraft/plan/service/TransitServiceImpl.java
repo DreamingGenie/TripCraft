@@ -162,6 +162,8 @@ public class TransitServiceImpl implements TransitService {
         cache.setTotalDistanceM(best.result().totalDistanceM());
         cache.setTotalWalkM(best.result().totalWalkM());
         cache.setPathDetail(buildPathDetail(enriched));
+        String publicRouteCoords = extractPublicTransitCoords(best.result().pathDetail());
+        cache.setRouteCoords(publicRouteCoords);
 
         try {
             transitCacheMapper.insert(cache);
@@ -176,6 +178,7 @@ public class TransitServiceImpl implements TransitService {
                 .transferCount(best.result().transferCount())
                 .fare(best.result().fare())
                 .totalWalkM(best.result().totalWalkM())
+                .routeCoords(publicRouteCoords)
                 .build());
     }
 
@@ -221,6 +224,11 @@ public class TransitServiceImpl implements TransitService {
             log.warn("TMap 캐시 저장 실패: {}", e.getMessage());
         }
 
+        String walkRoadSummary = buildRoadSummary(result.segments());
+        String walkSegJson;
+        try { walkSegJson = objectMapper.writeValueAsString(result.segments()); }
+        catch (Exception e) { walkSegJson = "[]"; }
+
         return Optional.of(TransitResponse.builder()
                 .durationMinutes(result.durationMinutes())
                 .transportMode(resolvedMode)
@@ -230,6 +238,8 @@ public class TransitServiceImpl implements TransitService {
                 .totalDistanceM(result.totalDistanceM())
                 .taxiFare(result.taxiFare())
                 .routeCoords(result.routeCoords())
+                .roadSummary(walkRoadSummary)
+                .routeSegmentsJson(walkSegJson)
                 .build());
     }
 
@@ -338,6 +348,28 @@ public class TransitServiceImpl implements TransitService {
         }
     }
 
+    private String extractPublicTransitCoords(String pathDetail) {
+        try {
+            JsonNode path = objectMapper.readTree(pathDetail);
+            JsonNode subPaths = path.path("subPath");
+            List<double[]> coords = new ArrayList<>();
+            for (int i = 0; i < subPaths.size(); i++) {
+                JsonNode sub = subPaths.get(i);
+                double startX = sub.path("startX").asDouble(0);
+                double startY = sub.path("startY").asDouble(0);
+                double endX   = sub.path("endX").asDouble(0);
+                double endY   = sub.path("endY").asDouble(0);
+                if (startX == 0 || startY == 0) continue;
+                if (coords.isEmpty()) coords.add(new double[]{startX, startY});
+                if (endX != 0 && endY != 0) coords.add(new double[]{endX, endY});
+            }
+            return coords.size() >= 2 ? objectMapper.writeValueAsString(coords) : null;
+        } catch (Exception e) {
+            log.warn("PUBLIC_TRANSIT routeCoords 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private String buildPathDetail(List<RouteEnrichment> enriched) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
@@ -387,17 +419,54 @@ public class TransitServiceImpl implements TransitService {
         for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
             TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], departureHour);
             if (result != null && result.durationMinutes() > 0) {
+                String roadSummary = buildRoadSummary(result.segments());
+                String segJson;
+                try { segJson = objectMapper.writeValueAsString(result.segments()); }
+                catch (Exception e) { segJson = "[]"; }
                 results.add(TransitResponse.builder()
                         .durationMinutes(result.durationMinutes())
                         .transportMode(MODE_DRIVING)
                         .taxiFare(result.taxiFare())
+                        .tollFare(result.tollFare())
                         .totalDistanceM(result.totalDistanceM())
-                        .roadSummary(result.roadSummary())
+                        .roadSummary(roadSummary)
+                        .routeSegmentsJson(segJson)
                         .label(DRIVING_LABELS[i])
                         .build());
             }
         }
         return results;
+    }
+
+    private String buildRoadSummary(List<TMapClient.RouteSegment> segments) {
+        java.util.Comparator<TMapClient.RouteSegment> byDistDesc =
+                java.util.Comparator.comparingInt(TMapClient.RouteSegment::distanceM).reversed();
+
+        List<String> selected = new ArrayList<>();
+        segments.stream()
+                .filter(s -> s.roadType() == 1)
+                .sorted(byDistDesc)
+                .limit(4)
+                .map(TMapClient.RouteSegment::name)
+                .forEach(selected::add);
+
+        if (selected.size() < 4) {
+            java.util.Set<String> already = new java.util.HashSet<>(selected);
+            segments.stream()
+                    .filter(s -> s.roadType() != 1)
+                    .sorted(byDistDesc)
+                    .map(TMapClient.RouteSegment::name)
+                    .filter(already::add)
+                    .limit(4 - selected.size())
+                    .forEach(selected::add);
+        }
+
+        java.util.Set<String> selectedSet = new java.util.HashSet<>(selected);
+        return segments.stream()
+                .filter(s -> selectedSet.contains(s.name()))
+                .map(TMapClient.RouteSegment::name)
+                .distinct()
+                .collect(java.util.stream.Collectors.joining(" → "));
     }
 
     private record RouteEnrichment(
