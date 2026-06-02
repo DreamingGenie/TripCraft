@@ -420,19 +420,129 @@
 
 /* ── 댓글 ── */
 .comment-section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 댓글 헤더 타이틀 */
+.comment-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  padding: 0 4px;
+}
+.comment-count {
+  color: var(--gray-muted);
+  font-weight: 400;
+}
+
+/* 댓글 목록 박스 */
+.comment-list {
   background: var(--bg-surface);
   border: 1px solid var(--gray-border);
   border-radius: var(--radius-xl);
-  padding: 22px 28px;
+  overflow: hidden;
 }
-.comment-title {
+
+/* 댓글 단건 */
+.comment-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-border);
+}
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+/* 댓글 헤더 행: 아바타 + 닉네임 + 시간 + 삭제 */
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.comment-author {
   font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  flex: 1;
 }
-.comment-count { color: var(--gray-muted); font-weight: 400; }
+.comment-date {
+  font-size: 12px;
+  color: var(--gray-muted);
+}
+.comment-delete {
+  font-size: 12px;
+  color: var(--gray-muted);
+  background: none;
+  border: 1px solid var(--gray-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.comment-delete:hover {
+  color: var(--danger, #e53e3e);
+  border-color: var(--danger, #e53e3e);
+}
+
+/* 댓글 본문 */
+.comment-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding-left: 36px; /* 아바타 너비(28px) + gap(8px) */
+  margin: 0;
+}
+
+/* 댓글 없음 */
+.comment-empty {
+  font-size: 13px;
+  color: var(--gray-muted);
+  padding: 20px;
+  text-align: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+}
+
+/* 댓글 작성 폼 박스 */
+.comment-form {
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-xl);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.comment-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  line-height: 1.5;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.comment-input:focus {
+  outline: none;
+  border-color: var(--purple-900);
+}
+.comment-input::placeholder {
+  color: var(--gray-muted);
+}
+.comment-submit {
+  align-self: flex-end;
+}
 
 /* ================================================================
    글쓰기 모달
@@ -542,6 +652,82 @@
   padding: 16px 26px;
   border-top: 1px solid var(--gray-border);
 }
+
+/* ── 일정 카드 ── */
+.trip-card {
+  margin: 20px 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-left: 3px solid var(--purple-900);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.trip-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  gap: 12px;
+}
+.trip-card-header:hover { background: var(--purple-50); }
+.trip-card-left { display: flex; align-items: center; gap: 12px; }
+.trip-card-icon { font-size: 20px; flex-shrink: 0; }
+.trip-card-info { display: flex; flex-direction: column; gap: 3px; }
+.trip-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.trip-card-meta { font-size: 12px; color: var(--gray-dark); }
+.trip-card-toggle { font-size: 11px; color: var(--purple-900); white-space: nowrap; flex-shrink: 0; }
+
+/* 펼쳐진 일정 */
+.trip-summary { border-top: 1px solid var(--gray-border); padding: 12px 16px; }
+.trip-summary-loading { font-size: 12px; color: var(--gray-dark); text-align: center; padding: 8px 0; }
+.trip-day { margin-bottom: 12px; }
+.trip-day:last-child { margin-bottom: 0; }
+.trip-day-label { font-size: 12px; font-weight: 600; color: var(--purple-900); margin-bottom: 6px; }
+.trip-day-empty { font-size: 12px; color: var(--gray-dark); padding-left: 8px; }
+.trip-day-blocks { display: flex; flex-direction: column; gap: 4px; }
+.trip-block-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--bg-page);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.trip-block-time { color: var(--gray-dark); min-width: 36px; }
+.trip-block-name { flex: 1; color: var(--text-primary); font-weight: 500; }
+.trip-block-duration { color: var(--gray-dark); }
+
+/* ── 확인 팝업 ── */
+.confirm-modal-box {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px 24px;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,.16);
+}
+.confirm-icon { font-size: 32px; margin-bottom: 12px; }
+.confirm-msg { font-size: 14px; line-height: 1.7; color: var(--text-primary); margin-bottom: 20px; }
+.confirm-msg strong { color: var(--text-primary); }
+.confirm-actions { display: flex; justify-content: center; gap: 10px; }
+.btn-danger {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 8px 20px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity .12s;
+}
+.btn-danger:hover { opacity: .88; }
+
+/* ── 글쓰기 모달 선택 옵션 레이블 ── */
+.field-optional { font-weight: 400; color: var(--gray-dark); margin-left: 4px; }
 
 /* ── 좁은 화면 ── */
 @media (max-width: 640px) {

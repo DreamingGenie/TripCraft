@@ -30,6 +30,7 @@
       <span class="toolbar-spacer"></span>
 
       <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
+      <button v-if="activeTrip" class="btn-share-trip" @click="shareToComm">📢 공유하기</button>
       <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
     </div>
 
@@ -397,11 +398,13 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted, onUnmounted, nextTick, inject } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOptions } from '@/api/transit'
 
 const toast = useToastStore()
+const router = useRouter()
 const openScheduleModal = inject('openScheduleModal')
 const wrapperEl = ref(null)
 const mapEl = ref(null)
@@ -912,6 +915,11 @@ function loadNaverMapScript() {
     script.onerror = reject
     document.head.appendChild(script)
   })
+}
+
+function shareToComm() {
+  if (!activeTrip.value) return
+  router.push({ path: '/community', query: { shareTrip: activeTrip.value.id } })
 }
 
 async function openMapPanel() {

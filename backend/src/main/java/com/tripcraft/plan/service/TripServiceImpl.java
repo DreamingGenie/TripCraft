@@ -11,6 +11,7 @@ import com.tripcraft.plan.dto.BlockItem;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateItem;
 import com.tripcraft.plan.dto.TransitResponse;
+import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
@@ -25,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -241,6 +244,29 @@ public class TripServiceImpl implements TripService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
         tripMapper.updateDefaultTransitMode(tripId, mode);
+    }
+
+    @Override
+    public TripBlockSummaryResponse getBlocksSummary(Long tripId) {
+        if (!tripMapper.existsPostByTripId(tripId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공유되지 않은 일정입니다.");
+        }
+
+        List<TripBlockSummaryResponse.BlockRow> rows = tripMapper.findBlocksSummary(tripId);
+
+        // 날짜 순서 유지하며 그룹핑 후 응답 DTO로 변환
+        LinkedHashMap<LocalDate, List<TripBlockSummaryResponse.BlockItem>> grouped = new LinkedHashMap<>();
+        for (TripBlockSummaryResponse.BlockRow row : rows) {
+            grouped.computeIfAbsent(row.getTripDate(), k -> new ArrayList<>())
+                   .add(new TripBlockSummaryResponse.BlockItem(
+                           row.getAttractionName(), row.getStartTime(), row.getDurationMinutes()));
+        }
+
+        List<TripBlockSummaryResponse.DaySummary> days = grouped.entrySet().stream()
+            .map(e -> new TripBlockSummaryResponse.DaySummary(e.getKey(), e.getValue()))
+            .toList();
+
+        return new TripBlockSummaryResponse(days);
     }
 
     private void recalculateTransitForDate(Long tripId, LocalDate date) {

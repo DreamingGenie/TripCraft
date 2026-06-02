@@ -1,6 +1,7 @@
 package com.tripcraft.plan.mapper;
 
 import com.tripcraft.plan.domain.Trip;
+import com.tripcraft.plan.dto.TripBlockSummaryResponse.BlockRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -15,6 +16,8 @@ public interface TripMapper {
     List<Trip> findByMemberId(Long memberId);
 
     boolean existsPostByTripId(Long tripId);
+
+    List<BlockRow> findBlocksSummary(Long tripId);
 
     void insert(Trip trip);
 
