@@ -1,14 +1,19 @@
 -- =============================================
--- TripCraft Schema DDL v0.2
+-- TripCraft Schema DDL v0.3
 -- 기준: 요구사항 명세 v0.1 / 기획서 v0.2
 -- v0.2 변경: transit_cache ODsay 응답 전체 저장 구조로 재설계,
 --            trip_block에 transit 표시 컬럼(transit_duration_minutes, transit_mode) 추가
+-- v0.3 변경: 이동수단 모드 확장 (PUBLIC_TRANSIT / DRIVING / WALKING)
+--            trip에 default_transit_mode 추가
+--            transit_cache에 request_mode·taxi_fare·route_coords 추가,
+--            UNIQUE KEY에 request_mode 포함 (모드별 독립 캐시)
 -- =============================================
 -- 결정 사항 요약
 --   - member: 하드 딜리트. 탈퇴 시 앱 레이어에서 trip_block → trip_candidate → trip 순서대로 삭제 후 member 삭제
 --   - attraction: TourAPI 필드 그대로 저장. api_modified_at 기반 증분 배치 동기화
---   - transit_cache: (from, to, departure_hour) 키. ODsay 응답(fare/transfer_count/distance/walk) 전체 저장
+--   - transit_cache: (from, to, departure_hour, request_mode) 키. ODsay·T Map 응답 모드별 캐시
 --   - trip_block: transit_duration_minutes/transit_mode 비정규화 저장 (블록 배치 시 자동 계산)
+--   - trip: default_transit_mode로 신규 블록 배치 시 기본 이동수단 결정
 --   - post: 작성자·일정 삭제 시 SET NULL (탈퇴한 사용자 표시, 게시글 보존)
 --   - notice: 관리자 계정 삭제 시 SET NULL (공지 보존)
 --   - trip_block → trip_candidate: RESTRICT (모달 확인 후 삭제 UX)
@@ -188,15 +193,17 @@ CREATE TABLE favorite (
 -- 5. 여행 일정 (trip)
 -- ---------------------------------------------
 CREATE TABLE trip (
-    id           BIGINT      NOT NULL AUTO_INCREMENT,
-    member_id    BIGINT      NOT NULL COMMENT '소유 회원 FK',
-    title        VARCHAR(30) NOT NULL COMMENT '여행 제목 (최대 30자)',
-    start_date   DATE        NOT NULL COMMENT '출발일',
-    end_date     DATE        NOT NULL COMMENT '귀환일',
-    member_count TINYINT     NOT NULL DEFAULT 1  COMMENT '여행 인원',
-    is_public    TINYINT(1)  NOT NULL DEFAULT 0  COMMENT '커뮤니티 공유 여부 (0:비공개 1:공개)',
-    created_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at   TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id                    BIGINT      NOT NULL AUTO_INCREMENT,
+    member_id             BIGINT      NOT NULL COMMENT '소유 회원 FK',
+    title                 VARCHAR(30) NOT NULL COMMENT '여행 제목 (최대 30자)',
+    start_date            DATE        NOT NULL COMMENT '출발일',
+    end_date              DATE        NOT NULL COMMENT '귀환일',
+    member_count          TINYINT     NOT NULL DEFAULT 1  COMMENT '여행 인원',
+    default_transit_mode  VARCHAR(20) NOT NULL DEFAULT 'PUBLIC_TRANSIT'
+                                               COMMENT '신규 블록 배치 시 기본 이동수단 (PUBLIC_TRANSIT·DRIVING·WALKING)',
+    is_public             TINYINT(1)  NOT NULL DEFAULT 0  COMMENT '커뮤니티 공유 여부 (0:비공개 1:공개)',
+    created_at            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     INDEX idx_trip_member (member_id),
     FOREIGN KEY fk_trip_member (member_id) REFERENCES member(id) ON DELETE CASCADE
@@ -294,22 +301,26 @@ DELIMITER ;
 -- ---------------------------------------------
 CREATE TABLE transit_cache (
     id                 BIGINT       NOT NULL AUTO_INCREMENT,
-    from_attraction_id BIGINT       NOT NULL COMMENT '출발지 FK (ODsay 요청 파라미터)',
-    to_attraction_id   BIGINT       NOT NULL COMMENT '도착지 FK (ODsay 요청 파라미터)',
-    departure_hour     TINYINT      NOT NULL COMMENT '출발 시(0~23) (ODsay 요청 파라미터)',
-    duration_minutes   SMALLINT     NOT NULL COMMENT '소요 시간(분) — ODsay info.totalTime',
-    transport_mode     VARCHAR(100) NOT NULL COMMENT '이동 수단 목록 (순서대로 콤마 구분, 예: EXPRESSBUS,RAIL) — subPath 분석',
-    transfer_count     TINYINT UNSIGNED NULL  COMMENT '환승 횟수 — ODsay info.busTransitCount + subwayTransitCount',
+    from_attraction_id BIGINT       NOT NULL COMMENT '출발지 FK',
+    to_attraction_id   BIGINT       NOT NULL COMMENT '도착지 FK',
+    departure_hour     TINYINT      NOT NULL COMMENT '출발 시(0~23)',
+    request_mode       VARCHAR(20)  NOT NULL DEFAULT 'PUBLIC_TRANSIT'
+                                            COMMENT '요청 이동수단 모드 (PUBLIC_TRANSIT·DRIVING·WALKING)',
+    duration_minutes   SMALLINT     NOT NULL COMMENT '소요 시간(분)',
+    transport_mode     VARCHAR(100) NOT NULL COMMENT '실제 이동 수단 목록 (콤마 구분, 예: EXPRESSBUS,RAIL·CAR·WALK)',
+    transfer_count     TINYINT UNSIGNED NULL  COMMENT '환승 횟수 (대중교통만)',
     fare               INT UNSIGNED NULL      COMMENT '요금(원) — ODsay info.payment',
-    total_distance_m   INT UNSIGNED NULL      COMMENT '총 이동 거리(m) — ODsay info.totalDistance',
-    total_walk_m       INT UNSIGNED NULL      COMMENT '도보 거리(m) — ODsay info.totalWalk',
-    path_detail        JSON         NULL      COMMENT 'ODsay path[0] 전체 JSON (subPath 포함)',
+    taxi_fare          INT UNSIGNED NULL      COMMENT '택시 예상 요금(원) — T Map taxiFare (DRIVING 모드)',
+    total_distance_m   INT UNSIGNED NULL      COMMENT '총 이동 거리(m)',
+    total_walk_m       INT UNSIGNED NULL      COMMENT '도보 거리(m) (대중교통만)',
+    path_detail        JSON         NULL      COMMENT 'ODsay path[0] 전체 JSON (대중교통 subPath 포함)',
+    route_coords       MEDIUMTEXT   NULL      COMMENT '경로 좌표 JSON ([lng,lat] 배열) — T Map GeoJSON LineString (DRIVING·WALKING)',
     cached_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour),
+    UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour, request_mode),
     FOREIGN KEY fk_transit_from (from_attraction_id) REFERENCES attraction(id) ON DELETE CASCADE,
     FOREIGN KEY fk_transit_to   (to_attraction_id)   REFERENCES attraction(id) ON DELETE CASCADE
-) COMMENT='ODsay 대중교통 API 응답 캐시. (from, to, departure_hour) 키. 일일 1,000건 한도 절약 목적'
+) COMMENT='이동 시간 API 응답 캐시 (ODsay 대중교통·T Map 자동차·도보). (from, to, hour, mode) 키'
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------

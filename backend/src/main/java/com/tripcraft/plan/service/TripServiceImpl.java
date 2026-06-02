@@ -101,7 +101,8 @@ public class TripServiceImpl implements TripService {
         }).toList();
 
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
-            trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(), candidateItems);
+            trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),
+            trip.getDefaultTransitMode(), candidateItems);
     }
 
     @Override
@@ -114,6 +115,7 @@ public class TripServiceImpl implements TripService {
         trip.setEndDate(req.getEndDate());
         trip.setMemberCount(req.getMemberCount() != null ? req.getMemberCount() : 1);
         trip.setIsPublic(false);
+        trip.setDefaultTransitMode(req.getDefaultTransitMode() != null ? req.getDefaultTransitMode() : "PUBLIC_TRANSIT");
         tripMapper.insert(trip);
         return trip.getId();
     }
@@ -201,10 +203,17 @@ public class TripServiceImpl implements TripService {
         block.setStartTime(req.getStartTime());
         block.setDurationMinutes(req.getDurationMinutes());
         block.setDisplayOrder(req.getDisplayOrder());
-        blockMapper.update(block);
-        recalculateTransitForDate(tripId, req.getTripDate());
-        if (!oldDate.equals(req.getTripDate())) {
-            recalculateTransitForDate(tripId, oldDate);
+
+        if (req.getTransitMode() != null) {
+            block.setTransitMode(req.getTransitMode());
+            block.setTransitDurationMinutes(req.getTransitDurationMinutes());
+            blockMapper.update(block);
+        } else {
+            blockMapper.update(block);
+            recalculateTransitForDate(tripId, req.getTripDate());
+            if (!oldDate.equals(req.getTripDate())) {
+                recalculateTransitForDate(tripId, oldDate);
+            }
         }
     }
 
@@ -223,7 +232,22 @@ public class TripServiceImpl implements TripService {
         recalculateTransitForDate(tripId, date);
     }
 
+    @Override
+    @Transactional
+    public void updateDefaultTransitMode(Long tripId, String mode, Long memberId) {
+        Trip trip = tripMapper.findById(tripId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!trip.getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        tripMapper.updateDefaultTransitMode(tripId, mode);
+    }
+
     private void recalculateTransitForDate(Long tripId, LocalDate date) {
+        Trip trip = tripMapper.findById(tripId).orElse(null);
+        String transitMode = (trip != null && trip.getDefaultTransitMode() != null)
+                ? trip.getDefaultTransitMode() : "PUBLIC_TRANSIT";
+
         List<TripBlock> blocks;
         try {
             blocks = blockMapper.findByTripIdAndDate(tripId, date);
@@ -246,11 +270,11 @@ public class TripServiceImpl implements TripService {
                     if (fromCand.isPresent() && toCand.isPresent()) {
                         long fromAttrId = fromCand.get().getAttractionId();
                         long toAttrId   = toCand.get().getAttractionId();
-                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9);
+                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, transitMode);
                         block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
                         block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
-                        log.debug("Transit 계산: from={} to={} → {}분 ({})",
-                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode());
+                        log.debug("Transit 계산: from={} to={} → {}분 ({}) mode={}",
+                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode(), transitMode);
                     } else {
                         block.setTransitDurationMinutes(null);
                         block.setTransitMode(null);

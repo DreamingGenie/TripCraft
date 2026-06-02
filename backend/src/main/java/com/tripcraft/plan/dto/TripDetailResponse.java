@@ -15,5 +15,6 @@ public class TripDetailResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer memberCount;
+    private String defaultTransitMode;
     private List<CandidateItem> candidates;
 }

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tripcraft.attraction.domain.Attraction;
 import com.tripcraft.attraction.mapper.AttractionMapper;
 import com.tripcraft.plan.client.OdsayClient;
+import com.tripcraft.plan.client.TMapClient;
 import com.tripcraft.plan.domain.TransitCache;
 import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.mapper.TransitCacheMapper;
@@ -30,19 +31,38 @@ public class TransitServiceImpl implements TransitService {
     private final TripBlockMapper tripBlockMapper;
     private final AttractionMapper attractionMapper;
     private final OdsayClient odsayClient;
+    private final TMapClient tMapClient;
     private final ObjectMapper objectMapper;
 
+    private static final String MODE_PUBLIC_TRANSIT = "PUBLIC_TRANSIT";
+    private static final String MODE_DRIVING = "DRIVING";
+    private static final String MODE_WALKING = "WALKING";
+
     @Override
-    public Optional<TransitResponse> getTransitTime(Long fromId, Long toId, int departureHour) {
-        Optional<TransitCache> cached = transitCacheMapper.findByKey(fromId, toId, departureHour);
+    public Optional<TransitResponse> getTransitTime(Long fromId, Long toId, int departureHour, String mode) {
+        String resolvedMode = (mode == null || mode.isBlank()) ? MODE_PUBLIC_TRANSIT : mode;
+
+        Optional<TransitCache> cached = transitCacheMapper.findByKey(fromId, toId, departureHour, resolvedMode);
         if (cached.isPresent()) {
             TransitCache c = cached.get();
             if ("NONE".equals(c.getTransportMode())) {
-                return Optional.of(new TransitResponse(null, "NONE", 0, 0, 0));
+                return Optional.of(TransitResponse.builder()
+                        .transportMode("NONE")
+                        .transferCount(0)
+                        .fare(0)
+                        .totalWalkM(0)
+                        .build());
             }
-            return Optional.of(new TransitResponse(
-                    c.getDurationMinutes(), c.getTransportMode(),
-                    c.getTransferCount(), c.getFare(), c.getTotalWalkM()));
+            return Optional.of(TransitResponse.builder()
+                    .durationMinutes(c.getDurationMinutes())
+                    .transportMode(c.getTransportMode())
+                    .transferCount(c.getTransferCount())
+                    .fare(c.getFare())
+                    .totalWalkM(c.getTotalWalkM())
+                    .totalDistanceM(c.getTotalDistanceM())
+                    .taxiFare(c.getTaxiFare())
+                    .routeCoords(c.getRouteCoords())
+                    .build());
         }
 
         Attraction from = attractionMapper.findById(fromId).orElse(null);
@@ -56,14 +76,25 @@ public class TransitServiceImpl implements TransitService {
         BigDecimal fromLat = from.getLatitude(), fromLng = from.getLongitude();
         BigDecimal toLat   = to.getLatitude(),   toLng   = to.getLongitude();
 
-        // 1. 경로 검색 (도시내/도시간 모두 포함)
-        List<OdsayClient.OdsayResult> results = odsayClient.findTransitPath(fromLat, fromLng, toLat, toLng);
-        if (results.isEmpty()) {
-            saveNoneCache(fromId, toId, departureHour);
-            return Optional.of(new TransitResponse(null, "NONE", 0, 0, 0));
+        if (MODE_DRIVING.equals(resolvedMode)) {
+            return fetchAndCacheTMapRoute(fromId, toId, departureHour, fromLat, fromLng, toLat, toLng, true);
+        }
+        if (MODE_WALKING.equals(resolvedMode)) {
+            return fetchAndCacheTMapRoute(fromId, toId, departureHour, fromLat, fromLng, toLat, toLng, false);
         }
 
-            // 2. 경로별 로컬 구간 독립 계산
+        // PUBLIC_TRANSIT: 기존 ODsay 로직
+        List<OdsayClient.OdsayResult> results = odsayClient.findTransitPath(fromLat, fromLng, toLat, toLng);
+        if (results.isEmpty()) {
+            saveNoneCache(fromId, toId, departureHour, resolvedMode);
+            return Optional.of(TransitResponse.builder()
+                    .transportMode("NONE")
+                    .transferCount(0)
+                    .fare(0)
+                    .totalWalkM(0)
+                    .build());
+        }
+
         List<RouteEnrichment> enriched = new ArrayList<>();
         for (OdsayClient.OdsayResult r : results) {
             try {
@@ -107,8 +138,13 @@ public class TransitServiceImpl implements TransitService {
             }
         }
         if (enriched.isEmpty()) {
-            saveNoneCache(fromId, toId, departureHour);
-            return Optional.of(new TransitResponse(null, "NONE", 0, 0, 0));
+            saveNoneCache(fromId, toId, departureHour, resolvedMode);
+            return Optional.of(TransitResponse.builder()
+                    .transportMode("NONE")
+                    .transferCount(0)
+                    .fare(0)
+                    .totalWalkM(0)
+                    .build());
         }
 
         RouteEnrichment best = enriched.get(0);
@@ -118,6 +154,7 @@ public class TransitServiceImpl implements TransitService {
         cache.setFromAttractionId(fromId);
         cache.setToAttractionId(toId);
         cache.setDepartureHour(departureHour);
+        cache.setRequestMode(resolvedMode);
         cache.setDurationMinutes(totalMinutes);
         cache.setTransportMode(best.result().transportMode());
         cache.setTransferCount(best.result().transferCount());
@@ -133,14 +170,72 @@ public class TransitServiceImpl implements TransitService {
             log.warn("TransitCache 저장 실패: {}", e.getMessage());
         }
 
-        return Optional.of(new TransitResponse(
-                totalMinutes, best.result().transportMode(), best.result().transferCount(),
-                best.result().fare(), best.result().totalWalkM()));
+        return Optional.of(TransitResponse.builder()
+                .durationMinutes(totalMinutes)
+                .transportMode(best.result().transportMode())
+                .transferCount(best.result().transferCount())
+                .fare(best.result().fare())
+                .totalWalkM(best.result().totalWalkM())
+                .build());
+    }
+
+    private Optional<TransitResponse> fetchAndCacheTMapRoute(Long fromId, Long toId, int departureHour,
+                                                              BigDecimal fromLat, BigDecimal fromLng,
+                                                              BigDecimal toLat, BigDecimal toLng,
+                                                              boolean isTaxi) {
+        TMapClient.TMapDrivingResult result = isTaxi
+                ? tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, "00", departureHour)
+                : tMapClient.fetchWalkingRoute(fromLat, fromLng, toLat, toLng);
+
+        String resolvedMode = isTaxi ? MODE_DRIVING : MODE_WALKING;
+
+        if (result == null) {
+            saveNoneCache(fromId, toId, departureHour, resolvedMode);
+            return Optional.of(TransitResponse.builder()
+                    .transportMode("NONE")
+                    .transferCount(0)
+                    .fare(0)
+                    .totalWalkM(0)
+                    .build());
+        }
+
+        TransitCache cache = new TransitCache();
+        cache.setFromAttractionId(fromId);
+        cache.setToAttractionId(toId);
+        cache.setDepartureHour(departureHour);
+        cache.setRequestMode(resolvedMode);
+        cache.setDurationMinutes(result.durationMinutes());
+        cache.setTransportMode(resolvedMode);
+        cache.setTransferCount(0);
+        cache.setFare(0);
+        cache.setTotalDistanceM(result.totalDistanceM());
+        cache.setTotalWalkM(0);
+        cache.setPathDetail("{}");
+        cache.setTaxiFare(result.taxiFare());
+        cache.setRouteCoords(result.routeCoords());
+
+        try {
+            transitCacheMapper.insert(cache);
+            log.debug("TMap {}캐시 저장: total={}분, {}m, from={}, to={}", resolvedMode, result.durationMinutes(), result.totalDistanceM(), fromId, toId);
+        } catch (Exception e) {
+            log.warn("TMap 캐시 저장 실패: {}", e.getMessage());
+        }
+
+        return Optional.of(TransitResponse.builder()
+                .durationMinutes(result.durationMinutes())
+                .transportMode(resolvedMode)
+                .transferCount(0)
+                .fare(0)
+                .totalWalkM(0)
+                .totalDistanceM(result.totalDistanceM())
+                .taxiFare(result.taxiFare())
+                .routeCoords(result.routeCoords())
+                .build());
     }
 
     @Override
     public Optional<TransitResponse> selectPath(Long fromId, Long toId, int departureHour, int pathIndex) {
-        Optional<TransitCache> cachedOpt = transitCacheMapper.findByKey(fromId, toId, departureHour);
+        Optional<TransitCache> cachedOpt = transitCacheMapper.findByKey(fromId, toId, departureHour, MODE_PUBLIC_TRANSIT);
         if (cachedOpt.isEmpty()) return Optional.empty();
         TransitCache cached = cachedOpt.get();
         try {
@@ -180,7 +275,13 @@ public class TransitServiceImpl implements TransitService {
             log.debug("경로 선택 저장: pathIndex={}, total={}분, mode={}, from={}, to={}",
                     pathIndex, totalMinutes, transportMode, fromId, toId);
 
-            return Optional.of(new TransitResponse(totalMinutes, transportMode, transferCount, fare, totalWalkM));
+            return Optional.of(TransitResponse.builder()
+                    .durationMinutes(totalMinutes)
+                    .transportMode(transportMode)
+                    .transferCount(transferCount)
+                    .fare(fare)
+                    .totalWalkM(totalWalkM)
+                    .build());
         } catch (Exception e) {
             log.warn("경로 선택 실패 from={}, to={}: {}", fromId, toId, e.getMessage());
             return Optional.empty();
@@ -205,7 +306,7 @@ public class TransitServiceImpl implements TransitService {
 
     @Override
     public Optional<JsonNode> getPathDetail(Long fromAttractionId, Long toAttractionId, int departureHour) {
-        return transitCacheMapper.findByKey(fromAttractionId, toAttractionId, departureHour)
+        return transitCacheMapper.findByKey(fromAttractionId, toAttractionId, departureHour, MODE_PUBLIC_TRANSIT)
                 .map(c -> {
                     try {
                         return objectMapper.readTree(c.getPathDetail());
@@ -216,11 +317,12 @@ public class TransitServiceImpl implements TransitService {
                 });
     }
 
-    private void saveNoneCache(Long fromId, Long toId, int departureHour) {
+    private void saveNoneCache(Long fromId, Long toId, int departureHour, String requestMode) {
         TransitCache none = new TransitCache();
         none.setFromAttractionId(fromId);
         none.setToAttractionId(toId);
         none.setDepartureHour(departureHour);
+        none.setRequestMode(requestMode);
         none.setDurationMinutes(0);
         none.setTransportMode("NONE");
         none.setTransferCount(0);
@@ -230,7 +332,7 @@ public class TransitServiceImpl implements TransitService {
         none.setPathDetail("{}");
         try {
             transitCacheMapper.insert(none);
-            log.debug("NONE 캐시 저장: from={}, to={}", fromId, toId);
+            log.debug("NONE 캐시 저장: from={}, to={}, mode={}", fromId, toId, requestMode);
         } catch (Exception e) {
             log.warn("NONE 캐시 저장 실패: {}", e.getMessage());
         }
@@ -264,6 +366,38 @@ public class TransitServiceImpl implements TransitService {
             node.set("subPath", local.pathNode().path("subPath"));
         }
         return node;
+    }
+
+    private static final String[] DRIVING_LABELS = {"추천", "최단시간", "무료도로", "최소거리"};
+    private static final String[] DRIVING_SEARCH_OPTIONS = {"00", "02", "01", "10"};
+
+    @Override
+    public List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour) {
+        Attraction from = attractionMapper.findById(fromId).orElse(null);
+        Attraction to   = attractionMapper.findById(toId).orElse(null);
+        if (from == null || to == null
+                || from.getLatitude() == null || from.getLongitude() == null
+                || to.getLatitude() == null   || to.getLongitude() == null) {
+            return List.of();
+        }
+        BigDecimal fromLat = from.getLatitude(), fromLng = from.getLongitude();
+        BigDecimal toLat   = to.getLatitude(),   toLng   = to.getLongitude();
+
+        List<TransitResponse> results = new ArrayList<>();
+        for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
+            TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], departureHour);
+            if (result != null && result.durationMinutes() > 0) {
+                results.add(TransitResponse.builder()
+                        .durationMinutes(result.durationMinutes())
+                        .transportMode(MODE_DRIVING)
+                        .taxiFare(result.taxiFare())
+                        .totalDistanceM(result.totalDistanceM())
+                        .roadSummary(result.roadSummary())
+                        .label(DRIVING_LABELS[i])
+                        .build());
+            }
+        }
+        return results;
     }
 
     private record RouteEnrichment(

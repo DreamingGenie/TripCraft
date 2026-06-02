@@ -17,6 +17,7 @@ public class Trip {
     private LocalDate endDate;
     private Integer memberCount;
     private Boolean isPublic;
+    private String defaultTransitMode = "PUBLIC_TRANSIT";
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

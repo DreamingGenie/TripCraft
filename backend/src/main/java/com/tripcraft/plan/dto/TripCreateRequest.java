@@ -11,4 +11,5 @@ public class TripCreateRequest {
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer memberCount;
+    private String defaultTransitMode = "PUBLIC_TRANSIT";
 }
