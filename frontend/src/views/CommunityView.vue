@@ -12,7 +12,7 @@
                     class="sort-btn" :class="{ active: sort === s.value }"
                     @click="changeSort(s.value)">{{ s.label }}</button>
           </div>
-          <button class="btn-primary" @click="writeModal = true">✏ 글쓰기</button>
+          <button class="btn-primary" @click="openWriteModal">✏ 글쓰기</button>
         </div>
 
         <!-- 공지 배너 -->
@@ -70,10 +70,47 @@
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>
             </div>
             <div class="detail-actions" v-if="postDetail.mine">
-              <button class="btn-sm btn-danger" @click="deletePost">삭제</button>
+              <button class="btn-sm btn-danger" @click="deleteConfirm = true">삭제</button>
             </div>
           </div>
           <div class="detail-body" style="white-space:pre-wrap">{{ postDetail.content }}</div>
+
+          <!-- 연결된 일정 카드 -->
+          <div v-if="postDetail.tripId" class="trip-card">
+            <div class="trip-card-header" @click="toggleTripSummary">
+              <div class="trip-card-left">
+                <div class="trip-card-icon">🗓</div>
+                <div class="trip-card-info">
+                  <span class="trip-card-title">{{ postDetail.tripTitle }}</span>
+                  <span class="trip-card-meta">
+                    {{ postDetail.tripStartDate }} ~ {{ postDetail.tripEndDate }}
+                    · {{ postDetail.tripMemberCount }}명
+                  </span>
+                </div>
+              </div>
+              <span class="trip-card-toggle">{{ tripSummaryOpen ? '▲' : '▼' }} 일정 보기</span>
+            </div>
+
+            <!-- 펼쳐진 일정 -->
+            <div v-if="tripSummaryOpen" class="trip-summary">
+              <div v-if="tripSummaryLoading" class="trip-summary-loading">로딩 중...</div>
+              <template v-else-if="tripSummary">
+                <div v-for="day in tripSummary.days" :key="day.date" class="trip-day">
+                  <div class="trip-day-label">📅 {{ formatTripDate(day.date) }}</div>
+                  <div v-if="day.blocks.length" class="trip-day-blocks">
+                    <div v-for="(block, i) in day.blocks" :key="i" class="trip-block-item">
+                      <span class="trip-block-time">{{ block.startTime ? block.startTime.slice(0,5) : '--:--' }}</span>
+                      <span class="trip-block-name">{{ block.attractionName }}</span>
+                      <span class="trip-block-duration">{{ block.durationMinutes }}분</span>
+                    </div>
+                  </div>
+                  <div v-else class="trip-day-empty">일정 없음</div>
+                </div>
+              </template>
+              <div v-else class="trip-summary-loading">일정 정보를 불러올 수 없습니다.</div>
+            </div>
+          </div>
+
           <div class="like-section">
             <button class="like-btn" :class="{ liked: postDetail.liked }" @click="toggleLike">
               <span class="like-icon">♥</span> {{ postDetail.likeCount }}
@@ -118,6 +155,33 @@
   </div>
   </main>
 
+  <!-- 일정 공유 경고 팝업 -->
+  <div v-if="tripShareWarning" class="modal-overlay" @click.self="tripShareWarning = false">
+    <div class="confirm-modal-box">
+      <div class="confirm-icon">⚠️</div>
+      <p class="confirm-msg">이 일정을 공유하면 <strong>다른 사람들이 일정 내용(장소, 날짜 등)을 확인</strong>할 수 있습니다.<br>계속 진행하시겠습니까?</p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" @click="cancelTripSelect">취소</button>
+        <button class="btn-primary" @click="tripShareWarning = false">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 게시글 삭제 확인 팝업 -->
+  <div v-if="deleteConfirm" class="modal-overlay" @click.self="deleteConfirm = false">
+    <div class="confirm-modal-box">
+      <div class="confirm-icon">🗑</div>
+      <p class="confirm-msg">
+        게시글을 삭제하면 <strong>공유된 일정도 더 이상 확인할 수 없게 됩니다.</strong><br>
+        정말 삭제하시겠습니까?
+      </p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" @click="deleteConfirm = false">취소</button>
+        <button class="btn-danger" @click="confirmDeletePost">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 글쓰기 모달 -->
   <div v-if="writeModal" id="modal-write" class="modal-overlay" @click.self="writeModal = false">
     <div class="write-modal-box">
@@ -129,7 +193,14 @@
         <label class="field-label"><span class="required">*</span> 제목</label>
         <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
         <label class="field-label"><span class="required">*</span> 내용</label>
-        <textarea class="field-textarea" v-model="newPost.body" rows="10" placeholder="내용을 입력하세요"></textarea>
+        <textarea class="field-textarea" v-model="newPost.body" rows="8" placeholder="내용을 입력하세요" style="margin-bottom:16px"></textarea>
+        <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
+        <select class="field-input" v-model="newPost.tripId" @change="onTripSelect">
+          <option :value="null">연결 안 함</option>
+          <option v-for="t in myTrips" :key="t.id" :value="t.id">
+            {{ t.title }} ({{ t.startDate }} ~ {{ t.endDate }})
+          </option>
+        </select>
       </div>
       <div class="modal-footer">
         <button class="btn-ghost" @click="writeModal = false">취소</button>
@@ -141,10 +212,13 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { postApi, commentApi } from '@/api/post'
+import { tripApi } from '@/api/trip'
 
 const toast = useToastStore()
+const route = useRoute()
 
 const sort = ref('latest')
 const sorts = [{ label: '최신순', value: 'latest' }, { label: '인기순', value: 'popular' }]
@@ -160,7 +234,15 @@ const selectedPost = ref(null)
 const postDetail = ref(null)
 const writeModal = ref(false)
 const submitting = ref(false)
-const newPost = reactive({ title: '', body: '' })
+const newPost = reactive({ title: '', body: '', tripId: null })
+const myTrips = ref([])
+const tripShareWarning = ref(false)
+const deleteConfirm = ref(false)
+
+// 일정 요약 펼치기
+const tripSummaryOpen = ref(false)
+const tripSummaryLoading = ref(false)
+const tripSummary = ref(null)
 
 // 댓글
 const comments = ref([])
@@ -171,7 +253,8 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)
 
 function formatDate(dt) {
   if (!dt) return ''
-  const d = new Date(dt)
+  // LocalDateTime은 타임존 없이 직렬화되므로 UTC로 명시
+  const d = new Date(dt.includes('Z') || dt.includes('+') ? dt : dt + 'Z')
   const diff = Date.now() - d.getTime()
   if (diff < 60000) return '방금'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`
@@ -209,11 +292,35 @@ function goPage(p) {
   loadPosts()
 }
 
+async function toggleTripSummary() {
+  if (tripSummaryOpen.value) {
+    tripSummaryOpen.value = false
+    return
+  }
+  tripSummaryOpen.value = true
+  if (tripSummary.value) return
+  tripSummaryLoading.value = true
+  try {
+    tripSummary.value = await tripApi.getBlocksSummary(postDetail.value.tripId)
+  } catch {
+    tripSummary.value = null
+  } finally {
+    tripSummaryLoading.value = false
+  }
+}
+
+function formatTripDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`
+}
+
 async function openPost(post) {
   selectedPost.value = post
   postDetail.value = null
   comments.value = []
   newComment.value = ''
+  tripSummaryOpen.value = false
+  tripSummary.value = null
   try {
     // 게시글 상세와 댓글 목록을 병렬 조회
     ;[postDetail.value, comments.value] = await Promise.all([
@@ -261,7 +368,8 @@ async function toggleLike() {
   }
 }
 
-async function deletePost() {
+async function confirmDeletePost() {
+  deleteConfirm.value = false
   if (!postDetail.value) return
   try {
     await postApi.delete(postDetail.value.id)
@@ -274,6 +382,27 @@ async function deletePost() {
   }
 }
 
+function onTripSelect() {
+  if (newPost.tripId) tripShareWarning.value = true
+}
+
+function cancelTripSelect() {
+  newPost.tripId = null
+  tripShareWarning.value = false
+}
+
+async function openWriteModal() {
+  newPost.title = ''
+  newPost.body = ''
+  newPost.tripId = null
+  writeModal.value = true
+  try {
+    myTrips.value = await tripApi.list()
+  } catch {
+    myTrips.value = []
+  }
+}
+
 async function submitPost() {
   if (!newPost.title.trim() || !newPost.body.trim()) {
     toast.show('제목과 내용을 입력해주세요.')
@@ -281,8 +410,11 @@ async function submitPost() {
   }
   submitting.value = true
   try {
-    await postApi.create({ title: newPost.title, content: newPost.body })
+    const body = { title: newPost.title, content: newPost.body }
+    if (newPost.tripId) body.tripId = newPost.tripId
+    await postApi.create(body)
     newPost.title = newPost.body = ''
+    newPost.tripId = null
     writeModal.value = false
     toast.show('게시글이 등록됐어요.')
     page.value = 0
@@ -294,9 +426,17 @@ async function submitPost() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadPosts()
   loadNotices()
+  // 일정 페이지에서 "공유하기" 버튼으로 진입한 경우 모달 자동 오픈
+  if (route.query.shareTrip) {
+    await openWriteModal()
+    const tripId = Number(route.query.shareTrip)
+    if (myTrips.value.some(t => t.id === tripId)) {
+      newPost.tripId = tripId
+    }
+  }
 })
 </script>
 

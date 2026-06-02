@@ -2,6 +2,7 @@ package com.tripcraft.plan.service;
 
 import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
+import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
@@ -13,6 +14,8 @@ public interface TripService {
     List<TripSummary> getMyTrips(Long memberId);
 
     TripDetailResponse getTripDetail(Long tripId, Long memberId);
+
+    TripBlockSummaryResponse getBlocksSummary(Long tripId);
 
     Long createTrip(TripCreateRequest request, Long memberId);
 

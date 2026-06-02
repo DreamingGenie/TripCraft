@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -21,4 +22,11 @@ public class PostDetail {
     private LocalDateTime createdAt;
     private boolean liked;
     private boolean mine;
+
+    // 연결된 일정 요약 (trip_id가 없으면 null)
+    private Long tripId;
+    private String tripTitle;
+    private LocalDate tripStartDate;
+    private LocalDate tripEndDate;
+    private Integer tripMemberCount;
 }
