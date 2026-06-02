@@ -1051,18 +1051,19 @@
   flex-shrink: 0;
 }
 .transit-mode-tab {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 2px; padding: 6px 12px;
+  display: flex; flex-direction: row; align-items: center;
+  gap: 5px; padding: 6px 14px;
   border: 1px solid #e0e0e0; border-radius: 8px;
   background: #fafafa; cursor: pointer;
   white-space: nowrap; color: #666; font-family: inherit;
-  transition: all .15s;
+  transition: all .15s; flex-shrink: 0;
 }
 .transit-mode-tab.active { border-color: #534AB7; background: #f0eeff; color: #534AB7; }
 .transit-mode-tab:hover:not(.active) { background: #f5f5f5; }
-.transit-tab-icon { font-size: 1.1rem; }
+.transit-tab-icon { font-size: 1rem; }
 .transit-tab-label { font-size: 12px; font-weight: 600; }
-.transit-tab-time { font-size: 11px; }
+.transit-tab-time { font-size: 11px; color: #534AB7; }
+.transit-mode-tab:not(.active) .transit-tab-time { color: #888; }
 .transit-tab-spinner {
   width: 8px; height: 8px;
   border: 1.5px solid currentColor;
@@ -1108,7 +1109,8 @@
   gap: 10px; padding: 8px 10px; border-radius: 8px;
   background: #f8f8f8;
 }
-.transit-step--walk   { background: #f5f5f5; }
+.transit-step--walk          { background: #f5f5f5; }
+.transit-step--drive-summary { background: #f0eeff; }
 .transit-step--subway { background: #eef3ff; }
 .transit-step--bus    { background: #fff8ec; }
 .transit-step--rail   { background: #f0faf4; }
@@ -1150,10 +1152,3 @@
 }
 .transit-save-btn:hover { background: #4339a0; }
 
-.transit-road-summary {
-  display: flex; align-items: flex-start; gap: 6px;
-  margin-top: 10px; padding: 8px 10px;
-  background: #f8f8f8; border-radius: 8px;
-  font-size: 12px; color: #555; line-height: 1.5;
-}
-.transit-road-summary-icon { flex-shrink: 0; font-size: 14px; }
