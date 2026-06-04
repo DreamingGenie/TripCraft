@@ -9,6 +9,7 @@ import './assets/css/auth.css'
 import './assets/css/explore.css'
 import './assets/css/schedule.css'
 import './assets/css/community.css'
+import './assets/css/calendar.css'
 
 const app = createApp(App)
 app.use(createPinia())

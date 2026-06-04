@@ -11,6 +11,11 @@ const routes = [
     component: () => import('@/views/ScheduleView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/calendar',
+    component: () => import('@/views/CalendarView.vue'),
+    meta: { requiresAuth: true },
+  },
   { path: '/community', component: () => import('@/views/CommunityView.vue') },
   {
     path: '/admin',
