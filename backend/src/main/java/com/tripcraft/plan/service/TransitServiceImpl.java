@@ -402,9 +402,19 @@ public class TransitServiceImpl implements TransitService {
 
     private static final String[] DRIVING_LABELS = {"추천", "최단시간", "무료도로", "최소거리"};
     private static final String[] DRIVING_SEARCH_OPTIONS = {"00", "02", "01", "10"};
+    private static final String[] DRIVING_REQUEST_MODES = {"DRIVING_00", "DRIVING_02", "DRIVING_01", "DRIVING_10"};
 
     @Override
     public List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour) {
+        // 캐시 확인
+        List<TransitResponse> cached = new ArrayList<>();
+        for (int i = 0; i < DRIVING_REQUEST_MODES.length; i++) {
+            Optional<TransitCache> c = transitCacheMapper.findByKey(fromId, toId, departureHour, DRIVING_REQUEST_MODES[i]);
+            if (c.isEmpty()) { cached = null; break; }
+            cached.add(buildDrivingResponseFromCache(c.get()));
+        }
+        if (cached != null) return cached;
+
         Attraction from = attractionMapper.findById(fromId).orElse(null);
         Attraction to   = attractionMapper.findById(toId).orElse(null);
         if (from == null || to == null
@@ -423,6 +433,32 @@ public class TransitServiceImpl implements TransitService {
                 String segJson;
                 try { segJson = objectMapper.writeValueAsString(result.segments()); }
                 catch (Exception e) { segJson = "[]"; }
+
+                ObjectNode detail = objectMapper.createObjectNode();
+                detail.put("tollFare", result.tollFare());
+                detail.put("roadSummary", roadSummary);
+                detail.put("label", DRIVING_LABELS[i]);
+                try { detail.set("segments", objectMapper.readTree(segJson)); }
+                catch (Exception ignored) {}
+
+                TransitCache cache = new TransitCache();
+                cache.setFromAttractionId(fromId);
+                cache.setToAttractionId(toId);
+                cache.setDepartureHour(departureHour);
+                cache.setRequestMode(DRIVING_REQUEST_MODES[i]);
+                cache.setDurationMinutes(result.durationMinutes());
+                cache.setTransportMode(MODE_DRIVING);
+                cache.setTransferCount(0);
+                cache.setFare(0);
+                cache.setTotalDistanceM(result.totalDistanceM());
+                cache.setTotalWalkM(0);
+                cache.setTaxiFare(result.taxiFare());
+                cache.setRouteCoords(result.routeCoords());
+                try { cache.setPathDetail(objectMapper.writeValueAsString(detail)); }
+                catch (Exception e) { cache.setPathDetail("{}"); }
+                try { transitCacheMapper.insert(cache); }
+                catch (Exception e) { log.warn("DRIVING 옵션 캐시 저장 실패 ({}): {}", DRIVING_REQUEST_MODES[i], e.getMessage()); }
+
                 results.add(TransitResponse.builder()
                         .durationMinutes(result.durationMinutes())
                         .transportMode(MODE_DRIVING)
@@ -436,6 +472,33 @@ public class TransitServiceImpl implements TransitService {
             }
         }
         return results;
+    }
+
+    private TransitResponse buildDrivingResponseFromCache(TransitCache c) {
+        String roadSummary = "";
+        String segJson = "[]";
+        int tollFare = 0;
+        String label = "";
+        try {
+            JsonNode detail = objectMapper.readTree(c.getPathDetail());
+            tollFare = detail.path("tollFare").asInt(0);
+            roadSummary = detail.path("roadSummary").asText("");
+            label = detail.path("label").asText("");
+            segJson = objectMapper.writeValueAsString(detail.path("segments"));
+        } catch (Exception e) {
+            log.warn("DRIVING 캐시 path_detail 파싱 실패: {}", e.getMessage());
+        }
+        return TransitResponse.builder()
+                .durationMinutes(c.getDurationMinutes())
+                .transportMode(MODE_DRIVING)
+                .taxiFare(c.getTaxiFare())
+                .tollFare(tollFare)
+                .totalDistanceM(c.getTotalDistanceM())
+                .roadSummary(roadSummary)
+                .routeSegmentsJson(segJson)
+                .routeCoords(c.getRouteCoords())
+                .label(label)
+                .build();
     }
 
     private String buildRoadSummary(List<TMapClient.RouteSegment> segments) {
