@@ -53,6 +53,15 @@ public class TransitServiceImpl implements TransitService {
                         .totalWalkM(0)
                         .build());
             }
+            String roadSummary = "";
+            String segJson = "[]";
+            if (MODE_WALKING.equals(c.getTransportMode()) && c.getPathDetail() != null) {
+                try {
+                    JsonNode detail = objectMapper.readTree(c.getPathDetail());
+                    roadSummary = detail.path("roadSummary").asText("");
+                    segJson = objectMapper.writeValueAsString(detail.path("segments"));
+                } catch (Exception ignored) {}
+            }
             return Optional.of(TransitResponse.builder()
                     .durationMinutes(c.getDurationMinutes())
                     .transportMode(c.getTransportMode())
@@ -62,6 +71,8 @@ public class TransitServiceImpl implements TransitService {
                     .totalDistanceM(c.getTotalDistanceM())
                     .taxiFare(c.getTaxiFare())
                     .routeCoords(c.getRouteCoords())
+                    .roadSummary(roadSummary.isEmpty() ? null : roadSummary)
+                    .routeSegmentsJson(segJson)
                     .build());
         }
 
@@ -202,6 +213,16 @@ public class TransitServiceImpl implements TransitService {
                     .build());
         }
 
+        String roadSummary = buildRoadSummary(result.segments());
+        String segJson;
+        try { segJson = objectMapper.writeValueAsString(result.segments()); }
+        catch (Exception e) { segJson = "[]"; }
+
+        ObjectNode pathDetailNode = objectMapper.createObjectNode();
+        pathDetailNode.put("roadSummary", roadSummary);
+        try { pathDetailNode.set("segments", objectMapper.readTree(segJson)); }
+        catch (Exception ignored) {}
+
         TransitCache cache = new TransitCache();
         cache.setFromAttractionId(fromId);
         cache.setToAttractionId(toId);
@@ -213,9 +234,10 @@ public class TransitServiceImpl implements TransitService {
         cache.setFare(0);
         cache.setTotalDistanceM(result.totalDistanceM());
         cache.setTotalWalkM(0);
-        cache.setPathDetail("{}");
         cache.setTaxiFare(result.taxiFare());
         cache.setRouteCoords(result.routeCoords());
+        try { cache.setPathDetail(objectMapper.writeValueAsString(pathDetailNode)); }
+        catch (Exception e) { cache.setPathDetail("{}"); }
 
         try {
             transitCacheMapper.insert(cache);
@@ -223,11 +245,6 @@ public class TransitServiceImpl implements TransitService {
         } catch (Exception e) {
             log.warn("TMap 캐시 저장 실패: {}", e.getMessage());
         }
-
-        String walkRoadSummary = buildRoadSummary(result.segments());
-        String walkSegJson;
-        try { walkSegJson = objectMapper.writeValueAsString(result.segments()); }
-        catch (Exception e) { walkSegJson = "[]"; }
 
         return Optional.of(TransitResponse.builder()
                 .durationMinutes(result.durationMinutes())
@@ -238,8 +255,8 @@ public class TransitServiceImpl implements TransitService {
                 .totalDistanceM(result.totalDistanceM())
                 .taxiFare(result.taxiFare())
                 .routeCoords(result.routeCoords())
-                .roadSummary(walkRoadSummary)
-                .routeSegmentsJson(walkSegJson)
+                .roadSummary(roadSummary)
+                .routeSegmentsJson(segJson)
                 .build());
     }
 
