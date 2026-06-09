@@ -14,6 +14,7 @@ import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
+import com.tripcraft.plan.dto.TripCopyRequest;
 import com.tripcraft.plan.dto.TripSummary;
 import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
@@ -26,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -267,6 +270,73 @@ public class TripServiceImpl implements TripService {
             .toList();
 
         return new TripBlockSummaryResponse(days);
+    }
+
+    /**
+     * 공유된 일정을 복사해 요청자 소유의 새 일정으로 저장.
+     * - 날짜: newStartDate 기준으로 Day 간격 그대로 유지 (ChronoUnit.DAYS 오프셋)
+     * - 후보군·블록 전체 복제 (candidateId 매핑 테이블로 FK 일관성 보장)
+     * - 이동 시간(transitDurationMinutes/transitMode)은 위치가 동일하므로 그대로 복사
+     * - 복사된 일정은 비공개(isPublic=false)로 생성
+     */
+    @Override
+    @Transactional
+    public Long copyTrip(Long sourceTripId, TripCopyRequest request, Long memberId) {
+        Trip source = tripMapper.findById(sourceTripId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."));
+
+        // 공유된 일정(커뮤니티에 연결된 일정)만 복사 허용
+        if (!tripMapper.existsPostByTripId(sourceTripId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공유되지 않은 일정은 가져올 수 없습니다.");
+        }
+
+        // 날짜 오프셋 계산 — 원본 Day 간격 유지
+        long dayOffset = ChronoUnit.DAYS.between(source.getStartDate(), request.getNewStartDate());
+        LocalDate newEndDate = source.getEndDate().plusDays(dayOffset);
+
+        // 새 일정 생성
+        Trip newTrip = new Trip();
+        newTrip.setMemberId(memberId);
+        newTrip.setTitle(source.getTitle() + " (가져옴)");
+        newTrip.setStartDate(request.getNewStartDate());
+        newTrip.setEndDate(newEndDate);
+        newTrip.setMemberCount(source.getMemberCount());
+        newTrip.setDefaultTransitMode(source.getDefaultTransitMode());
+        newTrip.setIsPublic(false);
+        tripMapper.insert(newTrip);
+
+        // 후보군 복사 + candidateId 매핑 (원본 id → 새 id)
+        List<TripCandidate> candidates = candidateMapper.findByTripId(sourceTripId);
+        Map<Long, Long> candidateIdMap = new HashMap<>();
+        for (TripCandidate c : candidates) {
+            TripCandidate newC = new TripCandidate();
+            newC.setTripId(newTrip.getId());
+            newC.setAttractionId(c.getAttractionId());
+            newC.setCityCode(c.getCityCode());
+            newC.setSource("MANUAL");
+            candidateMapper.insert(newC);
+            candidateIdMap.put(c.getId(), newC.getId());
+        }
+
+        // 블록 복사 — 날짜만 오프셋 적용, 이동 시간은 위치 동일하므로 유지
+        List<TripBlock> blocks = blockMapper.findByTripId(sourceTripId);
+        for (TripBlock b : blocks) {
+            Long newCandidateId = candidateIdMap.get(b.getCandidateId());
+            if (newCandidateId == null) continue;
+            TripBlock newB = new TripBlock();
+            newB.setCandidateId(newCandidateId);
+            newB.setTripDate(b.getTripDate().plusDays(dayOffset));
+            newB.setDisplayOrder(b.getDisplayOrder());
+            newB.setStartTime(b.getStartTime());
+            newB.setDurationMinutes(b.getDurationMinutes());
+            newB.setTransitDurationMinutes(b.getTransitDurationMinutes());
+            newB.setTransitMode(b.getTransitMode());
+            blockMapper.insert(newB);
+        }
+
+        log.info("일정 복사 완료: sourceTripId={} → newTripId={}, memberId={}, dayOffset={}",
+                sourceTripId, newTrip.getId(), memberId, dayOffset);
+        return newTrip.getId();
     }
 
     private void recalculateTransitForDate(Long tripId, LocalDate date) {
