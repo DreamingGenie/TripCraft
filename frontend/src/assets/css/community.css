@@ -1,5 +1,5 @@
 /* ============================================================
-   TripCraft — community.css (v4)
+   TripCraft — community.css (v5)
    사이드바 제거 · 단일 컬럼 피드 · max-width 720px
    ============================================================ */
 
@@ -16,6 +16,57 @@
   margin: 0 auto;
   padding: 36px 24px 80px;
 }
+
+/* ================================================================
+   검색창
+   ================================================================ */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--gray-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--primary); }
+
+.search-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.search-btn:hover { background: var(--primary-dark, #1d4ed8); }
+
+.search-clear {
+  height: 38px;
+  width: 38px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.search-clear:hover { background: #e2e8f0; }
 
 /* ================================================================
    목록 툴바
