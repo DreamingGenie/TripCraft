@@ -83,7 +83,7 @@
           <label class="field-label"><span class="required">*</span> 제목</label>
           <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
           <label class="field-label"><span class="required">*</span> 내용</label>
-          <textarea class="field-textarea" v-model="newPost.body" rows="8" placeholder="내용을 입력하세요" style="margin-bottom:16px"></textarea>
+          <TiptapEditor v-model="newPost.body" style="margin-bottom:16px" />
           <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
           <select class="field-input" v-model="newPost.tripId">
             <option :value="null">연결 안 함</option>
@@ -108,6 +108,7 @@ import { useToastStore } from '@/stores/toast'
 import { postApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 import { formatDate } from '@/utils/format'
+import TiptapEditor from '@/components/TiptapEditor.vue'
 
 const toast   = useToastStore()
 const route   = useRoute()
@@ -167,8 +168,15 @@ async function openWriteModal() {
   try { myTrips.value = await tripApi.list() } catch { myTrips.value = [] }
 }
 
+/** Tiptap HTML에서 태그를 제거한 순수 텍스트 추출 */
+function extractText(html) {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div.textContent?.trim() || ''
+}
+
 async function submitPost() {
-  if (!newPost.title.trim() || !newPost.body.trim()) {
+  if (!newPost.title.trim() || !extractText(newPost.body)) {
     toast.show('제목과 내용을 입력해주세요.')
     return
   }

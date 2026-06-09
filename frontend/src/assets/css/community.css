@@ -384,6 +384,21 @@
   letter-spacing: -0.005em;
 }
 
+/* Tiptap HTML 렌더링 */
+.detail-body p        { margin: 0 0 10px; }
+.detail-body p:last-child { margin-bottom: 0; }
+.detail-body strong   { font-weight: 700; }
+.detail-body em       { font-style: italic; }
+.detail-body ul, .detail-body ol { padding-left: 20px; margin: 8px 0; }
+.detail-body li       { margin-bottom: 4px; }
+.detail-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 12px 0;
+  display: block;
+}
+
 .like-section { display: flex; justify-content: center; }
 
 .like-btn {

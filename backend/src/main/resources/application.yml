@@ -35,6 +35,15 @@ tmap:
   api-key: ${TMAP_API_KEY}
   base-url: https://apis.openapi.sk.com/tmap
 
+upload:
+  dir: ${UPLOAD_DIR:./uploads}   # 이미지 업로드 저장 경로 (기본: 실행 디렉토리 하위)
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 logging:
   level:
     com.tripcraft: DEBUG
