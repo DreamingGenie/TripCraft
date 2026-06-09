@@ -14,6 +14,19 @@
         </div>
 
         <!-- 공지 배너 -->
+        <!-- 검색창 -->
+        <div class="search-bar">
+          <input
+            class="search-input"
+            v-model="keyword"
+            placeholder="제목·내용으로 검색"
+            maxlength="100"
+            @keydown.enter="doSearch"
+          />
+          <button class="search-btn" @click="doSearch">검색</button>
+          <button v-if="keyword" class="search-clear" @click="clearSearch">✕</button>
+        </div>
+
         <div v-if="notices.length" class="notice-banner" @click="router.push(`/community/${notices[0].id}`)">
           <span class="notice-icon">📢</span>
           <span class="notice-text">{{ notices[0].title }}</span>
@@ -36,6 +49,7 @@
             <div class="post-card-right">
               <div class="post-stats">
                 <span class="stat"><span class="stat-icon">♥</span> {{ post.likeCount }}</span>
+                <span class="stat"><span class="stat-icon">💬</span> {{ post.commentCount ?? 0 }}</span>
                 <span class="stat"><span class="stat-icon">👁</span> {{ post.viewCount }}</span>
               </div>
             </div>
@@ -114,8 +128,9 @@ const toast   = useToastStore()
 const route   = useRoute()
 const router  = useRouter()
 
-const sort  = ref('latest')
-const sorts = [{ label: '최신순', value: 'latest' }, { label: '인기순', value: 'popular' }]
+const sort    = ref('latest')
+const sorts   = [{ label: '최신순', value: 'latest' }, { label: '인기순', value: 'popular' }]
+const keyword = ref('')
 
 const posts   = ref([])
 const notices = ref([])
@@ -135,7 +150,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)
 async function loadPosts() {
   loading.value = true
   try {
-    const data = await postApi.list({ page: page.value, size: PAGE_SIZE, sort: sort.value })
+    const data = await postApi.list({ page: page.value, size: PAGE_SIZE, sort: sort.value, keyword: keyword.value })
     posts.value = data.items
     total.value = data.total
   } catch {
@@ -143,6 +158,17 @@ async function loadPosts() {
   } finally {
     loading.value = false
   }
+}
+
+function doSearch() {
+  page.value = 0
+  loadPosts()
+}
+
+function clearSearch() {
+  keyword.value = ''
+  page.value = 0
+  loadPosts()
 }
 
 async function loadNotices() {
