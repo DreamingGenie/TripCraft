@@ -19,7 +19,7 @@
               <span class="post-author">{{ postDetail.authorNickname }}</span>
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>
             </div>
-            <div class="detail-actions" v-if="postDetail.mine">
+            <div class="detail-actions" v-if="postDetail.mine && auth.isLoggedIn">
               <button class="btn-sm btn-ghost" @click="openEditModal">수정</button>
               <button class="btn-sm btn-danger" @click="deleteConfirm = true">삭제</button>
             </div>
@@ -147,6 +147,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
+import { useAuthStore } from '@/stores/auth'
 import { postApi, commentApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 import { formatDate, formatTripDate } from '@/utils/format'
@@ -163,6 +164,7 @@ function sanitize(html) {
 }
 
 const toast  = useToastStore()
+const auth   = useAuthStore()
 const route  = useRoute()
 const router = useRouter()
 
