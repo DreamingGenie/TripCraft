@@ -58,8 +58,9 @@ public class ImageController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 크기는 5 MB 이하여야 합니다.");
         }
 
-        // 저장 디렉토리 생성 (없으면 자동 생성)
-        Path dir = Paths.get(uploadDir, "images");
+        // 절대 경로로 확정 — 상대 경로를 그대로 쓰면 transferTo()가
+        // Tomcat 임시 디렉토리 기준으로 해석해 FileNotFoundException 발생
+        Path dir = Paths.get(uploadDir, "images").toAbsolutePath();
         Files.createDirectories(dir);
 
         // 확장자 추출 — 원본 파일명이 없으면 .jpg 사용

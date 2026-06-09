@@ -58,7 +58,7 @@
   </main>
 
   <!-- 글쓰기 모달 -->
-  <div v-if="writeModal" id="modal-write" class="modal-overlay" @click.self="writeModal = false">
+  <div v-if="writeModal" id="modal-write" class="modal-overlay">
     <div class="write-modal-box">
       <div class="modal-header">
         <span class="modal-title">새 글 작성</span>
