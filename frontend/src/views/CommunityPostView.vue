@@ -20,6 +20,7 @@
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>
             </div>
             <div class="detail-actions" v-if="postDetail.mine">
+              <button class="btn-sm btn-ghost" @click="openEditModal">수정</button>
               <button class="btn-sm btn-danger" @click="deleteConfirm = true">삭제</button>
             </div>
           </div>
@@ -106,6 +107,26 @@
   </div>
   </main>
 
+  <!-- 게시글 수정 모달 -->
+  <div v-if="editModal" id="modal-edit" class="modal-overlay">
+    <div class="write-modal-box">
+      <div class="modal-header">
+        <span class="modal-title">게시글 수정</span>
+        <button class="modal-close" @click="editModal = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label"><span class="required">*</span> 제목</label>
+        <input class="field-input" v-model="editPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
+        <label class="field-label"><span class="required">*</span> 내용</label>
+        <TiptapEditor v-model="editPost.content" style="margin-bottom:16px" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" @click="editModal = false">취소</button>
+        <button class="btn-primary" :disabled="editSubmitting" @click="submitEdit">저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 게시글 삭제 확인 팝업 -->
   <div v-if="deleteConfirm" class="modal-overlay" @click.self="deleteConfirm = false">
     <div class="confirm-modal-box">
@@ -123,13 +144,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { postApi, commentApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 import { formatDate, formatTripDate } from '@/utils/format'
 import DOMPurify from 'dompurify'
+import TiptapEditor from '@/components/TiptapEditor.vue'
 
 /** Tiptap HTML을 안전하게 렌더링 — 허용 태그 외 스크립트·이벤트 핸들러 제거 */
 function sanitize(html) {
@@ -146,10 +168,15 @@ const router = useRouter()
 
 const postId = Number(route.params.id)
 
-const postDetail   = ref(null)
+const postDetail    = ref(null)
 const deleteConfirm = ref(false)
-const errorState   = ref(false)
-const errorMessage = ref('')
+const errorState    = ref(false)
+const errorMessage  = ref('')
+
+// ── 수정 모달 ────────────────────────────────────────────────
+const editModal     = ref(false)
+const editPost      = reactive({ title: '', content: '' })
+const editSubmitting = ref(false)
 
 const tripSummaryOpen    = ref(false)
 const tripSummaryLoading = ref(false)
@@ -183,6 +210,40 @@ async function toggleLike() {
     postDetail.value.likeCount += postDetail.value.liked ? 1 : -1
   } catch (e) {
     toast.show(e.status === 401 ? '로그인이 필요합니다.' : '오류가 발생했습니다.')
+  }
+}
+
+// ── 게시글 수정 ─────────────────────────────────────────────
+function openEditModal() {
+  editPost.title   = postDetail.value.title
+  editPost.content = postDetail.value.content
+  editModal.value  = true
+}
+
+/** Tiptap HTML에서 태그를 제거한 순수 텍스트 추출 */
+function extractText(html) {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  return div.textContent?.trim() || ''
+}
+
+async function submitEdit() {
+  if (!editPost.title.trim() || !extractText(editPost.content)) {
+    toast.show('제목과 내용을 입력해주세요.')
+    return
+  }
+  editSubmitting.value = true
+  try {
+    await postApi.update(postId, { title: editPost.title, content: editPost.content })
+    // 상세 데이터 갱신 — 수정된 제목·내용 즉시 반영
+    postDetail.value.title   = editPost.title
+    postDetail.value.content = editPost.content
+    editModal.value = false
+    toast.show('게시글이 수정됐어요.')
+  } catch (e) {
+    toast.show(e.status === 403 ? '수정 권한이 없습니다.' : '수정에 실패했습니다.')
+  } finally {
+    editSubmitting.value = false
   }
 }
 
