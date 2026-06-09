@@ -23,7 +23,8 @@
               <button class="btn-sm btn-danger" @click="deleteConfirm = true">삭제</button>
             </div>
           </div>
-          <div class="detail-body" style="white-space:pre-wrap">{{ postDetail.content }}</div>
+          <!-- XSS 방지: DOMPurify로 새니타이징 후 HTML 렌더링 -->
+          <div class="detail-body" v-html="sanitize(postDetail.content)"></div>
 
           <!-- 연결된 일정 카드 -->
           <div v-if="postDetail.tripId" class="trip-card">
@@ -128,6 +129,16 @@ import { useToastStore } from '@/stores/toast'
 import { postApi, commentApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 import { formatDate, formatTripDate } from '@/utils/format'
+import DOMPurify from 'dompurify'
+
+/** Tiptap HTML을 안전하게 렌더링 — 허용 태그 외 스크립트·이벤트 핸들러 제거 */
+function sanitize(html) {
+  if (!html) return ''
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'img', 'a'],
+    ALLOWED_ATTR: ['src', 'alt', 'href', 'target', 'rel'],
+  })
+}
 
 const toast  = useToastStore()
 const route  = useRoute()
