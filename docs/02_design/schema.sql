@@ -1,5 +1,5 @@
 -- =============================================
--- TripCraft Schema DDL v0.3
+-- TripCraft Schema DDL v0.4
 -- 기준: 요구사항 명세 v0.1 / 기획서 v0.2
 -- v0.2 변경: transit_cache ODsay 응답 전체 저장 구조로 재설계,
 --            trip_block에 transit 표시 컬럼(transit_duration_minutes, transit_mode) 추가
@@ -7,6 +7,8 @@
 --            trip에 default_transit_mode 추가
 --            transit_cache에 request_mode·taxi_fare·route_coords 추가,
 --            UNIQUE KEY에 request_mode 포함 (모드별 독립 캐시)
+-- v0.4 변경: post_comment에 parent_id 추가 (대댓글 1단계 지원)
+--            → migration_comment_parent.sql 참조
 -- =============================================
 -- 결정 사항 요약
 --   - member: 하드 딜리트. 탈퇴 시 앱 레이어에서 trip_block → trip_candidate → trip 순서대로 삭제 후 member 삭제
@@ -415,18 +417,23 @@ CREATE TABLE notice (
 
 -- ---------------------------------------------
 -- 13. 게시글 댓글 (post_comment)
+-- v0.4: parent_id 추가 — 대댓글 1단계 지원
+--       NULL = 최상위 댓글, non-NULL = 대댓글
+--       부모 삭제 시 ON DELETE CASCADE로 대댓글도 함께 삭제
 -- ---------------------------------------------
 CREATE TABLE post_comment (
     id         BIGINT        NOT NULL AUTO_INCREMENT,
     post_id    BIGINT        NOT NULL COMMENT '게시글 FK',
     member_id  BIGINT        NULL     COMMENT '작성자 FK (탈퇴 시 NULL → 탈퇴한 사용자 표시, 댓글 보존)',
+    parent_id  BIGINT        NULL     COMMENT '부모 댓글 FK (NULL=최상위, non-NULL=대댓글 — 1단계만 허용)',
     content    VARCHAR(1000) NOT NULL COMMENT '댓글 내용 (최대 1000자)',
     created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     INDEX idx_comment_post   (post_id),
     INDEX idx_comment_member (member_id),
-    FOREIGN KEY fk_comment_post   (post_id)   REFERENCES post(id)   ON DELETE CASCADE,
-    FOREIGN KEY fk_comment_member (member_id) REFERENCES member(id) ON DELETE SET NULL
-) COMMENT='게시글 댓글. 게시글 삭제 시 CASCADE 삭제. 탈퇴 시 댓글 내용 보존'
+    FOREIGN KEY fk_comment_post   (post_id)   REFERENCES post(id)        ON DELETE CASCADE,
+    FOREIGN KEY fk_comment_member (member_id) REFERENCES member(id)      ON DELETE SET NULL,
+    FOREIGN KEY fk_comment_parent (parent_id) REFERENCES post_comment(id) ON DELETE CASCADE
+) COMMENT='게시글 댓글·대댓글. parent_id NULL=최상위, non-NULL=대댓글(1단계). 부모 삭제 시 대댓글도 CASCADE'
   DEFAULT CHARSET = utf8mb4;
