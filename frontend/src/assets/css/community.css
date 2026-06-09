@@ -610,6 +610,67 @@
   align-self: flex-end;
 }
 
+/* ── 댓글 액션 버튼 그룹 ── */
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 답글 버튼 */
+.reply-btn {
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.reply-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 대댓글 목록 */
+.reply-list {
+  margin-top: 8px;
+  padding-left: 20px;
+  border-left: 2px solid var(--gray-border);
+}
+.reply-item {
+  padding: 10px 12px;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+}
+.reply-item:last-child { margin-bottom: 0; }
+
+.reply-arrow {
+  font-size: 14px;
+  color: var(--gray-muted);
+  flex-shrink: 0;
+}
+
+/* 대댓글 본문은 들여쓰기 줄임 (↳ 아이콘이 이미 구분) */
+.reply-body {
+  padding-left: 20px;
+}
+
+/* 대댓글 입력 폼 */
+.reply-form {
+  margin-top: 10px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reply-input {
+  background: var(--bg-page);
+  border-color: var(--primary);
+}
+
 /* ================================================================
    글쓰기 모달
    ================================================================ */
