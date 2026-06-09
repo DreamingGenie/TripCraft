@@ -16,6 +16,7 @@ public class PostListItem {
     private String authorNickname;
     private Integer viewCount;
     private Integer likeCount;
+    private Integer commentCount;
     private LocalDateTime createdAt;
     private boolean liked;
 }
