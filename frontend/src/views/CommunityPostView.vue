@@ -40,7 +40,15 @@
                   </span>
                 </div>
               </div>
-              <span class="trip-card-toggle">{{ tripSummaryOpen ? '▲' : '▼' }} 일정 보기</span>
+              <div class="trip-card-right-actions">
+                <button
+                  v-if="auth.isLoggedIn"
+                  class="btn-sm btn-copy-trip"
+                  @click.stop="openCopyModal">
+                  📥 가져오기
+                </button>
+                <span class="trip-card-toggle">{{ tripSummaryOpen ? '▲' : '▼' }} 일정 보기</span>
+              </div>
             </div>
 
             <div v-if="tripSummaryOpen" class="trip-summary">
@@ -164,6 +172,36 @@
     </div>
   </div>
 
+  <!-- 일정 가져오기 모달 -->
+  <div v-if="copyModal" class="modal-overlay" @click.self="copyModal = false">
+    <div class="confirm-modal-box copy-modal-box">
+      <div class="copy-modal-icon">📥</div>
+      <p class="copy-modal-title">일정 가져오기</p>
+      <p class="copy-modal-desc">
+        내 여행 시작일을 선택하면<br>
+        날짜 간격을 유지한 채 새 일정으로 저장돼요.
+      </p>
+      <div class="copy-modal-field">
+        <label class="field-label">여행 시작일</label>
+        <input
+          type="date"
+          class="field-input"
+          v-model="copyStartDate"
+          :min="today"
+        />
+      </div>
+      <div class="confirm-actions">
+        <button class="btn-ghost" @click="copyModal = false">취소</button>
+        <button
+          class="btn-primary"
+          :disabled="!copyStartDate || copySubmitting"
+          @click="submitCopyTrip">
+          가져오기
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 게시글 삭제 확인 팝업 -->
   <div v-if="deleteConfirm" class="modal-overlay" @click.self="deleteConfirm = false">
     <div class="confirm-modal-box">
@@ -187,6 +225,8 @@ import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
 import { postApi, commentApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
+
+const today = new Date().toISOString().slice(0, 10)
 import { formatDate, formatTripDate } from '@/utils/format'
 import DOMPurify from 'dompurify'
 import TiptapEditor from '@/components/TiptapEditor.vue'
@@ -234,6 +274,30 @@ const replySubmitting = ref(false)
 const totalCommentCount = computed(() =>
   comments.value.reduce((sum, c) => sum + 1 + (c.replies?.length ?? 0), 0)
 )
+
+// ── 일정 가져오기 ────────────────────────────────────────────
+const copyModal      = ref(false)
+const copyStartDate  = ref('')
+const copySubmitting = ref(false)
+
+function openCopyModal() {
+  copyStartDate.value = ''
+  copyModal.value = true
+}
+
+async function submitCopyTrip() {
+  if (!copyStartDate.value) return
+  copySubmitting.value = true
+  try {
+    await tripApi.copy(postDetail.value.tripId, copyStartDate.value)
+    copyModal.value = false
+    toast.show('내 일정에 저장됐어요! 일정 페이지에서 확인하세요.')
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : '일정 가져오기에 실패했습니다.')
+  } finally {
+    copySubmitting.value = false
+  }
+}
 
 // ── 일정 요약 토글 ──────────────────────────────────────────
 async function toggleTripSummary() {

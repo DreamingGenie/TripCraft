@@ -803,7 +803,30 @@
 .trip-card-info { display: flex; flex-direction: column; gap: 3px; }
 .trip-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .trip-card-meta { font-size: 12px; color: var(--gray-dark); }
-.trip-card-toggle { font-size: 11px; color: var(--purple-900); white-space: nowrap; flex-shrink: 0; }
+.trip-card-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.trip-card-toggle { font-size: 11px; color: var(--purple-900); white-space: nowrap; }
+
+/* 일정 가져오기 버튼 */
+.btn-copy-trip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.btn-copy-trip:hover {
+  background: var(--primary);
+  color: #fff;
+}
 
 /* 펼쳐진 일정 */
 .trip-summary { border-top: 1px solid var(--gray-border); padding: 12px 16px; }
@@ -852,6 +875,45 @@
   transition: opacity .12s;
 }
 .btn-danger:hover { opacity: .88; }
+
+/* ── 일정 가져오기 모달 ── */
+.copy-modal-box {
+  max-width: 400px;
+  text-align: left;
+}
+.copy-modal-icon { font-size: 28px; margin-bottom: 8px; text-align: center; }
+.copy-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.copy-modal-desc {
+  font-size: 13px;
+  color: var(--gray-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.copy-modal-field {
+  margin-bottom: 24px;
+}
+.copy-modal-field .field-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+.copy-modal-field .field-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
 
 /* ── 일정 공유 경고 (모달 내부 인라인) ── */
 .trip-share-warning {
