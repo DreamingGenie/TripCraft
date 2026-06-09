@@ -71,7 +71,7 @@
 
         <!-- 댓글 섹션 — 게시글 로드 성공 시에만 표시 -->
         <section v-if="postDetail" class="comment-section">
-          <p class="comment-title">댓글 <span class="comment-count">{{ comments.length }}</span></p>
+          <p class="comment-title">댓글 <span class="comment-count">{{ totalCommentCount }}</span></p>
 
           <div v-if="comments.length" class="comment-list">
             <div v-for="c in comments" :key="c.id" class="comment-item">
@@ -79,9 +79,46 @@
                 <div class="avatar avatar-sm">{{ (c.authorNickname || '?')[0] }}</div>
                 <span class="comment-author">{{ c.authorNickname }}</span>
                 <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
-                <button v-if="c.mine" class="comment-delete" @click="deleteComment(c.id)">삭제</button>
+                <div class="comment-actions">
+                  <button class="reply-btn" @click="toggleReply(c.id)">
+                    {{ replyInputFor === c.id ? '취소' : '답글' }}
+                  </button>
+                  <button v-if="c.mine" class="comment-delete" @click="deleteComment(c.id)">삭제</button>
+                </div>
               </div>
               <p class="comment-body">{{ c.content }}</p>
+
+              <!-- 대댓글 목록 -->
+              <div v-if="c.replies && c.replies.length" class="reply-list">
+                <div v-for="r in c.replies" :key="r.id" class="comment-item reply-item">
+                  <div class="comment-header">
+                    <span class="reply-arrow">↳</span>
+                    <div class="avatar avatar-sm">{{ (r.authorNickname || '?')[0] }}</div>
+                    <span class="comment-author">{{ r.authorNickname }}</span>
+                    <span class="comment-date">{{ formatDate(r.createdAt) }}</span>
+                    <button v-if="r.mine" class="comment-delete" @click="deleteComment(r.id)">삭제</button>
+                  </div>
+                  <p class="comment-body reply-body">{{ r.content }}</p>
+                </div>
+              </div>
+
+              <!-- 대댓글 입력창 -->
+              <div v-if="replyInputFor === c.id" class="reply-form">
+                <textarea
+                  class="comment-input reply-input"
+                  v-model="replyContent"
+                  placeholder="답글을 입력하세요 (최대 1000자)"
+                  maxlength="1000"
+                  rows="2"
+                  @keydown.ctrl.enter="submitReply(c.id)"
+                ></textarea>
+                <button
+                  class="btn-primary comment-submit"
+                  :disabled="!replyContent.trim() || replySubmitting"
+                  @click="submitReply(c.id)">
+                  등록
+                </button>
+              </div>
             </div>
           </div>
           <p v-else class="comment-empty">첫 댓글을 남겨보세요.</p>
@@ -144,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
@@ -184,9 +221,19 @@ const tripSummaryOpen    = ref(false)
 const tripSummaryLoading = ref(false)
 const tripSummary        = ref(null)
 
-const comments         = ref([])
-const newComment       = ref('')
+const comments          = ref([])
+const newComment        = ref('')
 const commentSubmitting = ref(false)
+
+// ── 대댓글 ──────────────────────────────────────────────────
+const replyInputFor   = ref(null)   // 현재 답글 입력창이 열린 댓글 id
+const replyContent    = ref('')
+const replySubmitting = ref(false)
+
+/** 댓글 + 대댓글 합산 표시용 */
+const totalCommentCount = computed(() =>
+  comments.value.reduce((sum, c) => sum + 1 + (c.replies?.length ?? 0), 0)
+)
 
 // ── 일정 요약 토글 ──────────────────────────────────────────
 async function toggleTripSummary() {
@@ -274,6 +321,40 @@ async function submitComment() {
     toast.show(e.status === 401 ? '로그인이 필요합니다.' : '댓글 등록 실패')
   } finally {
     commentSubmitting.value = false
+  }
+}
+
+// ── 대댓글 입력 토글 ─────────────────────────────────────────
+function toggleReply(commentId) {
+  if (!auth.isLoggedIn) {
+    toast.show('로그인이 필요합니다.')
+    return
+  }
+  if (replyInputFor.value === commentId) {
+    replyInputFor.value = null
+    replyContent.value = ''
+  } else {
+    replyInputFor.value = commentId
+    replyContent.value = ''
+    nextTick(() => {
+      document.querySelector('.reply-input')?.focus()
+    })
+  }
+}
+
+// ── 대댓글 등록 ─────────────────────────────────────────────
+async function submitReply(parentId) {
+  if (!replyContent.value.trim()) return
+  replySubmitting.value = true
+  try {
+    await commentApi.create(postId, replyContent.value.trim(), parentId)
+    replyContent.value = ''
+    replyInputFor.value = null
+    comments.value = await commentApi.list(postId)
+  } catch (e) {
+    toast.show(e.status === 401 ? '로그인이 필요합니다.' : '답글 등록 실패')
+  } finally {
+    replySubmitting.value = false
   }
 }
 

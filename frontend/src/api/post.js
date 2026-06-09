@@ -16,6 +16,8 @@ export const postApi = {
 
 export const commentApi = {
   list:   (postId)          => http.get(`/api/posts/${postId}/comments`),
-  create: (postId, content) => http.post(`/api/posts/${postId}/comments`, { content }),
+  /** parentId: 최상위 댓글이면 null, 대댓글이면 부모 댓글 id */
+  create: (postId, content, parentId = null) =>
+    http.post(`/api/posts/${postId}/comments`, { content, parentId }),
   delete: (postId, id)      => http.del(`/api/posts/${postId}/comments/${id}`),
 }
