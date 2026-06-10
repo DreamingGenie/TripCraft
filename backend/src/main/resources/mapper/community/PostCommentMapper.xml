@@ -8,15 +8,22 @@
         <id     column="id"         property="id"/>
         <result column="post_id"    property="postId"/>
         <result column="member_id"  property="memberId"/>
+        <result column="parent_id"  property="parentId"/>
         <result column="content"    property="content"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
-    <!-- 게시글의 댓글 목록 (등록순) -->
+    <!--
+        게시글의 댓글 목록 — 최상위 댓글과 대댓글을 함께 반환 (flat list)
+        ORDER BY: COALESCE(parent_id, id) → 같은 그룹끼리 묶고,
+                  그 안에서 created_at ASC → 등록순 정렬
+        Service 레이어에서 parentId 기준으로 트리 구조로 변환함
+    -->
     <select id="findByPostId" resultType="com.tripcraft.community.dto.CommentItem">
         SELECT c.id,
                c.post_id                                     AS postId,
+               c.parent_id                                   AS parentId,
                COALESCE(m.nickname, '탈퇴한 사용자')          AS authorNickname,
                c.content,
                c.created_at                                  AS createdAt,
@@ -24,7 +31,7 @@
         FROM post_comment c
         LEFT JOIN member m ON m.id = c.member_id
         WHERE c.post_id = #{postId}
-        ORDER BY c.created_at ASC
+        ORDER BY COALESCE(c.parent_id, c.id) ASC, c.created_at ASC
     </select>
 
     <!-- 단건 조회 (권한 검증용) -->
@@ -32,14 +39,14 @@
         SELECT * FROM post_comment WHERE id = #{id}
     </select>
 
-    <!-- 댓글 등록 -->
+    <!-- 댓글/대댓글 등록 -->
     <insert id="insert" parameterType="com.tripcraft.community.domain.PostComment"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO post_comment (post_id, member_id, content)
-        VALUES (#{postId}, #{memberId}, #{content})
+        INSERT INTO post_comment (post_id, member_id, parent_id, content)
+        VALUES (#{postId}, #{memberId}, #{parentId}, #{content})
     </insert>
 
-    <!-- 댓글 삭제 -->
+    <!-- 댓글 삭제 (ON DELETE CASCADE로 대댓글도 함께 삭제됨) -->
     <delete id="deleteById" parameterType="long">
         DELETE FROM post_comment WHERE id = #{id}
     </delete>

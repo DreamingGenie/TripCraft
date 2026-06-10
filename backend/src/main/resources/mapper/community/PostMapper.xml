@@ -27,6 +27,12 @@
 
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM post
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (title LIKE CONCAT('%', #{keyword}, '%')
+                OR content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
     </select>
 
     <select id="findListItems" resultType="com.tripcraft.community.dto.PostListItem">
@@ -34,10 +40,17 @@
                COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
                p.view_count AS viewCount,
                p.like_count AS likeCount,
+               (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
                p.created_at AS createdAt,
                false AS liked
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
         <choose>
             <when test="sort == 'popular'">ORDER BY p.like_count DESC, p.created_at DESC</when>
             <otherwise>ORDER BY p.created_at DESC</otherwise>

@@ -3,13 +3,16 @@ package com.tripcraft.community.controller;
 import com.tripcraft.community.dto.PostCreateRequest;
 import com.tripcraft.community.dto.PostDetail;
 import com.tripcraft.community.dto.PostListPageResponse;
+import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.service.PostService;
 import com.tripcraft.global.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,8 +32,9 @@ public class PostController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
+            @RequestParam(name = "keyword", required = false) String keyword,
             @AuthenticationPrincipal Long memberId) {
-        return ResponseEntity.ok(ApiResponse.ok(postService.getPosts(page, size, sort, memberId)));
+        return ResponseEntity.ok(ApiResponse.ok(postService.getPosts(page, size, sort, keyword, memberId)));
     }
 
     @PostMapping
@@ -46,6 +50,15 @@ public class PostController {
             @PathVariable("id") Long id,
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPost(id, memberId)));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> updatePost(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody PostUpdateRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        postService.updatePost(id, request, memberId);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @DeleteMapping("/{id}")

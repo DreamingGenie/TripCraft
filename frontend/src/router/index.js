@@ -17,6 +17,7 @@ const routes = [
     meta: { requiresAuth: true },
   },
   { path: '/community', component: () => import('@/views/CommunityView.vue') },
+  { path: '/community/:id(\\d+)', component: () => import('@/views/CommunityPostView.vue') },
   {
     path: '/admin',
     component: () => import('@/views/AdminView.vue'),

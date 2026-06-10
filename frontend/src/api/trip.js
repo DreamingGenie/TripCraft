@@ -19,4 +19,7 @@ export const tripApi = {
     http.patch(`/api/trips/${tripId}/default-transit-mode`, { mode }),
 
   getBlocksSummary: (tripId) => http.get(`/api/trips/${tripId}/blocks-summary`),
+
+  /** 공유된 일정 가져오기 — newStartDate(YYYY-MM-DD) 기준으로 날짜 재계산 후 내 일정으로 복제 */
+  copy: (tripId, newStartDate) => http.post(`/api/trips/${tripId}/copy`, { newStartDate }),
 }

@@ -5,6 +5,7 @@ import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateAddRequest;
 import com.tripcraft.plan.dto.TripBlockSummaryResponse;
+import com.tripcraft.plan.dto.TripCopyRequest;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
@@ -12,6 +13,7 @@ import com.tripcraft.plan.service.TripService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -111,6 +113,16 @@ public class TripController {
     public ResponseEntity<ApiResponse<TripBlockSummaryResponse>> getBlocksSummary(
             @PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getBlocksSummary(id)));
+    }
+
+    /** 공유된 일정 가져오기 — 시작일 기준으로 날짜 재계산 후 내 일정으로 복제 */
+    @PostMapping("/{tripId}/copy")
+    public ResponseEntity<ApiResponse<Long>> copyTrip(
+            @PathVariable("tripId") Long tripId,
+            @Valid @RequestBody TripCopyRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        Long newTripId = tripService.copyTrip(tripId, request, memberId);
+        return ResponseEntity.status(201).body(ApiResponse.ok(newTripId));
     }
 
     @PatchMapping("/{tripId}/default-transit-mode")
