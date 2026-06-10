@@ -28,3 +28,7 @@ export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
 export async function applyDrivingOption(fromId, toId, hour, optionIndex) {
   return await http.post(`/api/transit/select-driving?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
 }
+
+export async function getLaneSegments(fromId, toId, hour = 9) {
+  return await http.get(`/api/transit/segments?fromId=${fromId}&toId=${toId}&hour=${hour}`)
+}

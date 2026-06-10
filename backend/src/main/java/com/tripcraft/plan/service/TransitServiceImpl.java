@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -612,6 +613,54 @@ public class TransitServiceImpl implements TransitService {
                 .routeCoords(result.routeCoords())
                 .label(DRIVING_LABELS[optionIndex])
                 .build());
+    }
+
+    @Override
+    public List<Map<String, Object>> getLaneSegments(Long fromId, Long toId, int departureHour) {
+        Optional<TransitCache> cacheOpt = transitCacheMapper.findByKey(fromId, toId, departureHour, MODE_PUBLIC_TRANSIT);
+        if (cacheOpt.isEmpty()) return List.of();
+        try {
+            JsonNode pd = objectMapper.readTree(cacheOpt.get().getPathDetail());
+            // path_detail 구조: {"intercityPaths": [{..., "info": {"mapObj": "..."}}]}
+            String mapObj = pd.path("intercityPaths").get(0).path("info").path("mapObj").asText("");
+            if (mapObj.isEmpty()) return List.of();
+
+            Optional<LanePolyline> laneOpt = lanePolylineMapper.findByKey(mapObj);
+            if (laneOpt.isEmpty() || laneOpt.get().getRawResponse() == null) return List.of();
+
+            return parseSegmentsFromRaw(laneOpt.get().getRawResponse());
+        } catch (Exception e) {
+            log.warn("getLaneSegments 실패 from={} to={}: {}", fromId, toId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> parseSegmentsFromRaw(String rawResponse) {
+        try {
+            JsonNode root = objectMapper.readTree(rawResponse);
+            List<Map<String, Object>> segments = new ArrayList<>();
+            for (JsonNode lane : root.path("result").path("lane")) {
+                int modeClass = lane.path("class").asInt(2);
+                List<double[]> coords = new ArrayList<>();
+                for (JsonNode section : lane.path("section")) {
+                    for (JsonNode pos : section.path("graphPos")) {
+                        double x = pos.path("x").asDouble(0);
+                        double y = pos.path("y").asDouble(0);
+                        if (x != 0 && y != 0) coords.add(new double[]{x, y});
+                    }
+                }
+                if (!coords.isEmpty()) {
+                    Map<String, Object> seg = new java.util.LinkedHashMap<>();
+                    seg.put("c", modeClass);
+                    seg.put("p", coords);
+                    segments.add(seg);
+                }
+            }
+            return segments;
+        } catch (Exception e) {
+            log.warn("parseSegmentsFromRaw 실패: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     @Override
