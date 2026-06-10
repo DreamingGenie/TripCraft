@@ -538,6 +538,7 @@ let routePolylines = []
 let routeMarkers = []
 let routeMarkerGroups = new Map()  // routeKey → { expand, collapse, polyline, style }
 let pinnedRouteKey = null
+let drawGeneration = 0             // drawDayRoute 호출마다 증가 — 이전 async 작업 취소용
 let panelResizing = false
 let panelResizeStartX = 0
 let panelResizeStartWidth = 0
@@ -1055,6 +1056,7 @@ function getRouteStyle(transitMode) {
 
 async function drawDayRoute() {
   if (!naverMapInstance || !mapDay.value) return
+  const gen = ++drawGeneration          // 이 호출의 고유 세대 번호
   const { naver } = window
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
@@ -1108,10 +1110,13 @@ async function drawDayRoute() {
     if (result === undefined && prevCand?.attractionId && currCand?.attractionId) {
       try {
         result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, requestMode, hour)
+        if (gen !== drawGeneration) return   // 새 draw가 시작됐으면 중단
         if (!pillResults[key]) pillResults[key] = {}
         pillResults[key][requestMode] = result
       } catch { result = null }
     }
+
+    if (gen !== drawGeneration) return
 
     const style = getRouteStyle(curr.transitMode)
     if (result?.routeCoords) {
@@ -1119,7 +1124,7 @@ async function drawDayRoute() {
         const coords = JSON.parse(result.routeCoords)
         const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
         const polyline = new naver.maps.Polyline({
-          path,
+          path, clickable: true,
           strokeColor: style.color, strokeWeight: style.weight,
           strokeOpacity: style.opacity, strokeStyle: style.strokeStyle,
           map: naverMapInstance,
@@ -1136,6 +1141,7 @@ async function drawDayRoute() {
         const fallbackStyle = { ...style, weight: 3, opacity: 0.4 }
         const polyline = new naver.maps.Polyline({
           path: [new naver.maps.LatLng(prevLat, prevLng), new naver.maps.LatLng(currLat, currLng)],
+          clickable: true,
           strokeColor: fallbackStyle.color, strokeWeight: 3, strokeOpacity: 0.4,
           strokeStyle: 'shortdot', map: naverMapInstance,
         })
@@ -1146,7 +1152,7 @@ async function drawDayRoute() {
 
     // PUBLIC_TRANSIT: 탑승/하차 마커 추가 (routeKey 연결)
     if (requestMode === 'PUBLIC_TRANSIT' && prevCand?.attractionId && currCand?.attractionId) {
-      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour, key)
+      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour, key, gen)
     }
   }
 
@@ -1183,9 +1189,10 @@ function addPolylineHover(polyline, style, routeKey) {
   routeMarkerGroups.set(routeKey, { ...existing, polyline, style })
 }
 
-async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey) {
+async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey, gen) {
   try {
     const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
+    if (gen !== drawGeneration) return   // 새 draw가 시작됐으면 마커 추가 중단
     const subPaths = detail?.intercityPaths?.[0]?.subPath || []
     const { naver } = window
     const TYPE_COLOR = { 1: '#7c3aed', 2: '#2563eb', 4: '#dc2626', 5: '#d97706', 6: '#d97706' }
