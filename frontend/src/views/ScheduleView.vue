@@ -231,7 +231,7 @@
           <button v-for="opt in modeOptions" :key="opt.mode"
                   class="transit-mode-tab"
                   :class="{ active: selectedModalMode === opt.mode }"
-                  @click="selectedModalMode = opt.mode; selectedPublicPathIndex = 0">
+                  @click="onModeTabClick(opt.mode)">
             <span class="transit-tab-label">{{ opt.label }}</span>
             <span v-if="pillLoadingModes[`${openPillKey}-${opt.mode}`]" class="transit-tab-spinner"></span>
             <span v-else-if="pillResults[openPillKey]?.[opt.mode]?.durationMinutes > 0"
@@ -718,10 +718,29 @@ function togglePillDropdown(pill, event) {
   currentPillData.value = pill
   const cur = pill.transportMode
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
+  selectedPublicPathIndex.value = 0
+  selectedDrivingOptionIndex.value = 0
   if (!pill.fromAttractionId || !pill.toAttractionId) return
-  modeOptions.forEach(opt => fetchPillMode(pill, opt.mode))
-  fetchPublicTransitPaths(pill)
-  fetchDrivingOptionsList(pill)
+  loadTabData(pill, selectedModalMode.value)
+}
+
+function loadTabData(pill, mode) {
+  if (mode === 'PUBLIC_TRANSIT') {
+    fetchPillMode(pill, 'PUBLIC_TRANSIT')
+    fetchPublicTransitPaths(pill)
+  } else if (mode === 'DRIVING') {
+    fetchPillMode(pill, 'DRIVING')
+    fetchDrivingOptionsList(pill)
+  } else if (mode === 'WALKING') {
+    fetchPillMode(pill, 'WALKING')
+  }
+}
+
+function onModeTabClick(mode) {
+  selectedModalMode.value = mode
+  selectedPublicPathIndex.value = 0
+  selectedDrivingOptionIndex.value = 0
+  if (currentPillData.value) loadTabData(currentPillData.value, mode)
 }
 
 async function fetchPillMode(pill, mode) {
