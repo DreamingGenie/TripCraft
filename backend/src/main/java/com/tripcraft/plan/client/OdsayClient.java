@@ -27,7 +27,8 @@ public class OdsayClient {
     @Value("${odsay.api-key}")
     private String apiKey;
 
-    private static final String BASE_URL = "https://api.odsay.com/v1/api/searchPubTransPathT";
+    private static final String BASE_URL      = "https://api.odsay.com/v1/api/searchPubTransPathT";
+    private static final String LOAD_LANE_URL = "https://api.odsay.com/v1/api/loadLane";
 
     /** ODsay 응답의 모든 경로를 파싱해 반환. 도보 전용 경로는 제외. 오류 시 빈 리스트 반환. */
     public List<OdsayResult> findTransitPath(BigDecimal fromLat, BigDecimal fromLng,
@@ -181,6 +182,50 @@ public class OdsayClient {
             }
         }
         return modes.isEmpty() ? null : String.join(",", modes);
+    }
+
+    /**
+     * ODsay loadLane API — 노선 구간의 실제 폴리라인 좌표를 반환.
+     * mapObject 형식: @{idx}:{trafficType}:{routeLocalID}:{startStationID}:{endStationID}
+     * 여러 구간은 '@'로 구분해 한 번에 요청 가능.
+     * 반환: [[lng, lat], ...] JSON 문자열, 실패 또는 좌표 없으면 null.
+     */
+    public String loadLane(String mapObject) {
+        try {
+            String encodedKey    = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
+            String encodedObject = URLEncoder.encode(mapObject, StandardCharsets.UTF_8);
+            String url = LOAD_LANE_URL + "?mapObject=" + encodedObject + "&apiKey=" + encodedKey;
+            log.debug("ODsay loadLane 요청: mapObject={}", mapObject);
+
+            String body = restClient.get()
+                    .uri(URI.create(url))
+                    .header("Referer", "http://localhost:5173")
+                    .retrieve()
+                    .body(String.class);
+
+            log.debug("ODsay loadLane 응답: {}", body);
+            JsonNode root = objectMapper.readTree(body);
+            if (root.has("error")) {
+                log.warn("ODsay loadLane 오류: {}", root.path("error"));
+                return null;
+            }
+
+            List<double[]> coords = new ArrayList<>();
+            for (JsonNode lane : root.path("result").path("lane")) {
+                for (JsonNode section : lane.path("section")) {
+                    for (JsonNode pos : section.path("graphPos")) {
+                        double x = pos.path("x").asDouble(0);
+                        double y = pos.path("y").asDouble(0);
+                        if (x != 0 && y != 0) coords.add(new double[]{x, y});
+                    }
+                }
+            }
+            if (coords.isEmpty()) return null;
+            return objectMapper.writeValueAsString(coords);
+        } catch (Exception e) {
+            log.warn("ODsay loadLane 호출 실패: {}", e.getMessage());
+            return null;
+        }
     }
 
     public record OdsayResult(

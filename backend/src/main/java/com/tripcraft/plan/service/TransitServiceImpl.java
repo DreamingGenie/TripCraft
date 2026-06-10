@@ -9,8 +9,10 @@ import com.tripcraft.attraction.domain.Attraction;
 import com.tripcraft.attraction.mapper.AttractionMapper;
 import com.tripcraft.plan.client.OdsayClient;
 import com.tripcraft.plan.client.TMapClient;
+import com.tripcraft.plan.domain.LanePolyline;
 import com.tripcraft.plan.domain.TransitCache;
 import com.tripcraft.plan.dto.TransitResponse;
+import com.tripcraft.plan.mapper.LanePolylineMapper;
 import com.tripcraft.plan.mapper.TransitCacheMapper;
 import com.tripcraft.plan.mapper.TripBlockMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import java.util.Optional;
 public class TransitServiceImpl implements TransitService {
 
     private final TransitCacheMapper transitCacheMapper;
+    private final LanePolylineMapper lanePolylineMapper;
     private final TripBlockMapper tripBlockMapper;
     private final AttractionMapper attractionMapper;
     private final OdsayClient odsayClient;
@@ -365,26 +368,145 @@ public class TransitServiceImpl implements TransitService {
         }
     }
 
+    /**
+     * PUBLIC_TRANSIT 경로의 폴리라인 좌표를 구성한다.
+     * 각 교통 구간(버스·지하철 등)마다 우선순위:
+     *   1) ODsay loadLane API 결과 (DB 캐시 우선, 없으면 API 호출)
+     *   2) passStopList 정류장 좌표
+     *   3) 구간 시작·끝 좌표 (fallback)
+     */
     private String extractPublicTransitCoords(String pathDetail) {
         try {
-            JsonNode path = objectMapper.readTree(pathDetail);
+            JsonNode path     = objectMapper.readTree(pathDetail);
             JsonNode subPaths = path.path("subPath");
-            List<double[]> coords = new ArrayList<>();
+            List<double[]> allCoords = new ArrayList<>();
+
             for (int i = 0; i < subPaths.size(); i++) {
-                JsonNode sub = subPaths.get(i);
-                double startX = sub.path("startX").asDouble(0);
-                double startY = sub.path("startY").asDouble(0);
-                double endX   = sub.path("endX").asDouble(0);
-                double endY   = sub.path("endY").asDouble(0);
-                if (startX == 0 || startY == 0) continue;
-                if (coords.isEmpty()) coords.add(new double[]{startX, startY});
-                if (endX != 0 && endY != 0) coords.add(new double[]{endX, endY});
+                JsonNode sub         = subPaths.get(i);
+                int      trafficType = sub.path("trafficType").asInt();
+
+                if (trafficType == 3) { // 도보 구간 - 시작점만 이어주기
+                    appendPoint(sub.path("startX").asDouble(0),
+                                sub.path("startY").asDouble(0), allCoords);
+                    continue;
+                }
+
+                // 1) loadLane (DB 캐시 → API 호출)
+                String laneKey    = buildLaneKey(sub, trafficType);
+                String laneObject = buildLaneMapObject(sub, trafficType, i);
+                if (laneKey != null) {
+                    String laneCoords = fetchLanePolyline(laneKey, laneObject);
+                    if (laneCoords != null) {
+                        appendCoordsFromJson(laneCoords, allCoords);
+                        continue;
+                    }
+                }
+
+                // 2) passStopList 정류장 좌표
+                JsonNode stations = sub.path("passStopList").path("stations");
+                if (!stations.isEmpty()) {
+                    for (JsonNode st : stations) {
+                        appendPoint(st.path("x").asDouble(0),
+                                    st.path("y").asDouble(0), allCoords);
+                    }
+                    continue;
+                }
+
+                // 3) 시작·끝 좌표 fallback
+                appendPoint(sub.path("startX").asDouble(0), sub.path("startY").asDouble(0), allCoords);
+                appendPoint(sub.path("endX").asDouble(0),   sub.path("endY").asDouble(0),   allCoords);
             }
-            return coords.size() >= 2 ? objectMapper.writeValueAsString(coords) : null;
+
+            return allCoords.size() >= 2 ? objectMapper.writeValueAsString(allCoords) : null;
         } catch (Exception e) {
-            log.warn("PUBLIC_TRANSIT routeCoords 추출 실패: {}", e.getMessage());
+            log.warn("PUBLIC_TRANSIT routeCoords 구성 실패: {}", e.getMessage());
             return null;
         }
+    }
+
+    /** DB 캐시에서 lane polyline 조회, 없으면 ODsay loadLane 호출 후 저장. */
+    private String fetchLanePolyline(String laneKey, String mapObject) {
+        Optional<LanePolyline> cached = lanePolylineMapper.findByKey(laneKey);
+        if (cached.isPresent()) {
+            log.debug("LanePolyline 캐시 히트: key={}", laneKey);
+            return cached.get().getRouteCoords(); // null 이면 이전에 실패한 것
+        }
+        String coords = (mapObject != null) ? odsayClient.loadLane(mapObject) : null;
+        LanePolyline lp = new LanePolyline();
+        lp.setMapObjectKey(laneKey);
+        lp.setRouteCoords(coords);
+        try {
+            lanePolylineMapper.insert(lp);
+            log.debug("LanePolyline 저장: key={}, coords={}", laneKey, coords != null ? "있음" : "없음");
+        } catch (Exception e) {
+            log.warn("LanePolyline 저장 실패: {}", e.getMessage());
+        }
+        return coords;
+    }
+
+    /**
+     * DB 캐시 키 구성 — trafficType + routeLocalID + 시작/종착 stationID.
+     * 동일 노선 + 동일 구간이면 항상 같은 키를 반환한다.
+     */
+    private String buildLaneKey(JsonNode sub, int trafficType) {
+        JsonNode lane = sub.path("lane");
+        if (lane.isEmpty()) return null;
+        JsonNode l0 = lane.get(0);
+
+        JsonNode stations = sub.path("passStopList").path("stations");
+        if (stations.isEmpty()) return null;
+        String startId = stations.get(0).path("stationID").asText("");
+        String endId   = stations.get(stations.size() - 1).path("stationID").asText("");
+        if (startId.isEmpty() || endId.isEmpty()) return null;
+
+        String routeId = switch (trafficType) {
+            case 1 -> l0.path("subwayCode").asText("") + "_" + l0.path("wayCode").asText("1"); // 지하철
+            case 2 -> l0.path("busLocalBlID").asText(l0.path("busID").asText(""));              // 버스
+            case 4, 5, 6 -> l0.path("laneID").asText(l0.path("busLocalBlID").asText(""));       // 기차/고속·시외버스
+            default -> "";
+        };
+        if (routeId.isEmpty()) return null;
+        return trafficType + ":" + routeId + ":" + startId + ":" + endId;
+    }
+
+    /**
+     * ODsay loadLane mapObject 파라미터 문자열 구성.
+     * 형식: @{idx}:{trafficType}:{routeLocalID}:{startStationID}:{endStationID}
+     */
+    private String buildLaneMapObject(JsonNode sub, int trafficType, int idx) {
+        JsonNode lane = sub.path("lane");
+        if (lane.isEmpty()) return null;
+        JsonNode l0 = lane.get(0);
+
+        JsonNode stations = sub.path("passStopList").path("stations");
+        if (stations.isEmpty()) return null;
+        String startId = stations.get(0).path("stationID").asText("");
+        String endId   = stations.get(stations.size() - 1).path("stationID").asText("");
+        if (startId.isEmpty() || endId.isEmpty()) return null;
+
+        String routeLocalId = switch (trafficType) {
+            case 1 -> l0.path("subwayCode").asText("");
+            case 2 -> l0.path("busLocalBlID").asText(l0.path("busID").asText(""));
+            case 4, 5, 6 -> l0.path("laneID").asText(l0.path("busLocalBlID").asText(""));
+            default -> "";
+        };
+        if (routeLocalId.isEmpty()) return null;
+        return "@" + idx + ":" + trafficType + ":" + routeLocalId + ":" + startId + ":" + endId;
+    }
+
+    private void appendPoint(double x, double y, List<double[]> coords) {
+        if (x != 0 && y != 0) coords.add(new double[]{x, y});
+    }
+
+    private void appendCoordsFromJson(String json, List<double[]> coords) {
+        try {
+            JsonNode arr = objectMapper.readTree(json);
+            for (JsonNode c : arr) {
+                double x = c.get(0).asDouble(0);
+                double y = c.get(1).asDouble(0);
+                if (x != 0 && y != 0) coords.add(new double[]{x, y});
+            }
+        } catch (Exception ignored) {}
     }
 
     private String buildPathDetail(List<RouteEnrichment> enriched) {
