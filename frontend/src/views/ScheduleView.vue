@@ -1114,12 +1114,14 @@ async function drawDayRoute() {
       try {
         const coords = JSON.parse(result.routeCoords)
         const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
-        routePolylines.push(new naver.maps.Polyline({
+        const polyline = new naver.maps.Polyline({
           path,
           strokeColor: style.color, strokeWeight: style.weight,
           strokeOpacity: style.opacity, strokeStyle: style.strokeStyle,
           map: naverMapInstance,
-        }))
+        })
+        addPolylineHover(polyline, style)
+        routePolylines.push(polyline)
       } catch {}
     } else {
       const prevLat = prevCand?.latitude ? parseFloat(prevCand.latitude) : 0
@@ -1127,11 +1129,13 @@ async function drawDayRoute() {
       const currLat = currCand?.latitude ? parseFloat(currCand.latitude) : 0
       const currLng = currCand?.longitude ? parseFloat(currCand.longitude) : 0
       if (prevLat && prevLng && currLat && currLng) {
-        routePolylines.push(new naver.maps.Polyline({
+        const polyline = new naver.maps.Polyline({
           path: [new naver.maps.LatLng(prevLat, prevLng), new naver.maps.LatLng(currLat, currLng)],
           strokeColor: style.color, strokeWeight: 3, strokeOpacity: 0.4,
           strokeStyle: 'shortdot', map: naverMapInstance,
-        }))
+        })
+        addPolylineHover(polyline, { ...style, weight: 3, opacity: 0.4 })
+        routePolylines.push(polyline)
       }
     }
 
@@ -1144,31 +1148,57 @@ async function drawDayRoute() {
   if (hasCoords) naverMapInstance.fitBounds(bounds, { top: 50, right: 30, bottom: 30, left: 30 })
 }
 
+function addPolylineHover(polyline, style) {
+  const { naver } = window
+  naver.maps.Event.addListener(polyline, 'mouseover', () => {
+    polyline.setOptions({ strokeWeight: style.weight + 3, strokeOpacity: 1.0 })
+  })
+  naver.maps.Event.addListener(polyline, 'mouseout', () => {
+    polyline.setOptions({ strokeWeight: style.weight, strokeOpacity: style.opacity })
+  })
+}
+
 async function drawTransferMarkers(fromAttrId, toAttrId, hour) {
   try {
     const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
     const subPaths = detail?.intercityPaths?.[0]?.subPath || []
     const { naver } = window
     const TYPE_COLOR = { 1: '#7c3aed', 2: '#2563eb', 4: '#dc2626', 5: '#d97706', 6: '#d97706' }
+    const nonWalking = subPaths.filter(s => s.trafficType !== 3)
 
-    for (let i = 0; i < subPaths.length - 1; i++) {
-      const sub = subPaths[i]
-      if (sub.trafficType === 3) continue
-      if (!sub.endX || !sub.endY) continue
-
+    nonWalking.forEach((sub, idx) => {
       const color = TYPE_COLOR[sub.trafficType] || '#534ab7'
       const label = getTransitSegmentLabel(sub)
-      const marker = new naver.maps.Marker({
-        position: new naver.maps.LatLng(sub.endY, sub.endX),
-        map: naverMapInstance,
-        icon: {
-          content: `<div class="map-transfer-marker" style="border-color:${color};color:${color}">${label}</div>`,
-          anchor: new naver.maps.Point(0, 0),
-        },
-        zIndex: 10,
-      })
-      routeMarkers.push(marker)
-    }
+
+      // 탑승 마커 (구간 시작)
+      if (sub.startX && sub.startY) {
+        routeMarkers.push(new naver.maps.Marker({
+          position: new naver.maps.LatLng(sub.startY, sub.startX),
+          map: naverMapInstance,
+          icon: {
+            content: `<div class="map-board-marker" style="border-color:${color}">
+                        <span class="map-board-arrow" style="color:${color}">▲</span>
+                        <span class="map-board-name">${sub.startName || '탑승'}</span>
+                      </div>`,
+            anchor: new naver.maps.Point(0, 0),
+          },
+          zIndex: 9,
+        }))
+      }
+
+      // 하차/환승 마커 (구간 끝 — 마지막 구간 제외: 도착지는 이미 번호 마커 있음)
+      if (idx < nonWalking.length - 1 && sub.endX && sub.endY) {
+        routeMarkers.push(new naver.maps.Marker({
+          position: new naver.maps.LatLng(sub.endY, sub.endX),
+          map: naverMapInstance,
+          icon: {
+            content: `<div class="map-transfer-marker" style="border-color:${color};color:${color}">${label}</div>`,
+            anchor: new naver.maps.Point(0, 0),
+          },
+          zIndex: 10,
+        }))
+      }
+    })
   } catch {}
 }
 
