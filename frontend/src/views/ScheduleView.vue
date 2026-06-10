@@ -283,49 +283,51 @@
 
           <!-- 자동차: 세로 카드 리스트 -->
           <template v-else-if="selectedModalMode === 'DRIVING'">
-            <div v-if="pillDrivingOptions[openPillKey] === undefined" class="transit-body-hint">
-              경로 계산 중...
+            <div class="transit-route-tabs">
+              <button v-for="(label, idx) in DRIVING_OPTION_LABELS" :key="idx"
+                      class="transit-route-tab"
+                      :class="{ active: selectedDrivingOptionIndex === idx }"
+                      @click="onDrivingOptionTabClick(idx)">
+                <span class="transit-route-tab-label">{{ label }}</span>
+                <span v-if="pillLoadingModes[`${openPillKey}-driving-${idx}`]" class="transit-tab-spinner"></span>
+                <span v-else-if="pillDrivingOptions[openPillKey]?.[idx]?.durationMinutes"
+                      class="transit-route-tab-time">
+                  {{ pillDrivingOptions[openPillKey][idx].durationMinutes }}분
+                </span>
+              </button>
             </div>
-            <template v-else-if="pillDrivingOptions[openPillKey].length > 0">
-              <div class="transit-route-tabs">
-                <button v-for="(opt, idx) in pillDrivingOptions[openPillKey]" :key="idx"
-                        class="transit-route-tab"
-                        :class="{ active: selectedDrivingOptionIndex === idx }"
-                        @click="selectedDrivingOptionIndex = idx">
-                  <span class="transit-route-tab-label">{{ opt.label }}</span>
-                  <span class="transit-route-tab-time">{{ opt.durationMinutes }}분</span>
-                </button>
+            <div v-if="pillLoadingModes[`${openPillKey}-driving-${selectedDrivingOptionIndex}`]"
+                 class="transit-body-hint">경로 계산 중...</div>
+            <div v-else-if="currentDrivingOption" class="transit-steps">
+              <!-- 요약 첫 줄 -->
+              <div class="transit-step transit-step--drive-summary">
+                <span class="transit-step-icon">🚗</span>
+                <div class="transit-step-body">
+                  <div class="transit-step-main">
+                    <span class="transit-step-title">{{ currentDrivingOption.roadSummary || '경로' }}</span>
+                  </div>
+                </div>
               </div>
-              <div v-if="currentDrivingOption" class="transit-steps">
-                <!-- 요약 첫 줄 -->
-                <div class="transit-step transit-step--drive-summary">
-                  <span class="transit-step-icon">🚗</span>
+              <!-- 전체 구간 -->
+              <template v-for="(seg, si) in currentDrivingSegments" :key="si">
+                <div class="transit-connector"></div>
+                <div class="transit-step transit-step--walk">
+                  <span class="transit-step-icon">🛣</span>
                   <div class="transit-step-body">
                     <div class="transit-step-main">
-                      <span class="transit-step-title">{{ currentDrivingOption.roadSummary || '경로' }}</span>
+                      <span class="transit-step-title">{{ seg.name }}</span>
+                      <span class="transit-step-route">
+                        {{ (seg.distanceM / 1000).toFixed(1) }}km · {{ Math.ceil(seg.timeSec / 60) }}분
+                        <template v-if="seg.speedKmh > 0"> · {{ seg.speedKmh }}km/h</template>
+                      </span>
+                      <span v-if="ROAD_TYPE_LABEL[seg.roadType]" class="transit-step-detail">{{ ROAD_TYPE_LABEL[seg.roadType] }}</span>
                     </div>
                   </div>
                 </div>
-                <!-- 전체 구간 -->
-                <template v-for="(seg, si) in currentDrivingSegments" :key="si">
-                  <div class="transit-connector"></div>
-                  <div class="transit-step transit-step--walk">
-                    <span class="transit-step-icon">🛣</span>
-                    <div class="transit-step-body">
-                      <div class="transit-step-main">
-                        <span class="transit-step-title">{{ seg.name }}</span>
-                        <span class="transit-step-route">
-                          {{ (seg.distanceM / 1000).toFixed(1) }}km · {{ Math.ceil(seg.timeSec / 60) }}분
-                          <template v-if="seg.speedKmh > 0"> · {{ seg.speedKmh }}km/h</template>
-                        </span>
-                        <span v-if="ROAD_TYPE_LABEL[seg.roadType]" class="transit-step-detail">{{ ROAD_TYPE_LABEL[seg.roadType] }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </template>
-            <div v-else class="transit-body-hint">경로를 찾을 수 없어요</div>
+              </template>
+            </div>
+            <div v-else-if="pillDrivingOptions[openPillKey]?.[selectedDrivingOptionIndex] === null"
+                 class="transit-body-hint">경로를 찾을 수 없어요</div>
           </template>
 
           <!-- 도보: 단일 결과 + 구간 스텝 -->
@@ -401,7 +403,7 @@ import { ref, computed, reactive, onMounted, onUnmounted, nextTick, inject } fro
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOptions } from '@/api/transit'
+import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption } from '@/api/transit'
 
 const toast = useToastStore()
 const router = useRouter()
@@ -470,39 +472,25 @@ const currentWalkingSegments = computed(() => {
 const footerVisible = computed(() => {
   if (!openPillKey.value) return false
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return !!currentPublicPath.value
-  if (selectedModalMode.value === 'DRIVING') {
-    return pillDrivingOptions[openPillKey.value]?.length > 0
-      ? !!currentDrivingOption.value?.durationMinutes
-      : !!pillResults[openPillKey.value]?.['DRIVING']?.durationMinutes
-  }
+  if (selectedModalMode.value === 'DRIVING') return !!currentDrivingOption.value?.durationMinutes
   return !!pillResults[openPillKey.value]?.[selectedModalMode.value]?.durationMinutes
 })
 
 const footerMinutes = computed(() => {
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return currentPublicPath.value?.minutes ?? 0
-  if (selectedModalMode.value === 'DRIVING') {
-    return pillDrivingOptions[openPillKey.value]?.length > 0
-      ? (currentDrivingOption.value?.durationMinutes ?? 0)
-      : (pillResults[openPillKey.value]?.['DRIVING']?.durationMinutes ?? 0)
-  }
+  if (selectedModalMode.value === 'DRIVING') return currentDrivingOption.value?.durationMinutes ?? 0
   return pillResults[openPillKey.value]?.[selectedModalMode.value]?.durationMinutes ?? 0
 })
 
 const footerFare = computed(() => {
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return currentPublicPath.value?.fare ?? 0
-  if (selectedModalMode.value === 'DRIVING') {
-    return pillDrivingOptions[openPillKey.value]?.length > 0
-      ? (currentDrivingOption.value?.taxiFare ?? 0)
-      : (pillResults[openPillKey.value]?.['DRIVING']?.taxiFare ?? 0)
-  }
+  if (selectedModalMode.value === 'DRIVING') return currentDrivingOption.value?.taxiFare ?? 0
   return 0
 })
 
 const footerTollFare = computed(() => {
   if (selectedModalMode.value !== 'DRIVING') return 0
-  return pillDrivingOptions[openPillKey.value]?.length > 0
-    ? (currentDrivingOption.value?.tollFare ?? 0)
-    : 0
+  return currentDrivingOption.value?.tollFare ?? 0
 })
 
 const footerFareLabel = computed(() =>
@@ -512,9 +500,7 @@ const footerFareLabel = computed(() =>
 const footerDist = computed(() => {
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return ''
   if (selectedModalMode.value === 'DRIVING') {
-    const m = pillDrivingOptions[openPillKey.value]?.length > 0
-      ? currentDrivingOption.value?.totalDistanceM
-      : pillResults[openPillKey.value]?.['DRIVING']?.totalDistanceM
+    const m = currentDrivingOption.value?.totalDistanceM
     return m ? formatDistM(m) : ''
   }
   const m = pillResults[openPillKey.value]?.[selectedModalMode.value]?.totalDistanceM
@@ -529,7 +515,7 @@ const footerTransfers = computed(() => {
 function onTransitSave() {
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') {
     selectPublicTransitPath(currentPillData.value, selectedPublicPathIndex.value)
-  } else if (selectedModalMode.value === 'DRIVING' && pillDrivingOptions[pillKey(currentPillData.value)]?.length > 0) {
+  } else if (selectedModalMode.value === 'DRIVING' && currentDrivingOption.value?.durationMinutes) {
     selectDrivingOption(currentPillData.value, selectedDrivingOptionIndex.value)
   } else {
     selectPillMode(currentPillData.value, selectedModalMode.value)
@@ -730,7 +716,7 @@ function loadTabData(pill, mode) {
     fetchPublicTransitPaths(pill)
   } else if (mode === 'DRIVING') {
     fetchPillMode(pill, 'DRIVING')
-    fetchDrivingOptionsList(pill)
+    fetchDrivingOption(pill, 0)
   } else if (mode === 'WALKING') {
     fetchPillMode(pill, 'WALKING')
   }
@@ -741,6 +727,11 @@ function onModeTabClick(mode) {
   selectedPublicPathIndex.value = 0
   selectedDrivingOptionIndex.value = 0
   if (currentPillData.value) loadTabData(currentPillData.value, mode)
+}
+
+function onDrivingOptionTabClick(idx) {
+  selectedDrivingOptionIndex.value = idx
+  if (currentPillData.value) fetchDrivingOption(currentPillData.value, idx)
 }
 
 async function fetchPillMode(pill, mode) {
@@ -886,15 +877,21 @@ async function selectPublicTransitPath(pill, pathIndex) {
   }
 }
 
-async function fetchDrivingOptionsList(pill) {
+async function fetchDrivingOption(pill, optionIndex) {
   const key = pillKey(pill)
-  if (pillDrivingOptions[key] !== undefined) return
   if (!pill.fromAttractionId || !pill.toAttractionId) return
+  if (!pillDrivingOptions[key]) pillDrivingOptions[key] = new Array(4).fill(undefined)
+  if (pillDrivingOptions[key][optionIndex] !== undefined) return
+  const loadKey = `${key}-driving-${optionIndex}`
+  if (pillLoadingModes[loadKey]) return
+  pillLoadingModes[loadKey] = true
   try {
-    const options = await getDrivingOptions(pill.fromAttractionId, pill.toAttractionId, pill.departureHour)
-    pillDrivingOptions[key] = Array.isArray(options) ? options : []
+    const result = await getDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex)
+    pillDrivingOptions[key][optionIndex] = result
   } catch {
-    pillDrivingOptions[key] = []
+    pillDrivingOptions[key][optionIndex] = null
+  } finally {
+    pillLoadingModes[loadKey] = false
   }
 }
 

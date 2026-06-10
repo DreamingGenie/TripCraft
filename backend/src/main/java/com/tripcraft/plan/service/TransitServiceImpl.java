@@ -491,6 +491,70 @@ public class TransitServiceImpl implements TransitService {
         return results;
     }
 
+    @Override
+    public Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex) {
+        if (optionIndex < 0 || optionIndex >= DRIVING_SEARCH_OPTIONS.length) return Optional.empty();
+
+        Optional<TransitCache> cached = transitCacheMapper.findByKey(fromId, toId, departureHour, DRIVING_REQUEST_MODES[optionIndex]);
+        if (cached.isPresent()) {
+            return Optional.of(buildDrivingResponseFromCache(cached.get()));
+        }
+
+        Attraction from = attractionMapper.findById(fromId).orElse(null);
+        Attraction to   = attractionMapper.findById(toId).orElse(null);
+        if (from == null || to == null
+                || from.getLatitude() == null || from.getLongitude() == null
+                || to.getLatitude() == null   || to.getLongitude() == null) {
+            return Optional.empty();
+        }
+
+        TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(
+                from.getLatitude(), from.getLongitude(), to.getLatitude(), to.getLongitude(),
+                DRIVING_SEARCH_OPTIONS[optionIndex], departureHour);
+        if (result == null || result.durationMinutes() <= 0) return Optional.empty();
+
+        String roadSummary = buildRoadSummary(result.segments());
+        String segJson;
+        try { segJson = objectMapper.writeValueAsString(result.segments()); }
+        catch (Exception e) { segJson = "[]"; }
+
+        ObjectNode detail = objectMapper.createObjectNode();
+        detail.put("tollFare", result.tollFare());
+        detail.put("roadSummary", roadSummary);
+        detail.put("label", DRIVING_LABELS[optionIndex]);
+        try { detail.set("segments", objectMapper.readTree(segJson)); }
+        catch (Exception ignored) {}
+
+        TransitCache cache = new TransitCache();
+        cache.setFromAttractionId(fromId);
+        cache.setToAttractionId(toId);
+        cache.setDepartureHour(departureHour);
+        cache.setRequestMode(DRIVING_REQUEST_MODES[optionIndex]);
+        cache.setDurationMinutes(result.durationMinutes());
+        cache.setTransportMode(MODE_DRIVING);
+        cache.setTransferCount(0);
+        cache.setFare(0);
+        cache.setTotalDistanceM(result.totalDistanceM());
+        cache.setTotalWalkM(0);
+        cache.setTaxiFare(result.taxiFare());
+        cache.setRouteCoords(result.routeCoords());
+        try { cache.setPathDetail(objectMapper.writeValueAsString(detail)); }
+        catch (Exception e) { cache.setPathDetail("{}"); }
+        try { transitCacheMapper.insert(cache); }
+        catch (Exception e) { log.warn("DRIVING 단일 옵션 캐시 저장 실패 ({}): {}", DRIVING_REQUEST_MODES[optionIndex], e.getMessage()); }
+
+        return Optional.of(TransitResponse.builder()
+                .durationMinutes(result.durationMinutes())
+                .transportMode(MODE_DRIVING)
+                .taxiFare(result.taxiFare())
+                .tollFare(result.tollFare())
+                .totalDistanceM(result.totalDistanceM())
+                .roadSummary(roadSummary)
+                .routeSegmentsJson(segJson)
+                .label(DRIVING_LABELS[optionIndex])
+                .build());
+    }
+
     private TransitResponse buildDrivingResponseFromCache(TransitCache c) {
         String roadSummary = "";
         String segJson = "[]";

@@ -19,3 +19,8 @@ export async function selectTransitPath(fromId, toId, hour, pathIndex) {
 export async function getDrivingOptions(fromId, toId, hour = 9) {
   return await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}`)
 }
+
+export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
+  const res = await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
+  return Array.isArray(res) ? res[0] ?? null : null
+}
