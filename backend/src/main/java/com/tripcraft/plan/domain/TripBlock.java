@@ -21,6 +21,7 @@ public class TripBlock {
     private String memo;
     private Integer transitDurationMinutes;
     private String transitMode;
+    private Integer transitOptionIndex;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -304,7 +304,7 @@ public class TransitServiceImpl implements TransitService {
             cached.setTotalWalkM(totalWalkM);
             cached.setRouteCoords(newRouteCoords);
             transitCacheMapper.updateSummary(cached);
-            tripBlockMapper.updateTransitByAttractionPair(fromId, toId, totalMinutes, transportMode);
+            tripBlockMapper.updateTransitByAttractionPair(fromId, toId, totalMinutes, transportMode, pathIndex);
             log.debug("경로 선택 저장: pathIndex={}, total={}분, mode={}, from={}, to={}",
                     pathIndex, totalMinutes, transportMode, fromId, toId);
 

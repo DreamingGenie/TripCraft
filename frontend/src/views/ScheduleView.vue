@@ -434,12 +434,6 @@ const pillResults = reactive({})
 const pillLoadingModes = reactive({})
 const pillPublicTransitPaths = reactive({})
 const pillDrivingOptions = reactive({})
-function getSavedIndex(key, type) {
-  return parseInt(localStorage.getItem(`transit-sel:${type}:${key}`)) || 0
-}
-function saveIndex(key, type, index) {
-  localStorage.setItem(`transit-sel:${type}:${key}`, index)
-}
 
 const DRIVING_OPTION_LABELS = ['추천', '최단시간', '무료도로', '최소거리']
 
@@ -663,6 +657,7 @@ function buildEvent(b, cand) {
     dragging: false,
     transitDurationMinutes: b.transitDurationMinutes ?? null,
     transitMode: b.transitMode ?? null,
+    transitOptionIndex: b.transitOptionIndex ?? null,
   }
 }
 
@@ -680,6 +675,7 @@ function getTransitPills(day) {
         top: pillTop,
         durationMinutes: curr.transitDurationMinutes,
         transportMode: curr.transitMode,
+        transitOptionIndex: curr.transitOptionIndex,
         fromAttractionId: prevCand?.attractionId,
         toAttractionId: currCand?.attractionId,
         departureHour: Math.min(Math.floor(pillTop / 60), 23),
@@ -710,8 +706,8 @@ function togglePillDropdown(pill, event) {
   currentPillData.value = pill
   const cur = pill.transportMode
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
-  selectedPublicPathIndex.value = getSavedIndex(key, 'transit')
-  selectedDrivingOptionIndex.value = getSavedIndex(key, 'driving')
+  selectedPublicPathIndex.value = pill.transitOptionIndex ?? 0
+  selectedDrivingOptionIndex.value = pill.transitOptionIndex ?? 0
   if (!pill.fromAttractionId || !pill.toAttractionId) return
   loadTabData(pill, selectedModalMode.value)
 }
@@ -723,6 +719,8 @@ function loadTabData(pill, mode) {
   } else if (mode === 'DRIVING') {
     fetchPillMode(pill, 'DRIVING')
     fetchDrivingOption(pill, 0)
+    const savedIdx = pill.transitOptionIndex ?? 0
+    if (savedIdx > 0) fetchDrivingOption(pill, savedIdx)
   } else if (mode === 'WALKING') {
     fetchPillMode(pill, 'WALKING')
   }
@@ -876,7 +874,6 @@ async function selectPublicTransitPath(pill, pathIndex) {
   try {
     await selectTransitPath(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, pathIndex)
     const key = pillKey(pill)
-    saveIndex(key, 'transit', pathIndex)
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
@@ -919,10 +916,10 @@ async function selectDrivingOption(pill, optionIndex) {
         transitMode: 'DRIVING',
         transitDurationMinutes: opt?.durationMinutes ?? null,
         taxiFare: opt?.taxiFare ?? null,
+        transitOptionIndex: optionIndex,
       }),
       applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex),
     ])
-    saveIndex(key, 'driving', optionIndex)
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null

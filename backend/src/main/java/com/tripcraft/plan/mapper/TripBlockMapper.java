@@ -33,5 +33,6 @@ public interface TripBlockMapper {
             @Param("fromAttractionId") Long fromAttractionId,
             @Param("toAttractionId") Long toAttractionId,
             @Param("durationMinutes") Integer durationMinutes,
-            @Param("transportMode") String transportMode);
+            @Param("transportMode") String transportMode,
+            @Param("optionIndex") Integer optionIndex);
 }
