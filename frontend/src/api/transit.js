@@ -24,3 +24,7 @@ export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
   const res = await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
   return Array.isArray(res) ? res[0] ?? null : null
 }
+
+export async function applyDrivingOption(fromId, toId, hour, optionIndex) {
+  return await http.post(`/api/transit/select-driving?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
+}

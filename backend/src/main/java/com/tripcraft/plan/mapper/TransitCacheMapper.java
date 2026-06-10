@@ -17,4 +17,6 @@ public interface TransitCacheMapper {
     void insert(TransitCache cache);
 
     void updateSummary(TransitCache cache);
+
+    void updateRouteCoords(TransitCache cache);
 }

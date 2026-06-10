@@ -46,6 +46,16 @@
           AND request_mode       = #{requestMode}
     </update>
 
+    <update id="updateRouteCoords" parameterType="com.tripcraft.plan.domain.TransitCache">
+        UPDATE transit_cache
+        SET route_coords = #{routeCoords},
+            cached_at    = CURRENT_TIMESTAMP
+        WHERE from_attraction_id = #{fromAttractionId}
+          AND to_attraction_id   = #{toAttractionId}
+          AND departure_hour     = #{departureHour}
+          AND request_mode       = #{requestMode}
+    </update>
+
     <insert id="insert" parameterType="com.tripcraft.plan.domain.TransitCache"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO transit_cache

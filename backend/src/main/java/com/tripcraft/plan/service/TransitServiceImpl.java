@@ -541,6 +541,7 @@ public class TransitServiceImpl implements TransitService {
                         .totalDistanceM(result.totalDistanceM())
                         .roadSummary(roadSummary)
                         .routeSegmentsJson(segJson)
+                        .routeCoords(result.routeCoords())
                         .label(DRIVING_LABELS[i])
                         .build());
             }
@@ -608,8 +609,23 @@ public class TransitServiceImpl implements TransitService {
                 .totalDistanceM(result.totalDistanceM())
                 .roadSummary(roadSummary)
                 .routeSegmentsJson(segJson)
+                .routeCoords(result.routeCoords())
                 .label(DRIVING_LABELS[optionIndex])
                 .build());
+    }
+
+    @Override
+    public void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex) {
+        if (optionIndex < 0 || optionIndex >= DRIVING_REQUEST_MODES.length) return;
+        // 선택된 옵션의 route_coords를 DRIVING 캐시에 덮어써 지도에 반영되도록 함
+        Optional<TransitCache> optionCache = transitCacheMapper.findByKey(fromId, toId, departureHour, DRIVING_REQUEST_MODES[optionIndex]);
+        if (optionCache.isEmpty()) return;
+        Optional<TransitCache> drivingCache = transitCacheMapper.findByKey(fromId, toId, departureHour, MODE_DRIVING);
+        if (drivingCache.isEmpty()) return;
+        TransitCache cache = drivingCache.get();
+        cache.setRouteCoords(optionCache.get().getRouteCoords());
+        transitCacheMapper.updateRouteCoords(cache);
+        log.debug("DRIVING route_coords 갱신: optionIndex={}, from={}, to={}", optionIndex, fromId, toId);
     }
 
     private TransitResponse buildDrivingResponseFromCache(TransitCache c) {
