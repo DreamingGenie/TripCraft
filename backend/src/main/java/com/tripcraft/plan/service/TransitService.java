@@ -11,4 +11,5 @@ public interface TransitService {
     Optional<JsonNode> getPathDetail(Long fromAttractionId, Long toAttractionId, int departureHour);
     Optional<TransitResponse> selectPath(Long fromAttractionId, Long toAttractionId, int departureHour, int pathIndex);
     List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour);
+    Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
 }

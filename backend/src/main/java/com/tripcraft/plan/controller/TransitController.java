@@ -46,7 +46,13 @@ public class TransitController {
     public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOptions(
             @RequestParam(name = "fromId") Long fromId,
             @RequestParam(name = "toId") Long toId,
-            @RequestParam(name = "hour", defaultValue = "9") int hour) {
+            @RequestParam(name = "hour", defaultValue = "9") int hour,
+            @RequestParam(name = "optionIndex", required = false) Integer optionIndex) {
+        if (optionIndex != null) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    transitService.getDrivingOption(fromId, toId, hour, optionIndex)
+                            .map(List::of).orElse(List.of())));
+        }
         return ResponseEntity.ok(ApiResponse.ok(transitService.getDrivingOptions(fromId, toId, hour)));
     }
 
