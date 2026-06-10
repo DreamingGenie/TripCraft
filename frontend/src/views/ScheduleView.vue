@@ -434,6 +434,7 @@ const pillResults = reactive({})
 const pillLoadingModes = reactive({})
 const pillPublicTransitPaths = reactive({})
 const pillDrivingOptions = reactive({})
+const savedPathIndices = reactive({})    // pillKey → 마지막으로 저장된 경로 인덱스
 
 const DRIVING_OPTION_LABELS = ['추천', '최단시간', '무료도로', '최소거리']
 
@@ -704,7 +705,7 @@ function togglePillDropdown(pill, event) {
   currentPillData.value = pill
   const cur = pill.transportMode
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
-  selectedPublicPathIndex.value = 0
+  selectedPublicPathIndex.value = savedPathIndices[key] ?? 0
   selectedDrivingOptionIndex.value = 0
   if (!pill.fromAttractionId || !pill.toAttractionId) return
   loadTabData(pill, selectedModalMode.value)
@@ -768,6 +769,7 @@ async function selectPillMode(pill, mode) {
       transitDurationMinutes: r?.durationMinutes ?? null,
       taxiFare: r?.taxiFare ?? null,
     })
+    delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
     await loadTrip()
@@ -868,6 +870,10 @@ async function selectPublicTransitPath(pill, pathIndex) {
   if (!pill?.fromAttractionId || !pill?.toAttractionId) return
   try {
     await selectTransitPath(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, pathIndex)
+    const key = pillKey(pill)
+    savedPathIndices[key] = pathIndex
+    // route_coords가 갱신됐으므로 지도 재조회를 위해 캐시 무효화
+    delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
     await loadTrip()
@@ -909,6 +915,7 @@ async function selectDrivingOption(pill, optionIndex) {
       transitDurationMinutes: opt?.durationMinutes ?? null,
       taxiFare: opt?.taxiFare ?? null,
     })
+    delete pillResults[pillKey(pill)]
     openPillKey.value = null
     currentPillData.value = null
     await loadTrip()
