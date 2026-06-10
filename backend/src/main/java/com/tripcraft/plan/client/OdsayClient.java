@@ -186,11 +186,11 @@ public class OdsayClient {
 
     /**
      * ODsay loadLane API — 노선 구간의 실제 폴리라인 좌표를 반환.
-     * mapObject 형식: @{idx}:{trafficType}:{routeLocalID}:{startStationID}:{endStationID}
-     * 여러 구간은 '@'로 구분해 한 번에 요청 가능.
-     * 반환: [[lng, lat], ...] JSON 문자열, 실패 또는 좌표 없으면 null.
+     * mapObject 형식: "0:0@{info.mapObj}" (searchPubTransPathT 응답의 info.mapObj 그대로 사용)
+     * 반환: LaneResult(coords=[[lng,lat],...] JSON, rawResponse=원본 응답 JSON)
+     *       API 실패 또는 좌표 없으면 null.
      */
-    public String loadLane(String mapObject) {
+    public LaneResult loadLane(String mapObject) {
         try {
             String encodedKey    = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
             String encodedObject = URLEncoder.encode(mapObject, StandardCharsets.UTF_8);
@@ -221,12 +221,14 @@ public class OdsayClient {
                 }
             }
             if (coords.isEmpty()) return null;
-            return objectMapper.writeValueAsString(coords);
+            return new LaneResult(objectMapper.writeValueAsString(coords), body);
         } catch (Exception e) {
             log.warn("ODsay loadLane 호출 실패: {}", e.getMessage());
             return null;
         }
     }
+
+    public record LaneResult(String routeCoords, String rawResponse) {}
 
     public record OdsayResult(
             int pathIndex,

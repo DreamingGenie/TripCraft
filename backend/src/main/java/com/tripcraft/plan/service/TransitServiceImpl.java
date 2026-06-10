@@ -418,7 +418,7 @@ public class TransitServiceImpl implements TransitService {
 
     /**
      * DB 캐시에서 lane polyline 조회, 없으면 ODsay loadLane 호출 후 저장.
-     * coords가 null인 경우도 저장해 불필요한 재시도를 방지한다.
+     * 결과가 없는 경우도 저장해 불필요한 재시도를 방지한다.
      */
     private String fetchLanePolyline(String cacheKey, String mapObject) {
         Optional<LanePolyline> cached = lanePolylineMapper.findByKey(cacheKey);
@@ -426,17 +426,18 @@ public class TransitServiceImpl implements TransitService {
             log.debug("LanePolyline 캐시 히트: key={}", cacheKey);
             return cached.get().getRouteCoords();
         }
-        String coords = odsayClient.loadLane(mapObject);
+        OdsayClient.LaneResult result = odsayClient.loadLane(mapObject);
         LanePolyline lp = new LanePolyline();
         lp.setMapObjectKey(cacheKey);
-        lp.setRouteCoords(coords);
+        lp.setRouteCoords(result != null ? result.routeCoords() : null);
+        lp.setRawResponse(result != null ? result.rawResponse() : null);
         try {
             lanePolylineMapper.insert(lp);
-            log.debug("LanePolyline 저장: key={}, 좌표={}", cacheKey, coords != null ? "있음" : "없음");
+            log.debug("LanePolyline 저장: key={}, 좌표={}", cacheKey, result != null ? "있음" : "없음");
         } catch (Exception e) {
             log.warn("LanePolyline 저장 실패: {}", e.getMessage());
         }
-        return coords;
+        return result != null ? result.routeCoords() : null;
     }
 
     private String buildPathDetail(List<RouteEnrichment> enriched) {
