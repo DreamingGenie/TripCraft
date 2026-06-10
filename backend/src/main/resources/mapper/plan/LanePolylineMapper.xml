@@ -8,6 +8,7 @@
         <id     column="id"              property="id"/>
         <result column="map_object_key"  property="mapObjectKey"/>
         <result column="route_coords"    property="routeCoords"/>
+        <result column="raw_response"    property="rawResponse"/>
         <result column="created_at"      property="createdAt"/>
     </resultMap>
 
@@ -17,10 +18,11 @@
 
     <insert id="insert" parameterType="com.tripcraft.plan.domain.LanePolyline"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO lane_polyline (map_object_key, route_coords)
-        VALUES (#{mapObjectKey}, #{routeCoords})
+        INSERT INTO lane_polyline (map_object_key, route_coords, raw_response)
+        VALUES (#{mapObjectKey}, #{routeCoords}, #{rawResponse})
         ON DUPLICATE KEY UPDATE
             route_coords = VALUES(route_coords),
+            raw_response = VALUES(raw_response),
             created_at   = CURRENT_TIMESTAMP
     </insert>
 

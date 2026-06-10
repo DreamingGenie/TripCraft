@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class LanePolyline {
     private Long id;
     private String mapObjectKey;
-    private String routeCoords;   // JSON [[lng,lat],...], null = API 결과 없음
+    private String routeCoords;   // 파싱된 좌표 JSON [[lng,lat],...], null = API 결과 없음
+    private String rawResponse;   // ODsay loadLane 원본 응답 JSON
     private LocalDateTime createdAt;
 }
