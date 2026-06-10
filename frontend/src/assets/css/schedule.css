@@ -1044,6 +1044,31 @@
   min-height: 0;
 }
 
+/* 탑승 위치 마커 */
+.map-board-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px 0 4px;
+  background: #fff;
+  border: 1.5px solid #2563eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  transform: translate(-50%, -110%);
+  white-space: nowrap;
+}
+.map-board-arrow {
+  font-size: 8px;
+  line-height: 1;
+}
+.map-board-name {
+  font-size: 9px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+}
+
 /* 환승 포인트 마커 */
 .map-transfer-marker {
   height: 20px;
@@ -1061,6 +1086,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,.3);
   white-space: nowrap;
   line-height: 1;
+  transform: translate(-50%, -50%);
 }
 
 /* 지도 마커 레이블 */
