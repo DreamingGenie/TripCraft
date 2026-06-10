@@ -56,6 +56,16 @@ public class TransitController {
         return ResponseEntity.ok(ApiResponse.ok(transitService.getDrivingOptions(fromId, toId, hour)));
     }
 
+    @PostMapping("/select-driving")
+    public ResponseEntity<ApiResponse<Void>> applyDrivingOption(
+            @RequestParam(name = "fromId") Long fromId,
+            @RequestParam(name = "toId") Long toId,
+            @RequestParam(name = "hour", defaultValue = "9") int hour,
+            @RequestParam(name = "optionIndex") int optionIndex) {
+        transitService.applyDrivingOption(fromId, toId, hour, optionIndex);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
     @GetMapping("/detail")
     public ResponseEntity<ApiResponse<JsonNode>> getPathDetail(
             @RequestParam(name = "fromId") Long fromId,

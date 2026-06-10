@@ -403,7 +403,7 @@ import { ref, computed, reactive, onMounted, onUnmounted, nextTick, inject } fro
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption } from '@/api/transit'
+import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption } from '@/api/transit'
 
 const toast = useToastStore()
 const router = useRouter()
@@ -906,16 +906,19 @@ async function selectDrivingOption(pill, optionIndex) {
   const key = pillKey(pill)
   const opt = pillDrivingOptions[key]?.[optionIndex]
   try {
-    await tripApi.updateBlock(activeTripId.value, pill.toBlockId, {
-      tripDate: pill.toBlockDate,
-      startTime: pill.toBlockStartTime,
-      durationMinutes: pill.toBlockDuration,
-      displayOrder: pill.toBlockOrder,
-      transitMode: 'DRIVING',
-      transitDurationMinutes: opt?.durationMinutes ?? null,
-      taxiFare: opt?.taxiFare ?? null,
-    })
-    delete pillResults[pillKey(pill)]
+    await Promise.all([
+      tripApi.updateBlock(activeTripId.value, pill.toBlockId, {
+        tripDate: pill.toBlockDate,
+        startTime: pill.toBlockStartTime,
+        durationMinutes: pill.toBlockDuration,
+        displayOrder: pill.toBlockOrder,
+        transitMode: 'DRIVING',
+        transitDurationMinutes: opt?.durationMinutes ?? null,
+        taxiFare: opt?.taxiFare ?? null,
+      }),
+      applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex),
+    ])
+    delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
     await loadTrip()

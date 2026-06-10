@@ -12,4 +12,5 @@ public interface TransitService {
     Optional<TransitResponse> selectPath(Long fromAttractionId, Long toAttractionId, int departureHour, int pathIndex);
     List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour);
     Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
+    void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
 }
