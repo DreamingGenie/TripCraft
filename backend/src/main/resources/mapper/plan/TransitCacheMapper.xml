@@ -38,6 +38,7 @@
             fare              = #{fare},
             total_distance_m  = #{totalDistanceM},
             total_walk_m      = #{totalWalkM},
+            route_coords      = #{routeCoords},
             cached_at         = CURRENT_TIMESTAMP
         WHERE from_attraction_id = #{fromAttractionId}
           AND to_attraction_id   = #{toAttractionId}
