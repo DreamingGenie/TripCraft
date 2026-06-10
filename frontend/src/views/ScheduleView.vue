@@ -434,7 +434,8 @@ const pillResults = reactive({})
 const pillLoadingModes = reactive({})
 const pillPublicTransitPaths = reactive({})
 const pillDrivingOptions = reactive({})
-const savedPathIndices = reactive({})    // pillKey → 마지막으로 저장된 경로 인덱스
+const savedPathIndices = reactive({})         // pillKey → 마지막으로 저장된 대중교통 경로 인덱스
+const savedDrivingOptionIndices = reactive({}) // pillKey → 마지막으로 저장된 자동차 옵션 인덱스
 
 const DRIVING_OPTION_LABELS = ['추천', '최단시간', '무료도로', '최소거리']
 
@@ -706,7 +707,7 @@ function togglePillDropdown(pill, event) {
   const cur = pill.transportMode
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
   selectedPublicPathIndex.value = savedPathIndices[key] ?? 0
-  selectedDrivingOptionIndex.value = 0
+  selectedDrivingOptionIndex.value = savedDrivingOptionIndices[key] ?? 0
   if (!pill.fromAttractionId || !pill.toAttractionId) return
   loadTabData(pill, selectedModalMode.value)
 }
@@ -918,6 +919,7 @@ async function selectDrivingOption(pill, optionIndex) {
       }),
       applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex),
     ])
+    savedDrivingOptionIndices[key] = optionIndex
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
