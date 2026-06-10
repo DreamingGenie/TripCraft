@@ -6,6 +6,7 @@ import com.tripcraft.community.dto.PostCreateRequest;
 import com.tripcraft.community.dto.PostDetail;
 import com.tripcraft.community.dto.PostListItem;
 import com.tripcraft.community.dto.PostListPageResponse;
+import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +25,10 @@ public class PostServiceImpl implements PostService {
     private final PostLikeMapper postLikeMapper;
 
     @Override
-    public PostListPageResponse getPosts(int page, int size, String sort, Long memberId) {
-        List<PostListItem> items = postMapper.findListItems(page * size, size, sort);
-        int total = postMapper.countAll();
+    public PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId) {
+        String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        List<PostListItem> items = postMapper.findListItems(page * size, size, sort, kw);
+        int total = postMapper.countAll(kw);
         return new PostListPageResponse(items, total, page, size);
     }
 
@@ -55,6 +57,19 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         return detail;
+    }
+
+    @Override
+    @Transactional
+    public void updatePost(Long id, PostUpdateRequest req, Long memberId) {
+        Post post = postMapper.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!post.getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        post.setTitle(req.getTitle());
+        post.setContent(req.getContent());
+        postMapper.update(post);
     }
 
     @Override

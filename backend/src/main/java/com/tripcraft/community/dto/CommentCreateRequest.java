@@ -10,4 +10,7 @@ public class CommentCreateRequest {
     @NotBlank(message = "댓글 내용을 입력해주세요.")
     @Size(max = 1000, message = "댓글은 1000자 이내로 입력해주세요.")
     private String content;
+
+    /** 대댓글일 경우 부모 댓글 ID, 최상위 댓글이면 null */
+    private Long parentId;
 }

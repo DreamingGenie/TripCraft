@@ -16,9 +16,10 @@ public interface PostMapper {
 
     List<Post> findAll(int offset, int limit);
 
-    int countAll();
+    int countAll(@Param("keyword") String keyword);
 
-    List<PostListItem> findListItems(@Param("offset") int offset, @Param("limit") int limit, @Param("sort") String sort);
+    List<PostListItem> findListItems(@Param("offset") int offset, @Param("limit") int limit,
+                                     @Param("sort") String sort, @Param("keyword") String keyword);
 
     PostDetail findDetailById(@Param("id") Long id, @Param("memberId") Long memberId);
 

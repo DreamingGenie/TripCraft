@@ -1,5 +1,5 @@
 /* ============================================================
-   TripCraft — community.css (v4)
+   TripCraft — community.css (v5)
    사이드바 제거 · 단일 컬럼 피드 · max-width 720px
    ============================================================ */
 
@@ -16,6 +16,57 @@
   margin: 0 auto;
   padding: 36px 24px 80px;
 }
+
+/* ================================================================
+   검색창
+   ================================================================ */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--gray-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--primary); }
+
+.search-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.search-btn:hover { background: var(--primary-dark, #1d4ed8); }
+
+.search-clear {
+  height: 38px;
+  width: 38px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.search-clear:hover { background: #e2e8f0; }
 
 /* ================================================================
    목록 툴바
@@ -384,6 +435,21 @@
   letter-spacing: -0.005em;
 }
 
+/* Tiptap HTML 렌더링 */
+.detail-body p        { margin: 0 0 10px; }
+.detail-body p:last-child { margin-bottom: 0; }
+.detail-body strong   { font-weight: 700; }
+.detail-body em       { font-style: italic; }
+.detail-body ul, .detail-body ol { padding-left: 20px; margin: 8px 0; }
+.detail-body li       { margin-bottom: 4px; }
+.detail-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 12px 0;
+  display: block;
+}
+
 .like-section { display: flex; justify-content: center; }
 
 .like-btn {
@@ -544,6 +610,67 @@
   align-self: flex-end;
 }
 
+/* ── 댓글 액션 버튼 그룹 ── */
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 답글 버튼 */
+.reply-btn {
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.reply-btn:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 대댓글 목록 */
+.reply-list {
+  margin-top: 8px;
+  padding-left: 20px;
+  border-left: 2px solid var(--gray-border);
+}
+.reply-item {
+  padding: 10px 12px;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+}
+.reply-item:last-child { margin-bottom: 0; }
+
+.reply-arrow {
+  font-size: 14px;
+  color: var(--gray-muted);
+  flex-shrink: 0;
+}
+
+/* 대댓글 본문은 들여쓰기 줄임 (↳ 아이콘이 이미 구분) */
+.reply-body {
+  padding-left: 20px;
+}
+
+/* 대댓글 입력 폼 */
+.reply-form {
+  margin-top: 10px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reply-input {
+  background: var(--bg-page);
+  border-color: var(--primary);
+}
+
 /* ================================================================
    글쓰기 모달
    ================================================================ */
@@ -676,7 +803,30 @@
 .trip-card-info { display: flex; flex-direction: column; gap: 3px; }
 .trip-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .trip-card-meta { font-size: 12px; color: var(--gray-dark); }
-.trip-card-toggle { font-size: 11px; color: var(--purple-900); white-space: nowrap; flex-shrink: 0; }
+.trip-card-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.trip-card-toggle { font-size: 11px; color: var(--purple-900); white-space: nowrap; }
+
+/* 일정 가져오기 버튼 */
+.btn-copy-trip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.btn-copy-trip:hover {
+  background: var(--primary);
+  color: #fff;
+}
 
 /* 펼쳐진 일정 */
 .trip-summary { border-top: 1px solid var(--gray-border); padding: 12px 16px; }
@@ -725,6 +875,45 @@
   transition: opacity .12s;
 }
 .btn-danger:hover { opacity: .88; }
+
+/* ── 일정 가져오기 모달 ── */
+.copy-modal-box {
+  max-width: 400px;
+  text-align: left;
+}
+.copy-modal-icon { font-size: 28px; margin-bottom: 8px; text-align: center; }
+.copy-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.copy-modal-desc {
+  font-size: 13px;
+  color: var(--gray-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.copy-modal-field {
+  margin-bottom: 24px;
+}
+.copy-modal-field .field-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+.copy-modal-field .field-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
 
 /* ── 일정 공유 경고 (모달 내부 인라인) ── */
 .trip-share-warning {
