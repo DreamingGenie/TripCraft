@@ -1149,27 +1149,43 @@ async function drawTransferMarkers(fromAttrId, toAttrId, hour) {
     const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
     const subPaths = detail?.intercityPaths?.[0]?.subPath || []
     const { naver } = window
-    // trafficType: 1=지하철 2=버스 3=도보 4=기차 5=고속버스 6=시외버스
     const TYPE_COLOR = { 1: '#7c3aed', 2: '#2563eb', 4: '#dc2626', 5: '#d97706', 6: '#d97706' }
-    const TYPE_LABEL = { 1: '지', 2: '버', 4: 'K', 5: '고', 6: '시' }
+
     for (let i = 0; i < subPaths.length - 1; i++) {
       const sub = subPaths[i]
       if (sub.trafficType === 3) continue
       if (!sub.endX || !sub.endY) continue
+
       const color = TYPE_COLOR[sub.trafficType] || '#534ab7'
-      const label = TYPE_LABEL[sub.trafficType] || '↔'
+      const label = getTransitSegmentLabel(sub)
       const marker = new naver.maps.Marker({
         position: new naver.maps.LatLng(sub.endY, sub.endX),
         map: naverMapInstance,
         icon: {
           content: `<div class="map-transfer-marker" style="border-color:${color};color:${color}">${label}</div>`,
-          anchor: new naver.maps.Point(9, 9),
+          anchor: new naver.maps.Point(0, 0),
         },
         zIndex: 10,
       })
       routeMarkers.push(marker)
     }
   } catch {}
+}
+
+function getTransitSegmentLabel(sub) {
+  const lane = sub.lane?.[0] || {}
+  switch (sub.trafficType) {
+    case 1: { // 지하철 — "2호선", "경의중앙선" 등
+      const name = lane.name || ''
+      // "수도권 2호선" → "2호선", 앞 지역명 제거
+      return name.replace(/^수도권\s*/, '').replace(/^[가-힣]+\s(?=[가-힣]+선)/, '') || `${lane.subwayCode}호선`
+    }
+    case 2: return lane.busNo ? `${lane.busNo}번` : '버스'
+    case 4: return lane.name || 'KTX'
+    case 5:
+    case 6: return lane.busNo ? `${lane.busNo}번` : '고속버스'
+    default: return '환승'
+  }
 }
 
 // ── 일정 로드 ──
