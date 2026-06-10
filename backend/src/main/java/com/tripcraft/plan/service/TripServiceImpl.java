@@ -88,7 +88,7 @@ public class TripServiceImpl implements TripService {
             .collect(Collectors.groupingBy(TripBlock::getCandidateId,
                 Collectors.mapping(b -> new BlockItem(b.getId(), b.getCandidateId(),
                     b.getTripDate(), b.getDisplayOrder(), b.getStartTime(), b.getDurationMinutes(),
-                    b.getTransitDurationMinutes(), b.getTransitMode()),
+                    b.getTransitDurationMinutes(), b.getTransitMode(), b.getTransitOptionIndex()),
                     Collectors.toList())));
 
         List<CandidateItem> candidateItems = candidates.stream().map(c -> {
@@ -213,6 +213,7 @@ public class TripServiceImpl implements TripService {
         if (req.getTransitMode() != null) {
             block.setTransitMode(req.getTransitMode());
             block.setTransitDurationMinutes(req.getTransitDurationMinutes());
+            block.setTransitOptionIndex(req.getTransitOptionIndex());
             blockMapper.update(block);
         } else {
             blockMapper.update(block);

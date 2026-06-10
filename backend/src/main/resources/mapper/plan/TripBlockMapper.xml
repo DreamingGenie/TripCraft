@@ -15,6 +15,7 @@
         <result column="memo" property="memo"/>
         <result column="transit_duration_minutes" property="transitDurationMinutes"/>
         <result column="transit_mode" property="transitMode"/>
+        <result column="transit_option_index" property="transitOptionIndex"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -50,6 +51,7 @@
             transport_preference = #{transportPreference}, memo = #{memo},
             transit_duration_minutes = #{transitDurationMinutes},
             transit_mode = #{transitMode},
+            transit_option_index = #{transitOptionIndex},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
@@ -79,7 +81,8 @@
             AND a.trip_date = b.trip_date
             AND a.display_order = b.display_order - 1
         SET b.transit_duration_minutes = #{durationMinutes},
-            b.transit_mode             = #{transportMode}
+            b.transit_mode             = #{transportMode},
+            b.transit_option_index     = #{optionIndex}
         WHERE tc_b.attraction_id = #{toAttractionId}
           AND tc_a.attraction_id = #{fromAttractionId}
     </update>

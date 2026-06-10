@@ -245,6 +245,7 @@ CREATE TABLE trip_block (
     memo                     TEXT        NULL     COMMENT '장소 메모',
     transit_duration_minutes SMALLINT    NULL     COMMENT '이전 블록→이 블록 이동 시간(분). 첫 블록은 NULL',
     transit_mode             VARCHAR(100) NULL    COMMENT '이동 수단 목록 (콤마 구분, 예: EXPRESSBUS,RAIL). 첫 블록은 NULL',
+    transit_option_index     INT         NULL     COMMENT '선택된 경로 인덱스 (대중교통 pathIndex 또는 자동차 옵션 0~3)',
     created_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

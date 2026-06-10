@@ -15,4 +15,5 @@ public class BlockUpdateRequest {
     private String transitMode;
     private Integer transitDurationMinutes;
     private Integer taxiFare;
+    private Integer transitOptionIndex;
 }
