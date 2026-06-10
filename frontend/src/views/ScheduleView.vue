@@ -200,14 +200,20 @@
 
       <!-- 지도 패널 -->
       <Transition name="map-panel-slide" @after-enter="onMapPanelEntered">
-        <div v-if="showMapPanel" class="map-panel">
+        <div v-if="showMapPanel"
+             class="map-panel"
+             :class="{ 'map-panel--fullscreen': mapFullscreen }"
+             :style="mapFullscreen ? {} : { width: mapPanelWidth + 'px' }">
+          <div v-if="!mapFullscreen" class="map-resize-handle" @mousedown.prevent="onPanelResizeStart"></div>
           <div class="map-panel-header">
             <div class="map-day-tabs">
               <button v-for="d in days" :key="d.label"
                       class="map-day-tab" :class="{ active: mapDay === d }"
                       @click="selectMapDay(d)">{{ d.label }}</button>
             </div>
-            <button class="map-panel-close" @click="showMapPanel = false">✕</button>
+            <button class="map-panel-btn" :title="mapFullscreen ? '화면 복원' : '전체화면'"
+                    @click="toggleMapFullscreen">{{ mapFullscreen ? '⊡' : '⊞' }}</button>
+            <button class="map-panel-close" @click="closeMapPanel">✕</button>
           </div>
           <div ref="mapEl" class="map-el"></div>
         </div>
@@ -524,10 +530,15 @@ function onTransitSave() {
 
 // ── 지도 패널 ──
 const showMapPanel = ref(false)
+const mapFullscreen = ref(false)
+const mapPanelWidth = ref(400)
 const mapDay = ref(null)
 let naverMapInstance = null
 let routePolylines = []
 let routeMarkers = []
+let panelResizing = false
+let panelResizeStartX = 0
+let panelResizeStartWidth = 0
 
 let dragState = null
 const dragPreview = ref(null)
@@ -961,6 +972,44 @@ async function openMapPanel() {
   }
 }
 
+function closeMapPanel() {
+  showMapPanel.value = false
+  mapFullscreen.value = false
+}
+
+function toggleMapFullscreen() {
+  mapFullscreen.value = !mapFullscreen.value
+  nextTick(() => {
+    if (naverMapInstance) {
+      naver.maps.Event.trigger(naverMapInstance, 'resize')
+    }
+  })
+}
+
+function onPanelResizeStart(e) {
+  panelResizing = true
+  panelResizeStartX = e.clientX
+  panelResizeStartWidth = mapPanelWidth.value
+  document.addEventListener('mousemove', onPanelResizeMove)
+  document.addEventListener('mouseup', onPanelResizeEnd)
+}
+
+function onPanelResizeMove(e) {
+  if (!panelResizing) return
+  const delta = panelResizeStartX - e.clientX
+  mapPanelWidth.value = Math.max(260, Math.min(1400, panelResizeStartWidth + delta))
+}
+
+function onPanelResizeEnd() {
+  if (!panelResizing) return
+  panelResizing = false
+  document.removeEventListener('mousemove', onPanelResizeMove)
+  document.removeEventListener('mouseup', onPanelResizeEnd)
+  nextTick(() => {
+    if (naverMapInstance) naver.maps.Event.trigger(naverMapInstance, 'resize')
+  })
+}
+
 async function onMapPanelEntered() {
   try {
     await initNaverMap()
@@ -986,10 +1035,20 @@ async function selectMapDay(day) {
   await drawDayRoute()
 }
 
-function getRouteColor(mode) {
-  if (mode === 'DRIVING') return '#e06343'
-  if (mode === 'WALKING') return '#4caf50'
-  return '#534ab7'
+const ROUTE_STYLES = {
+  DRIVING:       { color: '#e06343', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  WALKING:       { color: '#16a34a', weight: 3, opacity: 0.8,  strokeStyle: 'shortdot' },
+  BUS:           { color: '#2563eb', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  SUBWAY:        { color: '#7c3aed', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  RAIL:          { color: '#dc2626', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  EXPRESSBUS:    { color: '#d97706', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  INTERCITYBUS:  { color: '#d97706', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+  PUBLIC_TRANSIT:{ color: '#534ab7', weight: 5, opacity: 0.85, strokeStyle: 'solid' },
+}
+
+function getRouteStyle(transitMode) {
+  const first = transitMode?.split(',')[0]
+  return ROUTE_STYLES[first] || ROUTE_STYLES.PUBLIC_TRANSIT
 }
 
 async function drawDayRoute() {
@@ -1050,13 +1109,16 @@ async function drawDayRoute() {
       } catch { result = null }
     }
 
+    const style = getRouteStyle(curr.transitMode)
     if (result?.routeCoords) {
       try {
         const coords = JSON.parse(result.routeCoords)
         const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
         routePolylines.push(new naver.maps.Polyline({
-          path, strokeColor: getRouteColor(curr.transitMode),
-          strokeWeight: 5, strokeOpacity: 0.85, map: naverMapInstance,
+          path,
+          strokeColor: style.color, strokeWeight: style.weight,
+          strokeOpacity: style.opacity, strokeStyle: style.strokeStyle,
+          map: naverMapInstance,
         }))
       } catch {}
     } else {
@@ -1067,14 +1129,47 @@ async function drawDayRoute() {
       if (prevLat && prevLng && currLat && currLng) {
         routePolylines.push(new naver.maps.Polyline({
           path: [new naver.maps.LatLng(prevLat, prevLng), new naver.maps.LatLng(currLat, currLng)],
-          strokeColor: getRouteColor(curr.transitMode),
-          strokeWeight: 3, strokeOpacity: 0.4, strokeStyle: 'shortdot', map: naverMapInstance,
+          strokeColor: style.color, strokeWeight: 3, strokeOpacity: 0.4,
+          strokeStyle: 'shortdot', map: naverMapInstance,
         }))
       }
+    }
+
+    // PUBLIC_TRANSIT: 환승 포인트 마커 추가
+    if (requestMode === 'PUBLIC_TRANSIT' && prevCand?.attractionId && currCand?.attractionId) {
+      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour)
     }
   }
 
   if (hasCoords) naverMapInstance.fitBounds(bounds, { top: 50, right: 30, bottom: 30, left: 30 })
+}
+
+async function drawTransferMarkers(fromAttrId, toAttrId, hour) {
+  try {
+    const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
+    const subPaths = detail?.intercityPaths?.[0]?.subPath || []
+    const { naver } = window
+    // trafficType: 1=지하철 2=버스 3=도보 4=기차 5=고속버스 6=시외버스
+    const TYPE_COLOR = { 1: '#7c3aed', 2: '#2563eb', 4: '#dc2626', 5: '#d97706', 6: '#d97706' }
+    const TYPE_LABEL = { 1: '지', 2: '버', 4: 'K', 5: '고', 6: '시' }
+    for (let i = 0; i < subPaths.length - 1; i++) {
+      const sub = subPaths[i]
+      if (sub.trafficType === 3) continue
+      if (!sub.endX || !sub.endY) continue
+      const color = TYPE_COLOR[sub.trafficType] || '#534ab7'
+      const label = TYPE_LABEL[sub.trafficType] || '↔'
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(sub.endY, sub.endX),
+        map: naverMapInstance,
+        icon: {
+          content: `<div class="map-transfer-marker" style="border-color:${color};color:${color}">${label}</div>`,
+          anchor: new naver.maps.Point(9, 9),
+        },
+        zIndex: 10,
+      })
+      routeMarkers.push(marker)
+    }
+  } catch {}
 }
 
 // ── 일정 로드 ──
@@ -1299,6 +1394,8 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeEnd)
   document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('mousemove', onPanelResizeMove)
+  document.removeEventListener('mouseup', onPanelResizeEnd)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
 })
