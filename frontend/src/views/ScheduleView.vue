@@ -434,8 +434,12 @@ const pillResults = reactive({})
 const pillLoadingModes = reactive({})
 const pillPublicTransitPaths = reactive({})
 const pillDrivingOptions = reactive({})
-const savedPathIndices = reactive({})         // pillKey → 마지막으로 저장된 대중교통 경로 인덱스
-const savedDrivingOptionIndices = reactive({}) // pillKey → 마지막으로 저장된 자동차 옵션 인덱스
+function getSavedIndex(key, type) {
+  return parseInt(localStorage.getItem(`transit-sel:${type}:${key}`)) || 0
+}
+function saveIndex(key, type, index) {
+  localStorage.setItem(`transit-sel:${type}:${key}`, index)
+}
 
 const DRIVING_OPTION_LABELS = ['추천', '최단시간', '무료도로', '최소거리']
 
@@ -706,8 +710,8 @@ function togglePillDropdown(pill, event) {
   currentPillData.value = pill
   const cur = pill.transportMode
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
-  selectedPublicPathIndex.value = savedPathIndices[key] ?? 0
-  selectedDrivingOptionIndex.value = savedDrivingOptionIndices[key] ?? 0
+  selectedPublicPathIndex.value = getSavedIndex(key, 'transit')
+  selectedDrivingOptionIndex.value = getSavedIndex(key, 'driving')
   if (!pill.fromAttractionId || !pill.toAttractionId) return
   loadTabData(pill, selectedModalMode.value)
 }
@@ -872,8 +876,7 @@ async function selectPublicTransitPath(pill, pathIndex) {
   try {
     await selectTransitPath(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, pathIndex)
     const key = pillKey(pill)
-    savedPathIndices[key] = pathIndex
-    // route_coords가 갱신됐으므로 지도 재조회를 위해 캐시 무효화
+    saveIndex(key, 'transit', pathIndex)
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
@@ -919,7 +922,7 @@ async function selectDrivingOption(pill, optionIndex) {
       }),
       applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex),
     ])
-    savedDrivingOptionIndices[key] = optionIndex
+    saveIndex(key, 'driving', optionIndex)
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
