@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.tripcraft.plan.dto.TransitResponse;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface TransitService {
@@ -13,4 +14,6 @@ public interface TransitService {
     List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour);
     Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
     void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
+    /** loadLane raw_response를 파싱해 구간별 좌표 반환. [{c: modeClass, p: [[lng,lat],...]}] */
+    List<Map<String, Object>> getLaneSegments(Long fromId, Long toId, int departureHour);
 }
