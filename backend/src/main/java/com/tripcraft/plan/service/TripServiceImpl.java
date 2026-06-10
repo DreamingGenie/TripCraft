@@ -366,10 +366,35 @@ public class TripServiceImpl implements TripService {
                     if (fromCand.isPresent() && toCand.isPresent()) {
                         long fromAttrId = fromCand.get().getAttractionId();
                         long toAttrId   = toCand.get().getAttractionId();
-                        String effectiveMode = block.getTransitMode() != null ? block.getTransitMode() : transitMode;
+                        String savedMode = block.getTransitMode();
+                        // savedMode는 ODsay 결과(BUS/SUBWAY 등) 또는 요청 모드(DRIVING/WALKING)가 혼재함.
+                        // getTransitTime의 requestMode는 PUBLIC_TRANSIT/DRIVING/WALKING 세 가지만 유효하므로
+                        // 저장된 값을 적절한 요청 모드로 매핑한다.
+                        String effectiveMode;
+                        if ("DRIVING".equals(savedMode)) {
+                            effectiveMode = "DRIVING";
+                        } else if ("WALKING".equals(savedMode)) {
+                            effectiveMode = "WALKING";
+                        } else if (savedMode != null && !"NONE".equals(savedMode)) {
+                            // BUS, SUBWAY, BUS,SUBWAY 등 대중교통 세부 모드
+                            effectiveMode = "PUBLIC_TRANSIT";
+                        } else {
+                            // null 또는 NONE → trip 기본 모드
+                            effectiveMode = transitMode;
+                        }
                         Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, effectiveMode);
+                        // 대중교통이 기본 모드인데 경로가 없으면 자동차로 fallback
+                        if ("PUBLIC_TRANSIT".equals(effectiveMode)
+                                && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
+                            Optional<TransitResponse> fallback = transitService.getTransitTime(fromAttrId, toAttrId, 9, "DRIVING");
+                            if (fallback.isPresent() && !"NONE".equals(fallback.get().getTransportMode())) {
+                                transit = fallback;
+                            }
+                        }
                         block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
-                        if (block.getTransitMode() == null) {
+                        // 사용자가 직접 선택한 DRIVING/WALKING은 모드 유지, 그 외는 재계산 결과로 갱신
+                        boolean userOverride = "DRIVING".equals(savedMode) || "WALKING".equals(savedMode);
+                        if (!userOverride) {
                             block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
                         }
                         log.debug("Transit 계산: from={} to={} → {}분 ({}) mode={}",
