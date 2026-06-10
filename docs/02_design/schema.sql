@@ -437,3 +437,20 @@ CREATE TABLE post_comment (
     FOREIGN KEY fk_comment_parent (parent_id) REFERENCES post_comment(id) ON DELETE CASCADE
 ) COMMENT='게시글 댓글·대댓글. parent_id NULL=최상위, non-NULL=대댓글(1단계). 부모 삭제 시 대댓글도 CASCADE'
   DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 14. 노선 폴리라인 캐시 (lane_polyline)
+-- ODsay loadLane API 결과를 노선 단위로 캐싱.
+-- 노선 형상은 자주 바뀌지 않으므로 영구 보관.
+-- map_object_key: searchPubTransPathT 응답의 info.mapObj 값
+-- ---------------------------------------------
+CREATE TABLE lane_polyline (
+    id             BIGINT       NOT NULL AUTO_INCREMENT,
+    map_object_key VARCHAR(250) NOT NULL COMMENT 'ODsay info.mapObj 값 (캐시 키)',
+    route_coords   MEDIUMTEXT   NULL     COMMENT '파싱된 좌표 JSON [[lng,lat],...], null이면 API 결과 없음',
+    raw_response   MEDIUMTEXT   NULL     COMMENT 'ODsay loadLane 원본 응답 JSON',
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_map_object_key (map_object_key)
+) COMMENT='ODsay loadLane 노선 폴리라인 캐시. 노선 형상 변경이 드물어 영구 보관.'
+  DEFAULT CHARSET = utf8mb4;
