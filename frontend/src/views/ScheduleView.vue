@@ -1026,12 +1026,15 @@ async function drawDayRoute() {
     const hour = Math.min(Math.floor(pillTop / 60), 23)
     const key = `${prevCand?.attractionId}-${currCand?.attractionId}-${hour}`
 
-    let result = pillResults[key]?.[curr.transitMode]
+    // BUS·SUBWAY 등 ODsay 결과 모드는 PUBLIC_TRANSIT 요청 모드로 매핑
+    const PUBLIC_TRANSIT_MODES = new Set(['BUS','SUBWAY','RAIL','EXPRESSBUS','INTERCITYBUS','BUS,SUBWAY'])
+    const requestMode = PUBLIC_TRANSIT_MODES.has(curr.transitMode) ? 'PUBLIC_TRANSIT' : curr.transitMode
+    let result = pillResults[key]?.[requestMode]
     if (result === undefined && prevCand?.attractionId && currCand?.attractionId) {
       try {
-        result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, curr.transitMode, hour)
+        result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, requestMode, hour)
         if (!pillResults[key]) pillResults[key] = {}
-        pillResults[key][curr.transitMode] = result
+        pillResults[key][requestMode] = result
       } catch { result = null }
     }
 

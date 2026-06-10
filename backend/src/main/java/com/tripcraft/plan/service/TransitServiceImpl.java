@@ -294,12 +294,15 @@ public class TransitServiceImpl implements TransitService {
                     ? Math.max(0, transitCount - 1)
                     : Math.max(0, info.path("busTransitCount").asInt(0) + info.path("subwayTransitCount").asInt(0) - 1);
 
+            // 선택된 경로의 폴리라인을 새로 계산해 route_coords 갱신
+            String newRouteCoords = extractPublicTransitCoords(objectMapper.writeValueAsString(selected));
             cached.setDurationMinutes(totalMinutes);
             cached.setTransportMode(transportMode);
             cached.setTransferCount(transferCount);
             cached.setFare(fare);
             cached.setTotalDistanceM(totalDistanceM);
             cached.setTotalWalkM(totalWalkM);
+            cached.setRouteCoords(newRouteCoords);
             transitCacheMapper.updateSummary(cached);
             tripBlockMapper.updateTransitByAttractionPair(fromId, toId, totalMinutes, transportMode);
             log.debug("경로 선택 저장: pathIndex={}, total={}분, mode={}, from={}, to={}",
@@ -311,6 +314,7 @@ public class TransitServiceImpl implements TransitService {
                     .transferCount(transferCount)
                     .fare(fare)
                     .totalWalkM(totalWalkM)
+                    .routeCoords(newRouteCoords)
                     .build());
         } catch (Exception e) {
             log.warn("경로 선택 실패 from={}, to={}: {}", fromId, toId, e.getMessage());
