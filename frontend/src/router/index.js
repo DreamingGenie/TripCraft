@@ -28,6 +28,11 @@ const routes = [
     component: () => import('@/views/MyBookmarksView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/mypage/likes',
+    component: () => import('@/views/MyLikesView.vue'),
+    meta: { requiresAuth: true },
+  },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 

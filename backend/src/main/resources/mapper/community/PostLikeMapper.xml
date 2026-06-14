@@ -33,4 +33,26 @@
         DELETE FROM post_like WHERE member_id = #{memberId}
     </delete>
 
+    <select id="findByMemberId" resultType="com.tripcraft.community.dto.PostListItem">
+        SELECT p.id,
+               CASE WHEN p.deleted_at IS NOT NULL THEN NULL ELSE p.title END AS title,
+               COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
+               p.view_count  AS viewCount,
+               p.like_count  AS likeCount,
+               (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
+               p.created_at  AS createdAt,
+               true          AS liked,
+               (p.deleted_at IS NOT NULL) AS deleted
+        FROM post_like pl
+        JOIN post p   ON p.id = pl.post_id
+        LEFT JOIN member m ON m.id = p.member_id
+        WHERE pl.member_id = #{memberId}
+        ORDER BY pl.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByMemberId" resultType="int">
+        SELECT COUNT(*) FROM post_like WHERE member_id = #{memberId}
+    </select>
+
 </mapper>
