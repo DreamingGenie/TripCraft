@@ -43,6 +43,11 @@ const routes = [
     component: () => import('@/views/MyProfileView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/mypage/map',
+    component: () => import('@/views/MyMapView.vue'),
+    meta: { requiresAuth: true },
+  },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 
