@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.global.attach.mapper.AttachMapper">
+
+    <resultMap id="attachMap" type="com.tripcraft.global.attach.domain.Attach">
+        <id     column="id"         property="id"/>
+        <result column="name"       property="name"/>
+        <result column="host_name"  property="hostName"/>
+        <result column="size"       property="size"/>
+        <result column="mimetype"   property="mimetype"/>
+        <result column="host_path"  property="hostPath"/>
+        <result column="target"     property="target"/>
+        <result column="target_id"  property="targetId"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO attach (name, host_name, size, mimetype, host_path, target, target_id)
+        VALUES (#{name}, #{hostName}, #{size}, #{mimetype}, #{hostPath}, #{target}, #{targetId})
+    </insert>
+
+    <update id="updateTargetId">
+        UPDATE attach
+        SET target    = #{newTarget},
+            target_id = #{newTargetId}
+        WHERE target    = #{oldTarget}
+          AND target_id = #{oldTargetId}
+    </update>
+
+    <select id="findByTarget" resultMap="attachMap">
+        SELECT id, name, host_name, size, mimetype, host_path, target, target_id, created_at
+        FROM attach
+        WHERE target = #{target} AND target_id = #{targetId}
+    </select>
+
+    <delete id="deleteByTarget">
+        DELETE FROM attach
+        WHERE target = #{target} AND target_id = #{targetId}
+    </delete>
+
+</mapper>

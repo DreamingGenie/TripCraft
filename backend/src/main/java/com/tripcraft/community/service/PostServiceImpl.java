@@ -9,6 +9,7 @@ import com.tripcraft.community.dto.PostListPageResponse;
 import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
+import com.tripcraft.global.attach.mapper.AttachMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
+    private final AttachMapper attachMapper;
 
     @Override
     public PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId) {
@@ -41,6 +43,8 @@ public class PostServiceImpl implements PostService {
         post.setContent(req.getContent());
         post.setTripId(req.getTripId());
         postMapper.insert(post);
+        // 글 작성 중 업로드된 이미지(post_draft)를 이 게시글로 연결
+        attachMapper.updateTargetId("post_draft", memberId, "post", post.getId());
         return post.getId();
     }
 
@@ -80,7 +84,7 @@ public class PostServiceImpl implements PostService {
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-        postMapper.deleteById(id);
+        postMapper.softDeleteById(id);
     }
 
     @Override
