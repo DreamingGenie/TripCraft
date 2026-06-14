@@ -5,17 +5,21 @@ import com.tripcraft.member.domain.Member;
 import com.tripcraft.member.dto.UpdateNicknameRequest;
 import com.tripcraft.member.dto.UpdatePasswordRequest;
 import com.tripcraft.member.mapper.MemberMapper;
+import com.tripcraft.plan.mapper.TripMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/members")
@@ -24,6 +28,7 @@ public class MemberController {
 
     private final MemberMapper memberMapper;
     private final PasswordEncoder passwordEncoder;
+    private final TripMapper tripMapper;
 
     @PatchMapping("/me/nickname")
     public ResponseEntity<ApiResponse<Void>> updateNickname(
@@ -44,5 +49,11 @@ public class MemberController {
         }
         memberMapper.updatePassword(memberId, passwordEncoder.encode(request.getNewPassword()));
         return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @GetMapping("/me/visited-regions")
+    public ResponseEntity<ApiResponse<List<Integer>>> getVisitedRegions(
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripMapper.findVisitedSidoCodes(memberId)));
     }
 }
