@@ -21,6 +21,7 @@ public class PostDetail {
     private Integer likeCount;
     private LocalDateTime createdAt;
     private boolean liked;
+    private boolean bookmarked;
     private boolean mine;
 
     // 연결된 일정 요약 (trip_id가 없으면 null)
