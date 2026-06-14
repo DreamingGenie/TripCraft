@@ -9,6 +9,8 @@ public interface PostService {
 
     PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId);
 
+    PostListPageResponse getMyPosts(int page, int size, Long memberId);
+
     Long createPost(PostCreateRequest req, Long memberId);
 
     PostDetail getPost(Long id, Long memberId);

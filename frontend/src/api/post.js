@@ -25,6 +25,11 @@ export const likeApi = {
     http.get(`/api/likes/me?page=${page}&size=${size}`),
 }
 
+export const myPostApi = {
+  list: ({ page = 0, size = 10 } = {}) =>
+    http.get(`/api/posts/me?page=${page}&size=${size}`),
+}
+
 export const commentApi = {
   list:   (postId)          => http.get(`/api/posts/${postId}/comments`),
   /** parentId: 최상위 댓글이면 null, 대댓글이면 부모 댓글 id */
