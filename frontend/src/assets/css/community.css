@@ -450,7 +450,7 @@
   display: block;
 }
 
-.like-section { display: flex; justify-content: center; }
+.like-section { display: flex; justify-content: center; align-items: center; gap: 12px; }
 
 .like-btn {
   display: inline-flex;
@@ -483,6 +483,31 @@
   border-color: #851f41;
 }
 .like-icon { font-size: 16px; line-height: 1; }
+
+.bookmark-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bookmark-btn:hover {
+  background: var(--color-surface-hover);
+}
+.bookmark-btn.bookmarked {
+  background: #1a5276;
+  border-color: #1a5276;
+  color: #fff;
+}
+.bookmark-btn.bookmarked:hover {
+  background: #154360;
+  border-color: #154360;
+}
 
 /* ── 댓글 ── */
 .comment-section {
