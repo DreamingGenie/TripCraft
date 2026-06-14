@@ -1,6 +1,9 @@
 package com.tripcraft.global.controller;
 
+import com.tripcraft.global.attach.domain.Attach;
+import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.response.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -20,27 +23,20 @@ import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * 게시글 본문 이미지 업로드 API
- *
- * <ul>
- *   <li>허용 타입: JPEG · PNG · GIF · WebP</li>
- *   <li>최대 크기: 5 MB</li>
- *   <li>저장 위치: {upload.dir}/images/{uuid}.{ext}</li>
- *   <li>응답 URL : /uploads/images/{uuid}.{ext}  (WebMvcConfig에서 정적 서빙)</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/images")
+@RequiredArgsConstructor
 public class ImageController {
 
     private static final Set<String> ALLOWED_TYPES =
             Set.of("image/jpeg", "image/png", "image/gif", "image/webp");
-    private static final long MAX_BYTES = 5L * 1024 * 1024; // 5 MB
+    private static final long MAX_BYTES = 5L * 1024 * 1024;
 
     @Value("${upload.dir:./uploads}")
     private String uploadDir;
+
+    private final AttachMapper attachMapper;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> upload(
@@ -58,20 +54,29 @@ public class ImageController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 크기는 5 MB 이하여야 합니다.");
         }
 
-        // 절대 경로로 확정 — 상대 경로를 그대로 쓰면 transferTo()가
-        // Tomcat 임시 디렉토리 기준으로 해석해 FileNotFoundException 발생
         Path dir = Paths.get(uploadDir, "images").toAbsolutePath();
         Files.createDirectories(dir);
 
-        // 확장자 추출 — 원본 파일명이 없으면 .jpg 사용
         String original = file.getOriginalFilename();
         String ext = (original != null && original.contains("."))
                 ? original.substring(original.lastIndexOf('.')).toLowerCase()
                 : ".jpg";
         String filename = UUID.randomUUID() + ext;
+        Path filePath = dir.resolve(filename);
+        file.transferTo(filePath.toFile());
 
-        file.transferTo(dir.resolve(filename).toFile());
-        log.debug("이미지 업로드 완료 — memberId={}, filename={}", memberId, filename);
+        // attach 레코드 생성 — 글 저장 완료 시 post_draft → post로 전환
+        Attach attach = new Attach();
+        attach.setName(filename);
+        attach.setHostName(original != null ? original : filename);
+        attach.setSize(file.getSize());
+        attach.setMimetype(contentType);
+        attach.setHostPath(filePath.toString());
+        attach.setTarget("post_draft");
+        attach.setTargetId(memberId);
+        attachMapper.insert(attach);
+
+        log.debug("이미지 업로드 완료 — memberId={}, filename={}, attachId={}", memberId, filename, attach.getId());
 
         return ResponseEntity.ok(ApiResponse.ok("/uploads/images/" + filename));
     }

@@ -34,4 +34,13 @@ public interface PostMapper {
     void update(Post post);
 
     void deleteById(Long id);
+
+    void softDeleteById(Long id);
+
+    // 내가 쓴 글 목록
+    List<PostListItem> findByMemberId(@Param("memberId") Long memberId,
+                                      @Param("offset") int offset,
+                                      @Param("limit") int limit);
+
+    int countByMemberId(@Param("memberId") Long memberId);
 }

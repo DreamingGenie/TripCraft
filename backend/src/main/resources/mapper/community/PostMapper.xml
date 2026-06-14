@@ -17,7 +17,7 @@
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="postMap">
-        SELECT * FROM post WHERE id = #{id}
+        SELECT * FROM post WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
     <select id="findAll" resultMap="postMap">
@@ -28,8 +28,9 @@
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM post
         <where>
+            deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
-                (title LIKE CONCAT('%', #{keyword}, '%')
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
                 OR content LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
@@ -46,8 +47,9 @@
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <where>
+            p.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
-                (p.title LIKE CONCAT('%', #{keyword}, '%')
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                 OR p.content LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
@@ -103,5 +105,29 @@
     <delete id="deleteById" parameterType="long">
         DELETE FROM post WHERE id = #{id}
     </delete>
+
+    <update id="softDeleteById" parameterType="long">
+        UPDATE post SET deleted_at = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="findByMemberId" resultType="com.tripcraft.community.dto.PostListItem">
+        SELECT p.id, p.title,
+               COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
+               p.view_count AS viewCount,
+               p.like_count AS likeCount,
+               (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
+               p.created_at AS createdAt,
+               false AS liked
+        FROM post p
+        LEFT JOIN member m ON m.id = p.member_id
+        WHERE p.member_id = #{memberId}
+          AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByMemberId" resultType="int">
+        SELECT COUNT(*) FROM post WHERE member_id = #{memberId} AND deleted_at IS NULL
+    </select>
 
 </mapper>
