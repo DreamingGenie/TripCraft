@@ -258,6 +258,39 @@ CREATE TABLE attach (
 **결정**: 포트폴리오 수준의 완성도를 목표로 **게시글 이미지도 attach 테이블로 전환한다.**  
 글 작성 중 post_id가 없는 문제는 임시 `target='post_draft'`로 저장 후 글 저장 완료 시 `target_id` 업데이트하는 방식으로 처리한다.
 
+### attach target_id 구분 방식
+
+글 작성 중에는 아직 post_id가 없으므로 `memberId`를 임시 식별자로 사용한다.
+
+**흐름**
+```
+[글 작성 중 이미지 업로드]
+  → 파일 디스크 저장
+  → attach INSERT: target='post_draft', target_id=memberId
+
+[글 저장 완료 (createPost)]
+  → post INSERT → post.id 채번
+  → attach UPDATE: target='post', target_id=post.id
+    WHERE target='post_draft' AND target_id=memberId
+```
+
+**target 값 정의**
+
+| target | target_id | 상태 |
+|--------|-----------|------|
+| `post_draft` | `member.id` | 글 작성 중 임시 저장 |
+| `post` | `post.id` | 글 저장 완료 후 확정 |
+| `profile` | `member.id` | 프로필 이미지 |
+
+**알려진 한계**
+
+| 상황 | 결과 |
+|------|------|
+| 이미지 올리고 글 저장 안 함 | attach 레코드가 `post_draft`로 남음 (고아 파일) |
+| 같은 계정으로 두 탭에서 동시에 글 작성 | 먼저 저장된 글이 두 탭의 이미지를 모두 가져감 |
+
+두 번째 케이스는 현실에서 발생 가능성이 매우 낮고, 캡스톤 수준에서 허용 가능한 한계로 인정한다.
+
 ### 파일 저장 경로 전략
 
 로컬 개발 환경과 배포 환경의 저장 경로를 환경변수로 분리한다.
