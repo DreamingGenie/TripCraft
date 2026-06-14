@@ -35,4 +35,12 @@
         DELETE FROM member WHERE id = #{id}
     </delete>
 
+    <update id="updateNickname">
+        UPDATE member SET nickname = #{nickname}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE member SET password = #{password}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
 </mapper>
