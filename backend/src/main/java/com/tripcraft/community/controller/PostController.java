@@ -37,6 +37,14 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPosts(page, size, sort, keyword, memberId)));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<PostListPageResponse>> getMyPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(postService.getMyPosts(page, size, memberId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<Long>> createPost(
             @RequestBody PostCreateRequest request,

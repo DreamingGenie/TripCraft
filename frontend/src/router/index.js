@@ -33,6 +33,11 @@ const routes = [
     component: () => import('@/views/MyLikesView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/mypage/posts',
+    component: () => import('@/views/MyPostsView.vue'),
+    meta: { requiresAuth: true },
+  },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 

@@ -106,4 +106,12 @@ public class PostServiceImpl implements PostService {
             }
         );
     }
+
+    @Override
+    public PostListPageResponse getMyPosts(int page, int size, Long memberId) {
+        int offset = page * size;
+        var items = postMapper.findByMemberId(memberId, offset, size);
+        int total = postMapper.countByMemberId(memberId);
+        return new PostListPageResponse(items, total, page, size);
+    }
 }
