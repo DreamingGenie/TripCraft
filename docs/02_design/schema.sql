@@ -10,6 +10,7 @@
 -- v0.4 변경: post_comment에 parent_id 추가 (대댓글 1단계 지원)
 -- v0.5 변경: attach 테이블 신설 (프로필·게시글 이미지 메타데이터 관리)
 --            post에 deleted_at 추가 (소프트 딜리트)
+--            post_bookmark 테이블 신설
 --            → migration_comment_parent.sql 참조
 -- =============================================
 -- 결정 사항 요약
@@ -460,7 +461,21 @@ CREATE TABLE lane_polyline (
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
--- 15. 첨부파일 (attach)
+-- 15. 북마크 (post_bookmark)
+-- post_id FK에 CASCADE 없음 — 글 소프트 딜리트 시 북마크 레코드 보존.
+-- 북마크 목록에서 deleted_at IS NOT NULL이면 "삭제된 글입니다" 표시.
+-- ---------------------------------------------
+CREATE TABLE post_bookmark (
+    member_id  BIGINT   NOT NULL COMMENT '북마크한 회원 FK',
+    post_id    BIGINT   NOT NULL COMMENT '북마크된 게시글 FK',
+    created_at DATETIME NOT NULL DEFAULT NOW() COMMENT '북마크 일시',
+    PRIMARY KEY (member_id, post_id),
+    FOREIGN KEY (member_id) REFERENCES member (id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id)   REFERENCES post (id)
+) DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 16. 첨부파일 (attach)
 -- 프로필 이미지, 게시글 이미지 메타데이터 통합 관리.
 -- 파일 자체는 서버 디스크에 저장, DB에는 경로 등 메타데이터만 보관.
 -- target='post_draft': 글 작성 중 임시 저장 (target_id=0)
