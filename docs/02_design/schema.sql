@@ -1,5 +1,5 @@
 -- =============================================
--- TripCraft Schema DDL v0.4
+-- TripCraft Schema DDL v0.5
 -- 기준: 요구사항 명세 v0.1 / 기획서 v0.2
 -- v0.2 변경: transit_cache ODsay 응답 전체 저장 구조로 재설계,
 --            trip_block에 transit 표시 컬럼(transit_duration_minutes, transit_mode) 추가
@@ -8,6 +8,8 @@
 --            transit_cache에 request_mode·taxi_fare·route_coords 추가,
 --            UNIQUE KEY에 request_mode 포함 (모드별 독립 캐시)
 -- v0.4 변경: post_comment에 parent_id 추가 (대댓글 1단계 지원)
+-- v0.5 변경: attach 테이블 신설 (프로필·게시글 이미지 메타데이터 관리)
+--            post에 deleted_at 추가 (소프트 딜리트)
 --            → migration_comment_parent.sql 참조
 -- =============================================
 -- 결정 사항 요약
@@ -376,6 +378,7 @@ CREATE TABLE post (
     like_count INT          NOT NULL DEFAULT 0 COMMENT '좋아요 수 (post_like 집계 캐시)',
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME     NULL     COMMENT '삭제일시 (NULL=정상, non-NULL=소프트 딜리트됨)',
     PRIMARY KEY (id),
     INDEX idx_post_member (member_id),
     INDEX idx_post_trip   (trip_id),
@@ -455,3 +458,24 @@ CREATE TABLE lane_polyline (
     UNIQUE KEY uk_map_object_key (map_object_key)
 ) COMMENT='ODsay loadLane 노선 폴리라인 캐시. 노선 형상 변경이 드물어 영구 보관.'
   DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 15. 첨부파일 (attach)
+-- 프로필 이미지, 게시글 이미지 메타데이터 통합 관리.
+-- 파일 자체는 서버 디스크에 저장, DB에는 경로 등 메타데이터만 보관.
+-- target='post_draft': 글 작성 중 임시 저장 (target_id=0)
+-- target='post'      : 게시글 확정 후 (target_id=post.id)
+-- target='profile'   : 프로필 이미지 (target_id=member.id)
+-- ---------------------------------------------
+CREATE TABLE attach (
+    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '첨부파일 고유 번호',
+    name        VARCHAR(128) NOT NULL COMMENT '서버 저장 파일명 (UUID 기반)',
+    host_name   VARCHAR(128) NOT NULL COMMENT '원본 파일명',
+    size        BIGINT       NOT NULL DEFAULT 0 COMMENT '파일 크기 (bytes)',
+    mimetype    VARCHAR(128) NOT NULL COMMENT 'MIME 타입 (image/jpeg 등)',
+    host_path   VARCHAR(512) NOT NULL COMMENT '서버 내 저장 경로',
+    target      VARCHAR(32)  NOT NULL COMMENT '첨부 대상 구분 (profile / post / post_draft)',
+    target_id   BIGINT       NOT NULL DEFAULT 0 COMMENT '첨부 대상의 레코드 ID (post_draft는 0)',
+    created_at  DATETIME     NOT NULL DEFAULT NOW() COMMENT '등록일시',
+    INDEX idx_attach_target (target, target_id)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='파일 첨부 메타데이터';
