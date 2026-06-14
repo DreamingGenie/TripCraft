@@ -74,6 +74,9 @@
             <button class="like-btn" :class="{ liked: postDetail.liked }" @click="toggleLike">
               <span class="like-icon">♥</span> {{ postDetail.likeCount }}
             </button>
+            <button class="bookmark-btn" :class="{ bookmarked: postDetail.bookmarked }" @click="toggleBookmark">
+              {{ postDetail.bookmarked ? '🔖 북마크됨' : '🔖 북마크' }}
+            </button>
           </div>
         </article>
 
@@ -223,7 +226,7 @@ import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
-import { postApi, commentApi } from '@/api/post'
+import { postApi, commentApi, bookmarkApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 
 const today = new Date().toISOString().slice(0, 10)
@@ -311,6 +314,17 @@ async function toggleTripSummary() {
     tripSummary.value = null
   } finally {
     tripSummaryLoading.value = false
+  }
+}
+
+// ── 북마크 토글 ─────────────────────────────────────────────
+async function toggleBookmark() {
+  if (!auth.isLoggedIn) { toast.show('로그인이 필요합니다.'); return }
+  try {
+    await bookmarkApi.toggle(postDetail.value.id)
+    postDetail.value.bookmarked = !postDetail.value.bookmarked
+  } catch {
+    toast.show('오류가 발생했습니다.')
   }
 }
 
