@@ -14,7 +14,10 @@
         <article v-else class="detail-article">
           <h2 class="detail-title">{{ postDetail.title }}</h2>
           <div class="detail-meta">
-            <div class="avatar avatar-sm">{{ (postDetail.authorNickname || '?')[0] }}</div>
+            <div class="avatar avatar-sm">
+              <img v-if="postDetail.authorProfileImageUrl" :src="postDetail.authorProfileImageUrl" class="avatar-img" alt="" />
+              <span v-else>{{ (postDetail.authorNickname || '?')[0] }}</span>
+            </div>
             <div class="detail-meta-info">
               <span class="post-author">{{ postDetail.authorNickname }}</span>
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>

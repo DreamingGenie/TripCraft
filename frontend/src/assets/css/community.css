@@ -255,6 +255,12 @@
   height: 32px;
   font-size: 13px;
 }
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
 .post-author {
   font-size: 12px;
