@@ -43,11 +43,12 @@ const routes = [
     component: () => import('@/views/MyProfileView.vue'),
     meta: { requiresAuth: true },
   },
-  {
-    path: '/mypage/map',
-    component: () => import('@/views/MyMapView.vue'),
-    meta: { requiresAuth: true },
-  },
+  // TODO: 방문 지도 기능 미완성 — 완성 후 주석 해제
+  // {
+  //   path: '/mypage/map',
+  //   component: () => import('@/views/MyMapView.vue'),
+  //   meta: { requiresAuth: true },
+  // },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 

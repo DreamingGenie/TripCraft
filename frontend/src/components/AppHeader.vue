@@ -17,7 +17,8 @@
 
         <div v-show="menuOpen" class="gnb-dropdown" @click="menuOpen = false">
           <RouterLink class="dropdown-item" to="/mypage/profile">내 정보 수정</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink>
+          <!-- TODO: 방문 지도 기능 미완성 — 완성 후 주석 해제 -->
+          <!-- <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink> -->
           <RouterLink class="dropdown-item" to="/mypage/posts">내가 쓴 글</RouterLink>
           <RouterLink class="dropdown-item" to="/mypage/bookmarks">북마크</RouterLink>
           <RouterLink class="dropdown-item" to="/mypage/likes">좋아요한 글</RouterLink>
@@ -73,11 +74,11 @@ async function handleLogout() {
 }
 
 .gnb-user-btn {
-  font-size: var(--font-size-xs);
+  font-size: 1.1rem;
   color: var(--gray-dark);
   background: none;
   border: none;
-  padding: 5px 8px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
@@ -91,7 +92,7 @@ async function handleLogout() {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 148px;
+  min-width: 220px;
   background: var(--bg-surface);
   border: 0.5px solid var(--gray-border);
   border-radius: var(--radius-md);
@@ -102,8 +103,8 @@ async function handleLogout() {
 
 .dropdown-item {
   display: block;
-  padding: 9px 16px;
-  font-size: var(--font-size-xs);
+  padding: 14px 24px;
+  font-size: 1rem;
   color: var(--text-primary);
   text-decoration: none;
   transition: background 0.1s;
