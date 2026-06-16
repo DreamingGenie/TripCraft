@@ -15,23 +15,21 @@
 
         <svg
           v-else
-          viewBox="0 0 340 450"
+          viewBox="0 0 600 740"
           xmlns="http://www.w3.org/2000/svg"
           class="korea-map"
           aria-label="대한민국 방문 지역 지도"
         >
           <g v-for="r in regions" :key="r.code">
-            <rect
-              :x="r.x"
-              :y="r.y"
-              :width="TW"
-              :height="TH"
-              :rx="6"
-              :class="['region-tile', { visited: visited.has(r.code) }]"
+            <path
+              :d="r.d"
+              :fill-rule="r.fillRule || 'nonzero'"
+              :class="['region-path', { visited: visited.has(r.code) }]"
             />
+            <!-- 각 path의 중심 좌표에 이름 표시 -->
             <text
-              :x="r.x + TW / 2"
-              :y="r.y + TH / 2 + 1"
+              :x="r.labelX"
+              :y="r.labelY"
               text-anchor="middle"
               dominant-baseline="middle"
               class="region-label"
@@ -39,9 +37,9 @@
             >{{ r.name }}</text>
           </g>
 
-          <!-- 제주 바다 구분선 -->
-          <line x1="20" y1="415" x2="320" y2="415"
-                stroke="var(--color-border)" stroke-width="1" stroke-dasharray="4 4" />
+          <!-- 제주 해협 구분선 -->
+          <line x1="60" y1="490" x2="540" y2="490"
+                stroke="var(--gray-border, #ddd)" stroke-width="1.2" stroke-dasharray="6 4" />
         </svg>
 
         <!-- 범례 -->
@@ -61,44 +59,31 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { http } from '@/api/http'
+import { KOREA_REGIONS } from '@/assets/data/koreaMap.js'
 
-/* 타일 크기 */
-const TW = 72
-const TH = 44
-
-/*
- * 격자 좌표: x = 20 + col * 78,  y = 20 + row * 50
- * col 0-3 (서→동),  row 0-7 (북→남)
- *
- * TourAPI sido_code 기준
- *   1=서울 2=인천 3=대전 4=대구 5=광주
- *   6=부산 7=울산 8=세종
- *   31=경기 32=강원 33=충북 34=충남
- *   35=전북 36=전남 37=경북 38=경남 39=제주
+/**
+ * SVG path의 대략적인 중심 좌표 계산
+ * path의 첫 M 이후 좌표들의 평균을 사용
  */
-const regions = [
-  { code: 32, name: '강원',  col: 3, row: 0 },
-  { code:  2, name: '인천',  col: 0, row: 1 },
-  { code:  1, name: '서울',  col: 1, row: 1 },
-  { code: 31, name: '경기',  col: 1, row: 2 },
-  { code: 33, name: '충북',  col: 2, row: 2 },
-  { code: 37, name: '경북',  col: 3, row: 2 },
-  { code: 34, name: '충남',  col: 0, row: 3 },
-  { code:  8, name: '세종',  col: 1, row: 3 },
-  { code:  3, name: '대전',  col: 2, row: 3 },
-  { code:  4, name: '대구',  col: 3, row: 3 },
-  { code: 35, name: '전북',  col: 0, row: 4 },
-  { code:  7, name: '울산',  col: 3, row: 4 },
-  { code: 36, name: '전남',  col: 0, row: 5 },
-  { code:  5, name: '광주',  col: 1, row: 5 },
-  { code: 38, name: '경남',  col: 2, row: 5 },
-  { code:  6, name: '부산',  col: 3, row: 5 },
-  { code: 39, name: '제주',  col: 1, row: 7 },
-].map(r => ({ ...r, x: 20 + r.col * 78, y: 20 + r.row * 50 }))
+function pathCenter(d) {
+  const coords = [...d.matchAll(/([0-9.]+),([0-9.]+)/g)].map(m => [+m[1], +m[2]])
+  if (!coords.length) return { x: 0, y: 0 }
+  // 첫 번째 path만 사용 (섬 제외)
+  const firstPath = d.split('M')[1]
+  const firstCoords = [...(firstPath || '').matchAll(/([0-9.]+),([0-9.]+)/g)].map(m => [+m[1], +m[2]])
+  const pts = firstCoords.length ? firstCoords : coords
+  const x = pts.reduce((s, c) => s + c[0], 0) / pts.length
+  const y = pts.reduce((s, c) => s + c[1], 0) / pts.length
+  return { x: Math.round(x), y: Math.round(y) }
+}
 
-const visited  = ref(new Set())
-const loading  = ref(false)
+const regions = KOREA_REGIONS.map(r => {
+  const { x, y } = pathCenter(r.d)
+  return { ...r, labelX: x, labelY: y }
+})
 
+const visited      = ref(new Set())
+const loading      = ref(false)
 const visitedCount = computed(() => visited.value.size)
 
 onMounted(async () => {
@@ -116,28 +101,28 @@ onMounted(async () => {
 
 <style scoped>
 .map-layout {
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
   padding: 0 16px 40px;
 }
 .mypage-header {
   padding: 24px 0 16px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--gray-border, #e5e7eb);
   margin-bottom: 24px;
 }
 .mypage-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--text-primary);
 }
 .map-subtitle {
   margin: 6px 0 0;
   font-size: 0.9rem;
-  color: var(--color-text-muted);
+  color: var(--gray-muted);
 }
 .visited-count {
   font-weight: 600;
-  color: var(--color-primary, #3b82f6);
+  color: var(--purple-900);
 }
 .map-wrap {
   display: flex;
@@ -146,33 +131,40 @@ onMounted(async () => {
   gap: 16px;
 }
 .map-loading {
-  color: var(--color-text-muted);
+  color: var(--gray-muted);
   font-size: 0.9rem;
 }
 .korea-map {
   width: 100%;
-  max-width: 360px;
+  max-width: 420px;
   height: auto;
+  overflow: visible;
 }
 
-/* 타일 */
-.region-tile {
-  fill: var(--color-bg-subtle, #f0f2f5);
-  stroke: var(--color-border);
+/* 시도 path */
+.region-path {
+  fill: var(--bg-page, #f5f5f7);
+  stroke: var(--gray-border, #d1d5db);
   stroke-width: 1.5;
-  transition: fill 0.2s;
+  stroke-linejoin: round;
+  transition: fill 0.25s;
+  cursor: default;
 }
-.region-tile.visited {
-  fill: var(--color-primary, #3b82f6);
-  stroke: var(--color-primary-dark, #2563eb);
+.region-path.visited {
+  fill: var(--purple-900, #3b0764);
+  stroke: #2e0651;
+}
+.region-path:hover {
+  opacity: 0.85;
 }
 
-/* 레이블 */
+/* 이름 레이블 */
 .region-label {
-  font-size: 11px;
-  fill: var(--color-text-muted);
+  font-size: 10px;
+  fill: var(--gray-muted, #6b7280);
   pointer-events: none;
   user-select: none;
+  font-weight: 500;
 }
 
 /* 범례 */
@@ -180,7 +172,7 @@ onMounted(async () => {
   display: flex;
   gap: 20px;
   font-size: 0.85rem;
-  color: var(--color-text-muted);
+  color: var(--gray-muted);
 }
 .legend-item {
   display: flex;
@@ -189,16 +181,16 @@ onMounted(async () => {
 }
 .legend-box {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
-  border: 1.5px solid var(--color-border);
+  border: 1.5px solid var(--gray-border);
 }
 .visited-box {
-  background: var(--color-primary, #3b82f6);
-  border-color: var(--color-primary-dark, #2563eb);
+  background: var(--purple-900, #3b0764);
+  border-color: #2e0651;
 }
 .unvisited-box {
-  background: var(--color-bg-subtle, #f0f2f5);
+  background: var(--bg-page, #f5f5f7);
 }
 </style>
