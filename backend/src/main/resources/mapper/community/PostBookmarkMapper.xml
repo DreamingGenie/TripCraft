@@ -4,6 +4,19 @@
 
 <mapper namespace="com.tripcraft.community.mapper.PostBookmarkMapper">
 
+    <!-- 공통: 작성자 프로필 이미지 서브쿼리 -->
+    <sql id="profileImageSubquery">
+        (SELECT CONCAT('/uploads/images/', a.name)
+         FROM attach a
+         WHERE a.target = 'profile' AND a.target_id = m.id
+         LIMIT 1) AS authorProfileImageUrl
+    </sql>
+
+    <!-- 공통: 댓글 수 서브쿼리 -->
+    <sql id="commentCountSubquery">
+        (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount
+    </sql>
+
     <select id="findByPostIdAndMemberId" resultType="java.lang.Long">
         SELECT post_id FROM post_bookmark
         WHERE post_id = #{postId} AND member_id = #{memberId}
@@ -20,19 +33,18 @@
         WHERE post_id = #{postId} AND member_id = #{memberId}
     </delete>
 
-    <!-- 북마크 목록 — 삭제된 글은 title을 null로 반환해 프론트에서 "삭제된 글입니다" 표시 -->
+    <!-- 북마크 목록 — 삭제된 글은 title=null, deleted=true 반환 -->
     <select id="findByMemberId" resultType="com.tripcraft.community.dto.PostListItem">
         SELECT p.id,
                CASE WHEN p.deleted_at IS NOT NULL THEN NULL ELSE p.title END AS title,
                COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
                p.view_count  AS viewCount,
                p.like_count  AS likeCount,
-               (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
+               <include refid="commentCountSubquery"/>,
                p.created_at  AS createdAt,
                false         AS liked,
                (p.deleted_at IS NOT NULL) AS deleted,
-               (SELECT CONCAT('/uploads/images/', a.name) FROM attach a
-                WHERE a.target = 'profile' AND a.target_id = m.id LIMIT 1) AS authorProfileImageUrl
+               <include refid="profileImageSubquery"/>
         FROM post_bookmark pb
         JOIN post p   ON p.id = pb.post_id
         LEFT JOIN member m ON m.id = p.member_id

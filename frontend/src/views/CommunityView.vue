@@ -131,14 +131,14 @@ const toast   = useToastStore()
 const route   = useRoute()
 const router  = useRouter()
 
-const sort    = ref('latest')
+const sort    = ref(route.query.sort    || 'latest')
 const sorts   = [{ label: '최신순', value: 'latest' }, { label: '인기순', value: 'popular' }]
-const keyword = ref('')
+const keyword = ref(route.query.keyword || '')
 
 const posts   = ref([])
 const notices = ref([])
 const total   = ref(0)
-const page    = ref(0)
+const page    = ref(Number(route.query.page) || 0)
 const loading = ref(false)
 const PAGE_SIZE = 10
 
@@ -163,14 +163,24 @@ async function loadPosts() {
   }
 }
 
+function syncUrl() {
+  const query = {}
+  if (keyword.value) query.keyword = keyword.value
+  if (sort.value && sort.value !== 'latest') query.sort = sort.value
+  if (page.value > 0) query.page = page.value
+  router.replace({ query })
+}
+
 function doSearch() {
   page.value = 0
+  syncUrl()
   loadPosts()
 }
 
 function clearSearch() {
   keyword.value = ''
   page.value = 0
+  syncUrl()
   loadPosts()
 }
 
@@ -181,11 +191,13 @@ async function loadNotices() {
 function changeSort(s) {
   sort.value = s
   page.value = 0
+  syncUrl()
   loadPosts()
 }
 
 function goPage(p) {
   page.value = p
+  syncUrl()
   loadPosts()
 }
 

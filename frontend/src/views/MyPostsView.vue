@@ -34,7 +34,6 @@
           </div>
         </div>
 
-        <!-- 페이지네이션 -->
         <div v-if="totalPages > 1" class="pagination">
           <button
             v-for="p in totalPages" :key="p"
@@ -48,34 +47,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { myPostApi, postApi } from '@/api/post'
 import { formatDate } from '@/utils/format'
+import { usePostList } from '@/composables/usePostList'
 
 const router = useRouter()
-
-const items      = ref([])
-const page       = ref(0)
-const total      = ref(0)
-const pageSize   = 10
-const loading    = ref(false)
-
-const totalPages = computed(() => Math.ceil(total.value / pageSize))
-
-async function loadPage(p = 0) {
-  loading.value = true
-  page.value = p
-  try {
-    const res = await myPostApi.list({ page: p, size: pageSize })
-    items.value = res.items
-    total.value = res.total
-  } catch {
-    items.value = []
-  } finally {
-    loading.value = false
-  }
-}
+const { items, page, loading, totalPages, loadPage } = usePostList(myPostApi.list)
 
 async function confirmDelete(post) {
   if (!confirm(`"${post.title}" 글을 삭제할까요?`)) return
