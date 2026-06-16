@@ -17,8 +17,8 @@
             v-for="post in items"
             :key="post.id"
             class="post-card"
-            @click="post.deleted ? null : router.push(`/community/${post.id}`)"
             :class="{ 'post-deleted': post.deleted }"
+            @click="post.deleted ? null : router.push(`/community/${post.id}`)"
           >
             <div class="post-card-body">
               <p v-if="post.deleted" class="post-deleted-msg">삭제된 글입니다.</p>
@@ -38,7 +38,6 @@
           </div>
         </div>
 
-        <!-- 페이지네이션 -->
         <div v-if="totalPages > 1" class="pagination">
           <button
             v-for="p in totalPages" :key="p"
@@ -52,34 +51,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { likeApi } from '@/api/post'
 import { formatDate } from '@/utils/format'
+import { usePostList } from '@/composables/usePostList'
 
 const router = useRouter()
-
-const items      = ref([])
-const page       = ref(0)
-const total      = ref(0)
-const pageSize   = 10
-const loading    = ref(false)
-
-const totalPages = computed(() => Math.ceil(total.value / pageSize))
-
-async function loadPage(p = 0) {
-  loading.value = true
-  page.value = p
-  try {
-    const res = await likeApi.myList({ page: p, size: pageSize })
-    items.value = res.items
-    total.value = res.total
-  } catch {
-    items.value = []
-  } finally {
-    loading.value = false
-  }
-}
+const { items, page, loading, totalPages, loadPage } = usePostList(likeApi.myList)
 
 onMounted(() => loadPage())
 </script>
