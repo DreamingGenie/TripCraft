@@ -13,6 +13,8 @@ public interface MemberMapper {
 
     Optional<Member> findByEmail(String email);
 
+    Optional<Member> findByNickname(String nickname);
+
     void insert(Member member);
 
     void deleteById(Long id);

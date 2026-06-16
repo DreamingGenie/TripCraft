@@ -6,6 +6,27 @@
           <h2 class="mypage-title">내 정보 수정</h2>
         </div>
 
+        <!-- 프로필 이미지 -->
+        <section class="edit-section">
+          <h3 class="section-title">프로필 이미지</h3>
+          <div class="avatar-row">
+            <div class="avatar-wrap">
+              <img v-if="profileImageUrl" :src="profileImageUrl" class="avatar-img" alt="프로필 이미지" />
+              <div v-else class="avatar-placeholder">{{ auth.user?.nickname?.charAt(0) }}</div>
+            </div>
+            <div class="avatar-actions">
+              <label class="edit-btn upload-label">
+                변경
+                <input type="file" accept="image/*" class="hidden-input" @change="onImageChange" />
+              </label>
+              <button v-if="profileImageUrl" class="edit-btn danger-btn" @click="removeImage" :disabled="imageLoading">
+                삭제
+              </button>
+            </div>
+          </div>
+          <p v-if="imageMsg" :class="['form-msg', imageError ? 'error' : 'success']">{{ imageMsg }}</p>
+        </section>
+
         <!-- 현재 정보 -->
         <div class="info-section">
           <div class="info-row">
@@ -80,14 +101,59 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { memberApi } from '@/api/member'
 
 const auth = useAuthStore()
 
+const profileImageUrl = ref(null)
+const imageLoading    = ref(false)
+const imageMsg        = ref('')
+const imageError      = ref(false)
+
 const nicknameForm = reactive({ value: '', loading: false, message: '', error: false })
 const passwordForm = reactive({ current: '', next: '', confirm: '', loading: false, message: '', error: false })
+
+onMounted(async () => {
+  try {
+    profileImageUrl.value = await memberApi.getProfileImage()
+  } catch {}
+})
+
+async function onImageChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  imageMsg.value = ''
+  imageLoading.value = true
+  try {
+    profileImageUrl.value = await memberApi.uploadProfileImage(file)
+    imageError.value = false
+    imageMsg.value = '프로필 이미지가 변경되었습니다.'
+  } catch (err) {
+    imageError.value = true
+    imageMsg.value = err.message || '이미지 업로드에 실패했습니다.'
+  } finally {
+    imageLoading.value = false
+    e.target.value = ''
+  }
+}
+
+async function removeImage() {
+  imageMsg.value = ''
+  imageLoading.value = true
+  try {
+    await memberApi.deleteProfileImage()
+    profileImageUrl.value = null
+    imageError.value = false
+    imageMsg.value = '프로필 이미지가 삭제되었습니다.'
+  } catch (err) {
+    imageError.value = true
+    imageMsg.value = err.message || '삭제에 실패했습니다.'
+  } finally {
+    imageLoading.value = false
+  }
+}
 
 async function submitNickname() {
   nicknameForm.message = ''
@@ -150,6 +216,53 @@ async function submitPassword() {
   font-weight: 700;
   color: var(--color-text);
 }
+
+/* 프로필 이미지 */
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.avatar-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--color-border);
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--purple-50, #f3f0ff);
+  color: var(--purple-900, #3b0764);
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.avatar-actions {
+  display: flex;
+  gap: 8px;
+}
+.upload-label {
+  cursor: pointer;
+}
+.hidden-input {
+  display: none;
+}
+.danger-btn {
+  background: var(--color-danger, #e53e3e) !important;
+}
+
+/* 현재 정보 */
 .info-section {
   display: flex;
   flex-direction: column;
@@ -172,6 +285,8 @@ async function submitPassword() {
   color: var(--color-text);
   font-weight: 500;
 }
+
+/* 폼 공통 */
 .edit-section {
   display: flex;
   flex-direction: column;
@@ -210,6 +325,7 @@ async function submitPassword() {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
 }
 .edit-btn:disabled {
   opacity: 0.6;

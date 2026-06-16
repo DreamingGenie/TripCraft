@@ -30,7 +30,9 @@
                (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
                p.created_at  AS createdAt,
                false         AS liked,
-               (p.deleted_at IS NOT NULL) AS deleted
+               (p.deleted_at IS NOT NULL) AS deleted,
+               (SELECT CONCAT('/uploads/images/', a.name) FROM attach a
+                WHERE a.target = 'profile' AND a.target_id = m.id LIMIT 1) AS authorProfileImageUrl
         FROM post_bookmark pb
         JOIN post p   ON p.id = pb.post_id
         LEFT JOIN member m ON m.id = p.member_id

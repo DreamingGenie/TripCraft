@@ -20,6 +20,12 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findByNickname" parameterType="string" resultMap="memberMap">
+        SELECT id, email, password, nickname, role, created_at, updated_at
+        FROM member
+        WHERE nickname = #{nickname}
+    </select>
+
     <select id="findByEmail" parameterType="string" resultMap="memberMap">
         SELECT id, email, password, nickname, role, created_at, updated_at
         FROM member

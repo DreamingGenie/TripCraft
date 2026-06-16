@@ -39,7 +39,10 @@
                class="post-card" @click="router.push(`/community/${post.id}`)">
             <div class="post-card-left">
               <div class="post-meta">
-                <div class="avatar avatar-sm">{{ (post.authorNickname || '?')[0] }}</div>
+                <div class="avatar avatar-sm">
+                  <img v-if="post.authorProfileImageUrl" :src="post.authorProfileImageUrl" class="avatar-img" alt="" />
+                  <span v-else>{{ (post.authorNickname || '?')[0] }}</span>
+                </div>
                 <span class="post-author">{{ post.authorNickname }}</span>
                 <span class="meta-dot">·</span>
                 <span class="post-date">{{ formatDate(post.createdAt) }}</span>
