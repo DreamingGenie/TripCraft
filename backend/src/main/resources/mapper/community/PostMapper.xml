@@ -39,7 +39,7 @@
         COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
         p.view_count  AS viewCount,
         p.like_count  AS likeCount,
-        <include refid="commentCountSubquery"/>,
+        <include refid="com.tripcraft.community.mapper.PostMapper.commentCountSubquery"/>,
         p.created_at  AS createdAt
     </sql>
 
