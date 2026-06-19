@@ -1,6 +1,5 @@
 package com.tripcraft.community.mapper;
 
-import com.tripcraft.community.domain.PostLike;
 import com.tripcraft.community.dto.PostListItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -9,17 +8,14 @@ import java.util.List;
 import java.util.Optional;
 
 @Mapper
-public interface PostLikeMapper {
+public interface PostBookmarkMapper {
 
-    Optional<PostLike> findByPostIdAndMemberId(Long postId, Long memberId);
+    Optional<Long> findByPostIdAndMemberId(@Param("postId") Long postId,
+                                           @Param("memberId") Long memberId);
 
-    int countByPostId(Long postId);
+    void insert(@Param("postId") Long postId, @Param("memberId") Long memberId);
 
-    void insert(PostLike postLike);
-
-    void deleteById(Long id);
-
-    void deleteByMemberId(Long memberId);
+    void delete(@Param("postId") Long postId, @Param("memberId") Long memberId);
 
     List<PostListItem> findByMemberId(@Param("memberId") Long memberId,
                                       @Param("offset") int offset,

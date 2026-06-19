@@ -16,8 +16,35 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <!-- 공통: 작성자 프로필 이미지 — SELECT 컬럼 -->
+    <sql id="profileImageCol">
+        CONCAT('/uploads/images/', pa.name) AS authorProfileImageUrl
+    </sql>
+
+    <!-- 공통: 작성자 프로필 이미지 — LEFT JOIN (alias pa, member m 이후에 추가) -->
+    <sql id="profileImageJoin">
+        LEFT JOIN (SELECT target_id, name FROM attach WHERE target = 'profile') pa
+                  ON pa.target_id = m.id
+    </sql>
+
+    <!-- 공통: 댓글 수 서브쿼리 -->
+    <sql id="commentCountSubquery">
+        (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount
+    </sql>
+
+    <!-- 공통: 좋아요·북마크 목록용 SELECT 기본 컬럼 (liked 제외) -->
+    <sql id="myListSelectBase">
+        p.id,
+        CASE WHEN p.deleted_at IS NOT NULL THEN NULL ELSE p.title END AS title,
+        COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
+        p.view_count  AS viewCount,
+        p.like_count  AS likeCount,
+        <include refid="commentCountSubquery"/>,
+        p.created_at  AS createdAt
+    </sql>
+
     <select id="findById" parameterType="long" resultMap="postMap">
-        SELECT * FROM post WHERE id = #{id}
+        SELECT * FROM post WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
     <select id="findAll" resultMap="postMap">
@@ -28,8 +55,9 @@
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM post
         <where>
+            deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
-                (title LIKE CONCAT('%', #{keyword}, '%')
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
                 OR content LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
@@ -40,14 +68,17 @@
                COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
                p.view_count AS viewCount,
                p.like_count AS likeCount,
-               (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount,
+               <include refid="commentCountSubquery"/>,
                p.created_at AS createdAt,
-               false AS liked
+               false AS liked,
+               <include refid="profileImageCol"/>
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
+        <include refid="profileImageJoin"/>
         <where>
+            p.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
-                (p.title LIKE CONCAT('%', #{keyword}, '%')
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                 OR p.content LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
@@ -65,7 +96,9 @@
                p.like_count AS likeCount,
                p.created_at AS createdAt,
                (SELECT COUNT(*) > 0 FROM post_like pl WHERE pl.post_id = p.id AND pl.member_id = #{memberId}) AS liked,
+               (SELECT COUNT(*) > 0 FROM post_bookmark pb WHERE pb.post_id = p.id AND pb.member_id = #{memberId}) AS bookmarked,
                (p.member_id = #{memberId}) AS mine,
+               <include refid="profileImageCol"/>,
                t.id         AS tripId,
                t.title      AS tripTitle,
                t.start_date AS tripStartDate,
@@ -73,6 +106,7 @@
                t.member_count AS tripMemberCount
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
+        <include refid="profileImageJoin"/>
         LEFT JOIN trip t   ON t.id = p.trip_id
         WHERE p.id = #{id}
     </select>
@@ -103,5 +137,31 @@
     <delete id="deleteById" parameterType="long">
         DELETE FROM post WHERE id = #{id}
     </delete>
+
+    <update id="softDeleteById" parameterType="long">
+        UPDATE post SET deleted_at = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="findByMemberId" resultType="com.tripcraft.community.dto.PostListItem">
+        SELECT p.id, p.title,
+               COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
+               p.view_count AS viewCount,
+               p.like_count AS likeCount,
+               <include refid="commentCountSubquery"/>,
+               p.created_at AS createdAt,
+               false AS liked,
+               <include refid="profileImageCol"/>
+        FROM post p
+        LEFT JOIN member m ON m.id = p.member_id
+        <include refid="profileImageJoin"/>
+        WHERE p.member_id = #{memberId}
+          AND p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByMemberId" resultType="int">
+        SELECT COUNT(*) FROM post WHERE member_id = #{memberId} AND deleted_at IS NULL
+    </select>
 
 </mapper>

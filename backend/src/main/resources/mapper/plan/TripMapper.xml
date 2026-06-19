@@ -67,4 +67,13 @@
         DELETE FROM trip WHERE id = #{id}
     </delete>
 
+    <select id="findVisitedSidoCodes" resultType="int">
+        SELECT DISTINCT a.sido_code
+        FROM trip t
+        JOIN trip_candidate tc ON tc.trip_id = t.id
+        JOIN attraction a ON a.id = tc.attraction_id
+        WHERE t.member_id = #{memberId}
+          AND a.sido_code IS NOT NULL
+    </select>
+
 </mapper>
