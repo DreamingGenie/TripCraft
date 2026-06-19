@@ -1,10 +1,11 @@
 package com.tripcraft.global.controller;
 
-import com.tripcraft.community.mapper.AttachMapper;
-import com.tripcraft.community.domain.Attach;
+import com.tripcraft.global.attach.domain.Attach;
+import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.response.ApiResponse;
-import com.tripcraft.global.service.FileStorageService;
+import com.tripcraft.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,32 +16,44 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
 public class ImageController {
 
-    private final FileStorageService fileStorageService;
+    private static final String SUB_DIR = "images";
+
     private final AttachMapper attachMapper;
+    private final FileStorageService fileStorageService;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> upload(
             @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal Long memberId) {
+            @AuthenticationPrincipal Long memberId) throws IOException {
 
         if (memberId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
 
-        String filename = fileStorageService.storeImage(file);
+        String filename = fileStorageService.save(file, SUB_DIR);
 
         // 업로드 직후에는 어떤 게시글에도 연결되지 않은 임시 상태로 기록
+        // targetId에 memberId를 사용해 나중에 이 회원의 draft를 일괄 연결할 수 있게 함
         Attach attach = new Attach();
-        attach.setTarget("post_draft");
-        attach.setTargetId(null);
         attach.setName(filename);
+        attach.setHostName(file.getOriginalFilename() != null ? file.getOriginalFilename() : filename);
+        attach.setSize(file.getSize());
+        attach.setMimetype(file.getContentType());
+        attach.setHostPath(fileStorageService.toHostPath(SUB_DIR, filename));
+        attach.setTarget("post_draft");
+        attach.setTargetId(memberId);
         attachMapper.insert(attach);
 
-        return ResponseEntity.ok(ApiResponse.ok(fileStorageService.toUrl(filename)));
+        log.debug("이미지 업로드 완료 — memberId={}, filename={}, attachId={}", memberId, filename, attach.getId());
+
+        return ResponseEntity.ok(ApiResponse.ok(fileStorageService.toUrl(SUB_DIR, filename)));
     }
 }

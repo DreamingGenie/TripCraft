@@ -1,7 +1,8 @@
 package com.tripcraft.global.scheduler;
 
-import com.tripcraft.community.mapper.AttachMapper;
-import com.tripcraft.global.service.FileStorageService;
+import com.tripcraft.global.attach.domain.Attach;
+import com.tripcraft.global.attach.mapper.AttachMapper;
+import com.tripcraft.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,11 +26,11 @@ public class OrphanImageCleanupScheduler {
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void cleanupOrphanImages() {
-        List<String> expiredNames = attachMapper.findExpiredDraftNames();
-        if (expiredNames.isEmpty()) return;
+        List<Attach> expired = attachMapper.findExpiredDrafts();
+        if (expired.isEmpty()) return;
 
-        log.info("고아 이미지 정리 시작 — {}건", expiredNames.size());
-        expiredNames.forEach(fileStorageService::deleteImage);
+        log.info("고아 이미지 정리 시작 — {}건", expired.size());
+        expired.forEach(a -> fileStorageService.delete(a.getHostPath()));
         attachMapper.deleteExpiredDrafts();
         log.info("고아 이미지 정리 완료");
     }

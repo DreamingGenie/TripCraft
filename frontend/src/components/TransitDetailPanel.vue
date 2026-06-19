@@ -214,7 +214,7 @@ function stepInfo(sub) {
     return { title: lineName, route: `${sub.startName} → ${sub.endName}`, detail: parts.join(' · ') || null }
   }
   if (t === 2) {
-    const busNo = sub.lane?.[0]?.busNo ?? ''
+    const busNo = sub.lane?.[0]?.busNo || sub.lane?.[0]?.busNoGov || ''
     return {
       title: `버스${busNo ? ' ' + busNo : ''}`,
       route: `${sub.startName} → ${sub.endName}`,

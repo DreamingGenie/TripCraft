@@ -23,6 +23,32 @@ const routes = [
     component: () => import('@/views/AdminView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: '/mypage/bookmarks',
+    component: () => import('@/views/MyBookmarksView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/mypage/likes',
+    component: () => import('@/views/MyLikesView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/mypage/posts',
+    component: () => import('@/views/MyPostsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/mypage/profile',
+    component: () => import('@/views/MyProfileView.vue'),
+    meta: { requiresAuth: true },
+  },
+  // TODO: 방문 지도 기능 미완성 — 완성 후 주석 해제
+  // {
+  //   path: '/mypage/map',
+  //   component: () => import('@/views/MyMapView.vue'),
+  //   meta: { requiresAuth: true },
+  // },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
 

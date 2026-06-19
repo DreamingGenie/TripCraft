@@ -14,7 +14,10 @@
         <article v-else class="detail-article">
           <h2 class="detail-title">{{ postDetail.title }}</h2>
           <div class="detail-meta">
-            <div class="avatar avatar-sm">{{ (postDetail.authorNickname || '?')[0] }}</div>
+            <div class="avatar avatar-sm">
+              <img v-if="postDetail.authorProfileImageUrl" :src="postDetail.authorProfileImageUrl" class="avatar-img" alt="" />
+              <span v-else>{{ (postDetail.authorNickname || '?')[0] }}</span>
+            </div>
             <div class="detail-meta-info">
               <span class="post-author">{{ postDetail.authorNickname }}</span>
               <span class="detail-date">{{ formatDate(postDetail.createdAt) }}</span>
@@ -73,6 +76,9 @@
           <div class="like-section">
             <button class="like-btn" :class="{ liked: postDetail.liked }" @click="toggleLike">
               <span class="like-icon">♥</span> {{ postDetail.likeCount }}
+            </button>
+            <button class="bookmark-btn" :class="{ bookmarked: postDetail.bookmarked }" @click="toggleBookmark">
+              {{ postDetail.bookmarked ? '🔖 북마크됨' : '🔖 북마크' }}
             </button>
           </div>
         </article>
@@ -223,7 +229,7 @@ import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
-import { postApi, commentApi } from '@/api/post'
+import { postApi, commentApi, bookmarkApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
 
 const today = new Date().toISOString().slice(0, 10)
@@ -311,6 +317,17 @@ async function toggleTripSummary() {
     tripSummary.value = null
   } finally {
     tripSummaryLoading.value = false
+  }
+}
+
+// ── 북마크 토글 ─────────────────────────────────────────────
+async function toggleBookmark() {
+  if (!auth.isLoggedIn) { toast.show('로그인이 필요합니다.'); return }
+  try {
+    await bookmarkApi.toggle(postDetail.value.id)
+    postDetail.value.bookmarked = !postDetail.value.bookmarked
+  } catch {
+    toast.show('오류가 발생했습니다.')
   }
 }
 
