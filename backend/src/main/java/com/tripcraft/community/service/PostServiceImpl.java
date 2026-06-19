@@ -9,10 +9,11 @@ import com.tripcraft.community.dto.PostListPageResponse;
 import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
+import com.tripcraft.community.event.PostImageDeletedEvent;
 import com.tripcraft.global.attach.domain.Attach;
 import com.tripcraft.global.attach.mapper.AttachMapper;
-import com.tripcraft.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +28,7 @@ public class PostServiceImpl implements PostService {
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
     private final AttachMapper attachMapper;
-    private final FileStorageService fileStorageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId) {
@@ -86,12 +87,19 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
 
-        // 게시글에 연결된 이미지 파일 삭제 후 attach 레코드 정리
+        // attach 레코드 먼저 삭제 후 게시글 soft delete (DB 트랜잭션 범위)
+        // 파일 삭제는 커밋 성공 이후 이벤트 리스너에서 처리해 트랜잭션 롤백 시 파일이 먼저 지워지는 불일치를 방지
         List<Attach> attaches = attachMapper.findByTarget("post", id);
-        attaches.forEach(a -> fileStorageService.delete(a.getHostPath()));
+        List<String> hostPaths = attaches.stream()
+                .map(Attach::getHostPath)
+                .filter(p -> p != null && !p.isBlank())
+                .toList();
         attachMapper.deleteByTarget("post", id);
-
         postMapper.softDeleteById(id);
+
+        if (!hostPaths.isEmpty()) {
+            eventPublisher.publishEvent(new PostImageDeletedEvent(hostPaths));
+        }
     }
 
     @Override
