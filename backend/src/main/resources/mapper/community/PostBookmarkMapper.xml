@@ -25,10 +25,11 @@
         SELECT <include refid="com.tripcraft.community.mapper.PostMapper.myListSelectBase"/>,
                false AS liked,
                (p.deleted_at IS NOT NULL) AS deleted,
-               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageSubquery"/>
+               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageCol"/>
         FROM post_bookmark pb
         JOIN post p   ON p.id = pb.post_id
         LEFT JOIN member m ON m.id = p.member_id
+        <include refid="com.tripcraft.community.mapper.PostMapper.profileImageJoin"/>
         WHERE pb.member_id = #{memberId}
         ORDER BY pb.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
