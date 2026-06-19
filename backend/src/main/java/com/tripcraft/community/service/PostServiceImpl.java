@@ -9,6 +9,7 @@ import com.tripcraft.community.dto.PostListPageResponse;
 import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
+import com.tripcraft.global.attach.mapper.AttachMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
+    private final AttachMapper attachMapper;
 
     @Override
     public PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId) {
@@ -41,14 +43,15 @@ public class PostServiceImpl implements PostService {
         post.setContent(req.getContent());
         post.setTripId(req.getTripId());
         postMapper.insert(post);
+        // 글 작성 중 업로드된 이미지(post_draft)를 이 게시글로 연결
+        attachMapper.updateTargetId("post_draft", memberId, "post", post.getId());
         return post.getId();
     }
 
     @Override
     @Transactional
     public PostDetail getPost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postMapper.incrementViewCount(id);
         // memberId가 null이면 0을 전달하여 liked/mine 모두 false 처리
         Long queryMemberId = memberId != null ? memberId : 0L;
@@ -62,8 +65,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long id, PostUpdateRequest req, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -75,19 +77,17 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-        postMapper.deleteById(id);
+        postMapper.softDeleteById(id);
     }
 
     @Override
     @Transactional
     public void toggleLike(Long id, Long memberId) {
-        postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postLikeMapper.findByPostIdAndMemberId(id, memberId).ifPresentOrElse(
             like -> {
                 postLikeMapper.deleteById(like.getId());
@@ -101,5 +101,18 @@ public class PostServiceImpl implements PostService {
                 postMapper.incrementLikeCount(id);
             }
         );
+    }
+
+    @Override
+    public PostListPageResponse getMyPosts(int page, int size, Long memberId) {
+        int offset = page * size;
+        var items = postMapper.findByMemberId(memberId, offset, size);
+        int total = postMapper.countByMemberId(memberId);
+        return new PostListPageResponse(items, total, page, size);
+    }
+
+    private Post findPostOrThrow(Long id) {
+        return postMapper.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

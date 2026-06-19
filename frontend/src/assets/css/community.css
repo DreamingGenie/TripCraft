@@ -3,6 +3,18 @@
    사이드바 제거 · 단일 컬럼 피드 · max-width 720px
    ============================================================ */
 
+/* ── 마이페이지 공통 헤더 ── */
+.mypage-header {
+  padding: 24px 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 20px;
+}
+.mypage-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 #main { overflow: hidden; flex: 1; display: flex; flex-direction: column; }
 
 #community-layout {
@@ -255,6 +267,12 @@
   height: 32px;
   font-size: 13px;
 }
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
 .post-author {
   font-size: 12px;
@@ -450,7 +468,7 @@
   display: block;
 }
 
-.like-section { display: flex; justify-content: center; }
+.like-section { display: flex; justify-content: center; align-items: center; gap: 12px; }
 
 .like-btn {
   display: inline-flex;
@@ -483,6 +501,31 @@
   border-color: #851f41;
 }
 .like-icon { font-size: 16px; line-height: 1; }
+
+.bookmark-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bookmark-btn:hover {
+  background: var(--color-surface-hover);
+}
+.bookmark-btn.bookmarked {
+  background: #1a5276;
+  border-color: #1a5276;
+  color: #fff;
+}
+.bookmark-btn.bookmarked:hover {
+  background: #154360;
+  border-color: #154360;
+}
 
 /* ── 댓글 ── */
 .comment-section {
@@ -863,7 +906,7 @@
 .confirm-msg { font-size: 14px; line-height: 1.7; color: var(--text-primary); margin-bottom: 20px; }
 .confirm-msg strong { color: var(--text-primary); }
 .confirm-actions { display: flex; justify-content: center; gap: 10px; }
-.btn-danger {
+.confirm-actions .btn-danger {
   background: #e53e3e;
   color: #fff;
   border: none;
@@ -874,7 +917,7 @@
   cursor: pointer;
   transition: opacity .12s;
 }
-.btn-danger:hover { opacity: .88; }
+.confirm-actions .btn-danger:hover { opacity: .88; }
 
 /* ── 일정 가져오기 모달 ── */
 .copy-modal-box {

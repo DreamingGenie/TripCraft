@@ -20,6 +20,12 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findByNickname" parameterType="string" resultMap="memberMap">
+        SELECT id, email, password, nickname, role, created_at, updated_at
+        FROM member
+        WHERE nickname = #{nickname}
+    </select>
+
     <select id="findByEmail" parameterType="string" resultMap="memberMap">
         SELECT id, email, password, nickname, role, created_at, updated_at
         FROM member
@@ -34,5 +40,13 @@
     <delete id="deleteById" parameterType="long">
         DELETE FROM member WHERE id = #{id}
     </delete>
+
+    <update id="updateNickname">
+        UPDATE member SET nickname = #{nickname}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE member SET password = #{password}, updated_at = NOW() WHERE id = #{id}
+    </update>
 
 </mapper>
