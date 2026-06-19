@@ -128,4 +128,16 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 주변 관광지: bounding box 1차 필터 + ST_Distance_Sphere 정렬 -->
+    <select id="findNearby" resultType="com.tripcraft.attraction.dto.NearbyAttraction">
+        SELECT id, title, content_type_id, addr1, latitude, longitude,
+               ST_Distance_Sphere(POINT(longitude, latitude), POINT(#{lng}, #{lat})) AS distance_m
+        FROM attraction
+        WHERE id &lt;&gt; #{excludeId}
+          AND latitude  BETWEEN #{minLat} AND #{maxLat}
+          AND longitude BETWEEN #{minLng} AND #{maxLng}
+        ORDER BY distance_m ASC
+        LIMIT #{limit}
+    </select>
+
 </mapper>
