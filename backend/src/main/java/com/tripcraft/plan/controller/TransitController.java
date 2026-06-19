@@ -84,4 +84,11 @@ public class TransitController {
             @RequestParam(name = "hour", defaultValue = "9") int hour) {
         return ResponseEntity.ok(ApiResponse.ok(transitService.getLaneSegments(fromId, toId, hour)));
     }
+
+    @GetMapping("/walking-coords")
+    public ResponseEntity<ApiResponse<List<double[]>>> getWalkingCoords(
+            @RequestParam double startLat, @RequestParam double startLng,
+            @RequestParam double endLat,   @RequestParam double endLng) {
+        return ResponseEntity.ok(ApiResponse.ok(transitService.getWalkingCoords(startLat, startLng, endLat, endLng)));
+    }
 }
