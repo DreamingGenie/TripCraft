@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트
 
-**TripCraft** — 관광지 탐색 → 후보군 등록 → 드래그 앤 드롭 일정 확정 → ODsay 이동 시간 자동 계산 → 커뮤니티 공유. 개발 2인 (전진·송정기). **현재 상태**: 백엔드 전 도메인 API 구현 완료(Auth·Attraction·Plan·Community·Transit), 프론트엔드 Vue 3 마이그레이션 및 API 연동 완료, TourAPI 관광지 DB 수집 완료, Naver Maps 연동 완료, ODsay 이동 시간 자동 계산 완료.
+**TripCraft** — 관광지 탐색 → 후보군 등록 → 드래그 앤 드롭 일정 확정 → ODsay 이동 시간 자동 계산 → 커뮤니티 공유. 개발 2인 (전진·송정기). **현재 상태**: 백엔드 전 도메인 API 구현 완료(Auth·Attraction·Plan·Community·Transit·Chat), 프론트엔드 Vue 3 마이그레이션 및 API 연동 완료, TourAPI 관광지 DB 수집 완료, Naver Maps 연동 완료, ODsay 이동 시간 자동 계산 완료, 대중교통 구간·도보 경로 지도 시각화 완료, 관광지 AI 챗봇(Spring AI·주변 추천) 완료.
 
 ## 기술 스택
 
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Backend | Java 21 · Spring Boot 3.5.0 · MyBatis · MySQL 8.0 · Gradle (Kotlin DSL) |
 | Frontend | Vue.js 3 + Vite · Pinia · Vue Router (마이그레이션 완료) |
 | Auth | Spring Security + JWT |
-| External API | 한국관광공사 TourAPI 4.0 · ODsay API · Naver Maps |
+| External API | 한국관광공사 TourAPI 4.0 · ODsay API · Naver Maps · T Map · gms(OpenAI 호환 프록시, Spring AI) |
 
 ## 글로벌 규칙
 
@@ -47,3 +47,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 관광지 조회·수집 | `.claude/attraction.md` |
 | 여행 일정·이동 시간 | `.claude/plan.md` |
 | 커뮤니티·공지 | `.claude/community.md` |
+| AI 챗봇·주변 추천 | `.claude/chat.md` |
