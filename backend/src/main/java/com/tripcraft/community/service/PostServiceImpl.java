@@ -7,8 +7,10 @@ import com.tripcraft.community.dto.PostDetail;
 import com.tripcraft.community.dto.PostListItem;
 import com.tripcraft.community.dto.PostListPageResponse;
 import com.tripcraft.community.dto.PostUpdateRequest;
+import com.tripcraft.community.mapper.AttachMapper;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
+import com.tripcraft.global.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,13 +18,21 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
 
+    // /uploads/images/{filename} 패턴에서 파일명 추출
+    private static final Pattern IMAGE_FILENAME_PATTERN =
+            Pattern.compile("/uploads/images/([^\"'\\s]+)");
+
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
+    private final AttachMapper attachMapper;
+    private final FileStorageService fileStorageService;
 
     @Override
     public PostListPageResponse getPosts(int page, int size, String sort, String keyword, Long memberId) {
@@ -41,6 +51,13 @@ public class PostServiceImpl implements PostService {
         post.setContent(req.getContent());
         post.setTripId(req.getTripId());
         postMapper.insert(post);
+
+        // 본문에 포함된 이미지들을 draft → post 상태로 연결
+        List<String> imageNames = extractImageNames(req.getContent());
+        if (!imageNames.isEmpty()) {
+            attachMapper.linkToPost(post.getId(), imageNames);
+        }
+
         return post.getId();
     }
 
@@ -80,7 +97,21 @@ public class PostServiceImpl implements PostService {
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
+
+        // 게시글에 연결된 이미지 파일 삭제 후 attach 레코드 정리
+        List<String> imageNames = attachMapper.findNamesByPost(id);
+        imageNames.forEach(fileStorageService::deleteImage);
+        attachMapper.deleteByPost(id);
+
         postMapper.deleteById(id);
+    }
+
+    private List<String> extractImageNames(String content) {
+        if (content == null || content.isBlank()) return List.of();
+        Matcher m = IMAGE_FILENAME_PATTERN.matcher(content);
+        List<String> names = new java.util.ArrayList<>();
+        while (m.find()) names.add(m.group(1));
+        return names;
     }
 
     @Override
