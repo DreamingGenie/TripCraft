@@ -16,4 +16,7 @@ public interface TransitService {
     void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
     /** loadLane raw_response를 파싱해 구간별 좌표 반환. [{c: modeClass, p: [[lng,lat],...]}] */
     List<Map<String, Object>> getLaneSegments(Long fromId, Long toId, int departureHour);
+
+    /** 도보 경로 좌표 반환. [[lng,lat],...] — 구현체 교체로 provider 변경 가능 */
+    List<double[]> getWalkingCoords(double startLat, double startLng, double endLat, double endLng);
 }

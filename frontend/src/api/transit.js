@@ -32,3 +32,7 @@ export async function applyDrivingOption(fromId, toId, hour, optionIndex) {
 export async function getLaneSegments(fromId, toId, hour = 9) {
   return await http.get(`/api/transit/segments?fromId=${fromId}&toId=${toId}&hour=${hour}`)
 }
+
+export async function getWalkingCoords(startLat, startLng, endLat, endLng) {
+  return await http.get(`/api/transit/walking-coords?startLat=${startLat}&startLng=${startLng}&endLat=${endLat}&endLng=${endLng}`)
+}

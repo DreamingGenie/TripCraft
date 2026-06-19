@@ -664,6 +664,24 @@ public class TransitServiceImpl implements TransitService {
     }
 
     @Override
+    public List<double[]> getWalkingCoords(double startLat, double startLng, double endLat, double endLng) {
+        TMapClient.TMapDrivingResult result = tMapClient.fetchWalkingRoute(
+            BigDecimal.valueOf(startLat), BigDecimal.valueOf(startLng),
+            BigDecimal.valueOf(endLat),   BigDecimal.valueOf(endLng)
+        );
+        if (result == null || result.routeCoords() == null) return List.of();
+        try {
+            JsonNode coords = objectMapper.readTree(result.routeCoords());
+            List<double[]> list = new ArrayList<>();
+            for (JsonNode point : coords) list.add(new double[]{point.get(0).asDouble(), point.get(1).asDouble()});
+            return list;
+        } catch (Exception e) {
+            log.warn("getWalkingCoords 파싱 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    @Override
     public void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex) {
         if (optionIndex < 0 || optionIndex >= DRIVING_REQUEST_MODES.length) return;
         // 선택된 옵션의 route_coords를 DRIVING 캐시에 덮어써 지도에 반영되도록 함

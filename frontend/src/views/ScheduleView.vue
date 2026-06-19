@@ -409,7 +409,7 @@ import { ref, computed, reactive, onMounted, onUnmounted, nextTick, inject } fro
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments } from '@/api/transit'
+import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 
 const toast = useToastStore()
 const router = useRouter()
@@ -1128,7 +1128,9 @@ async function drawDayRoute() {
     if (requestMode === 'PUBLIC_TRANSIT' && prevCand?.attractionId && currCand?.attractionId) {
       // PUBLIC_TRANSIT: lane별 구간 폴리라인 (구간별 hover 강조)
       drawPublicTransitPolylines(prevCand.attractionId, currCand.attractionId, hour, key, gen, style, result)
-      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour, key, gen)
+      const legOrigin = { lat: parseFloat(prevCand.latitude), lng: parseFloat(prevCand.longitude) }
+      const legDest = { lat: parseFloat(currCand.latitude), lng: parseFloat(currCand.longitude) }
+      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour, key, gen, legOrigin, legDest)
     } else if (result?.routeCoords) {
       try {
         const coords = JSON.parse(result.routeCoords)
@@ -1274,7 +1276,7 @@ function addPolylineHover(polyline, style, routeKey) {
   routeMarkerGroups.set(routeKey, { ...existing, polyline, style })
 }
 
-async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey, gen) {
+async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey, gen, legOrigin, legDest) {
   try {
     const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
     if (gen !== drawGeneration) return   // 새 draw가 시작됐으면 마커 추가 중단
@@ -1338,7 +1340,76 @@ async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey, gen) {
         },
       })
     })
+
+    // 도보 구간 폴리라인 (TMAP 실제 경로, 점선)
+    // ODsay 도보 subPath는 좌표(startX/Y, endX/Y)가 0인 경우가 많아, 인접 비-도보 구간의
+    // 끝/시작점과 여행지 원점(legOrigin/legDest)에서 도보 양 끝점을 유도한다.
+    const path0 = detail?.intercityPaths?.[0] || {}
+    const firstStation = firstStationCoord(subPaths)
+    const lastStation = lastStationCoord(subPaths)
+    const localFromSub = Array.isArray(path0.localFrom?.subPath) ? path0.localFrom.subPath : []
+    const localToSub = Array.isArray(path0.localTo?.subPath) ? path0.localTo.subPath : []
+
+    // 도시간 경로: 출발·도착 도보는 localFrom/localTo에 분리되어 있으므로
+    // 메인 subPath의 양 끝 기준점을 첫/마지막 역으로 잡는다.
+    const mainOrigin = localFromSub.length ? (firstStation || legOrigin) : legOrigin
+    const mainDest = localToSub.length ? (lastStation || legDest) : legDest
+
+    let walkPairs = deriveWalkingPairs(subPaths, mainOrigin, mainDest)
+    if (localFromSub.length) walkPairs = walkPairs.concat(deriveWalkingPairs(localFromSub, legOrigin, firstStation || legOrigin))
+    if (localToSub.length) walkPairs = walkPairs.concat(deriveWalkingPairs(localToSub, lastStation || legDest, legDest))
+
+    const walkingStyle = { color: '#16a34a', weight: 5, opacity: 0.9, strokeStyle: 'shortdash' }
+    await Promise.all(walkPairs.map(async ([from, to]) => {
+      if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return
+      try {
+        const coords = await getWalkingCoords(from.lat, from.lng, to.lat, to.lng)
+        if (gen !== drawGeneration) return
+        if (!Array.isArray(coords) || coords.length < 2) return
+        const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
+        const polyline = new naver.maps.Polyline({
+          path, clickable: false,
+          strokeColor: walkingStyle.color, strokeWeight: walkingStyle.weight,
+          strokeOpacity: walkingStyle.opacity, strokeStyle: walkingStyle.strokeStyle,
+          map: naverMapInstance,
+        })
+        routePolylines.push(polyline)
+      } catch {}
+    }))
   } catch {}
+}
+
+// 비-도보 구간의 시작/끝 좌표 (0이면 null)
+function segStartCoord(s) { return (s.startX && s.startY) ? { lat: s.startY, lng: s.startX } : null }
+function segEndCoord(s) { return (s.endX && s.endY) ? { lat: s.endY, lng: s.endX } : null }
+
+function firstStationCoord(subPaths) {
+  for (const s of subPaths) if (s.trafficType !== 3) return segStartCoord(s)
+  return null
+}
+function lastStationCoord(subPaths) {
+  for (let i = subPaths.length - 1; i >= 0; i--) if (subPaths[i].trafficType !== 3) return segEndCoord(subPaths[i])
+  return null
+}
+
+// subPath 배열에서 도보 구간의 [출발, 도착] 좌표쌍을 인접 비-도보 구간/원점에서 유도
+function deriveWalkingPairs(subPaths, origin, dest) {
+  const pairs = []
+  for (let i = 0; i < subPaths.length; i++) {
+    if (subPaths[i].trafficType !== 3) continue
+    let from = null
+    for (let j = i - 1; j >= 0; j--) {
+      if (subPaths[j].trafficType !== 3) { from = segEndCoord(subPaths[j]); break }
+    }
+    if (!from) from = origin
+    let to = null
+    for (let j = i + 1; j < subPaths.length; j++) {
+      if (subPaths[j].trafficType !== 3) { to = segStartCoord(subPaths[j]); break }
+    }
+    if (!to) to = dest
+    if (from && to) pairs.push([from, to])
+  }
+  return pairs
 }
 
 function getTransitSegmentLabel(sub) {
