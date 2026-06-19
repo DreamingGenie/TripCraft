@@ -31,6 +31,8 @@ dependencies {
 	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 	// Swagger (OpenAPI)
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
+	// Spring AI (OpenAI 호환 — gms 프록시 사용)
+	implementation("org.springframework.ai:spring-ai-starter-model-openai")
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	annotationProcessor("org.projectlombok:lombok")
@@ -42,6 +44,12 @@ dependencies {
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")
+}
+
+dependencyManagement {
+	imports {
+		mavenBom("org.springframework.ai:spring-ai-bom:1.0.6")
+	}
 }
 
 tasks.withType<JavaCompile> {
