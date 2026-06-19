@@ -20,7 +20,7 @@ public class BookmarkController {
             @PathVariable Long postId,
             @AuthenticationPrincipal Long memberId) {
         bookmarkService.toggleBookmark(postId, memberId);
-        return ResponseEntity.ok(ApiResponse.ok(null));
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     // 내 북마크 목록
