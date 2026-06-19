@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,13 +25,9 @@ public class FileStorageService {
     private String uploadDir;
 
     public String save(MultipartFile file, String subDir) throws IOException {
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일(JPEG·PNG·GIF·WebP)만 업로드할 수 있습니다.");
-        }
-        if (file.getSize() > MAX_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 크기는 5 MB 이하여야 합니다.");
-        }
+        validateContentType(file);
+        validateSize(file);
+        validateMagicBytes(file);
 
         Path dir = Paths.get(uploadDir, subDir).toAbsolutePath();
         Files.createDirectories(dir);
@@ -56,5 +53,68 @@ public class FileStorageService {
         try {
             Files.deleteIfExists(Paths.get(hostPath));
         } catch (IOException ignored) {}
+    }
+
+    // ── private ──────────────────────────────────────────────────────────────
+
+    private void validateContentType(MultipartFile file) {
+        String ct = file.getContentType();
+        if (ct == null || !ALLOWED_TYPES.contains(ct)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "이미지 파일(JPEG·PNG·GIF·WebP)만 업로드할 수 있습니다.");
+        }
+    }
+
+    private void validateSize(MultipartFile file) {
+        if (file.getSize() > MAX_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "파일 크기는 5 MB 이하여야 합니다.");
+        }
+    }
+
+    /**
+     * 파일 앞 12바이트(magic bytes)로 실제 포맷 검증.
+     * Content-Type 헤더는 클라이언트가 임의 변경 가능하므로 바이너리 시그니처를 직접 확인한다.
+     *
+     * <pre>
+     * JPEG  : FF D8 FF
+     * PNG   : 89 50 4E 47
+     * GIF   : 47 49 46 38  (GIF8)
+     * WebP  : 52 49 46 46 ?? ?? ?? ?? 57 45 42 50  (RIFF....WEBP)
+     * </pre>
+     */
+    private void validateMagicBytes(MultipartFile file) {
+        byte[] header = new byte[12];
+        try (InputStream is = file.getInputStream()) {
+            int read = is.read(header);
+            if (read < 4) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바른 이미지 파일이 아닙니다.");
+            }
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일을 읽을 수 없습니다.");
+        }
+
+        if (!isJpeg(header) && !isPng(header) && !isGif(header) && !isWebp(header)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바른 이미지 파일이 아닙니다.");
+        }
+    }
+
+    private boolean isJpeg(byte[] h) {
+        return (h[0] & 0xFF) == 0xFF && (h[1] & 0xFF) == 0xD8 && (h[2] & 0xFF) == 0xFF;
+    }
+
+    private boolean isPng(byte[] h) {
+        return (h[0] & 0xFF) == 0x89 && h[1] == 'P' && h[2] == 'N' && h[3] == 'G';
+    }
+
+    private boolean isGif(byte[] h) {
+        return h[0] == 'G' && h[1] == 'I' && h[2] == 'F' && h[3] == '8';
+    }
+
+    private boolean isWebp(byte[] h) {
+        return h[0] == 'R' && h[1] == 'I' && h[2] == 'F' && h[3] == 'F'
+                && h[8] == 'W' && h[9] == 'E' && h[10] == 'B' && h[11] == 'P';
     }
 }
