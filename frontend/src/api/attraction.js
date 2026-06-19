@@ -18,3 +18,8 @@ export function searchAttractions({ keyword, region, sigungu, category, page = 0
 export function fetchAttractionDetail(id) {
   return http.get(`/api/attractions/${id}`)
 }
+
+// 관광지 챗봇 — 반환된 conversationId를 다음 턴에 다시 보내면 대화가 이어진다
+export function sendAttractionChat(id, message, conversationId) {
+  return http.post(`/api/attractions/${id}/chat`, { message, conversationId })
+}

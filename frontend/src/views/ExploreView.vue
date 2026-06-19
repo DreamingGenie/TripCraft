@@ -152,11 +152,13 @@
 
         <!-- 상단 액션 바 -->
         <div class="detail-nav">
-          <button class="detail-back" @click="closeDetail()" aria-label="닫기">
+          <button class="detail-back"
+                  @click="detailStack.length ? goBackDetail() : closeDetail()"
+                  :aria-label="detailStack.length ? '이전 장소' : '닫기'">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.5 2L3.5 7L8.5 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            목록
+            {{ detailStack.length ? '이전' : '목록' }}
           </button>
           <button class="card-add detail-add-btn"
                   :class="{ added: addedIds.has(selectedAttraction.id) }"
@@ -166,7 +168,7 @@
         </div>
 
         <!-- 스크롤 영역 -->
-        <div class="detail-scroll">
+        <div class="detail-scroll" ref="detailScrollEl">
 
           <!-- 히어로 이미지 -->
           <div class="detail-hero" @click="allImages.length && (lightboxOpen = true)">
@@ -327,6 +329,12 @@
               <p class="detail-overview">{{ selectedAttractionDetail.overview }}</p>
             </template>
 
+            <!-- AI 챗봇 -->
+            <AttractionChat
+              :attraction-id="selectedAttraction.id"
+              :attraction-title="selectedAttraction.title"
+              @select="pinNearby" />
+
           </div>
         </div>
       </div>
@@ -445,6 +453,7 @@ import { ref, computed, reactive, inject, watch, onMounted, onUnmounted, nextTic
 import { useToastStore } from '@/stores/toast'
 import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
+import AttractionChat from '@/components/AttractionChat.vue'
 
 const toast = useToastStore()
 const openScheduleModal = inject('openScheduleModal')
@@ -468,6 +477,10 @@ let loadSeq = 0
 
 const selectedAttraction = ref(null)
 const selectedAttractionDetail = ref(null)
+const detailStack = ref([])     // 상세 → 주변 상세로 드릴다운한 방문 이력(뒤로가기용)
+const detailScrollEl = ref(null)
+const scrollPositions = ref({}) // 관광지별 상세 패널 스크롤 위치(뒤로가기 시 복원)
+const detailCache = {}          // 관광지별 상세 데이터 캐시(뒤로가기 시 재조회 없이 즉시 표시)
 const detailLoading = ref(false)
 const currentImageIdx = ref(0)
 const lightboxOpen = ref(false)
@@ -993,6 +1006,87 @@ function clearSelectedMarker() {
   selectedMarker = null
 }
 
+// ── AI 챗봇 주변 칩 클릭: 현재 상세 패널은 유지하고 지도에만 핀 + 상세보기 인포윈도우 ──
+let nearbyMarker = null
+
+function clearNearbyMarker() {
+  nearbyMarker?.setMap(null)
+  nearbyMarker = null
+}
+
+function pinNearby(place) {
+  if (!naverMap || !place?.latitude || !place?.longitude) return
+  clearNearbyMarker()
+  const color = catColor(place.category)
+  const latlng = new naver.maps.LatLng(Number(place.latitude), Number(place.longitude))
+  window.__naverNearbyClick = () => openNearbyInfo(place, latlng, color)
+  nearbyMarker = new naver.maps.Marker({
+    map: naverMap,
+    position: latlng,
+    icon: {
+      content: `<div onclick="event.stopPropagation();window.__naverNearbyClick()" style="width:28px;height:28px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.4);box-sizing:border-box;cursor:pointer"></div>`,
+      anchor: new naver.maps.Point(14, 14)
+    },
+    zIndex: 99
+  })
+  // 지도가 크게 이동할 때는 morph(idle) 완료 후 인포윈도우를 열어야 위치가 어긋나지 않음
+  const targetZoom = Math.max(naverMap.getZoom(), 14)
+  const cur = naverMap.getCenter()
+  const needsMove = naverMap.getZoom() < 14
+    || Math.abs(cur.lat() - Number(place.latitude)) > 0.0001
+    || Math.abs(cur.lng() - Number(place.longitude)) > 0.0001
+  naverMap.morph(latlng, targetZoom)
+  if (needsMove) {
+    naver.maps.Event.once(naverMap, 'idle', () => openNearbyInfo(place, latlng, color))
+  } else {
+    openNearbyInfo(place, latlng, color)
+  }
+}
+
+function openNearbyInfo(place, latlng, color) {
+  window.__naverOpenNearbyDetail = () => goToNearbyDetail(place)
+  infoWindow.setContent(`<div style="padding:10px 12px;font-family:inherit;min-width:160px;max-width:220px"><div style="font-size:11px;color:${color};font-weight:700;margin-bottom:3px">${place.category || '주변'}</div><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:8px;line-height:1.3">${place.title}</div><button onclick="window.__naverOpenNearbyDetail()" style="width:100%;padding:6px 0;background:${color};color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">상세정보 보기 →</button></div>`)
+  infoWindow.open(naverMap, latlng)
+}
+
+// 현재 상세 패널의 스크롤 위치를 해당 관광지 키로 저장
+function saveCurrentScroll() {
+  const id = selectedAttraction.value?.id
+  if (id != null && detailScrollEl.value) scrollPositions.value[id] = detailScrollEl.value.scrollTop
+}
+
+// 앞으로(드릴다운) 전환 시 새 내용만 좌측 슬라이드 인 1회 재생(패널은 유지)
+function playPushAnim() {
+  const el = detailScrollEl.value
+  if (!el) return
+  el.classList.remove('detail-push-anim')
+  void el.offsetWidth   // 리플로우 강제로 애니메이션 재시작
+  el.classList.add('detail-push-anim')
+}
+
+// 인포윈도우의 '상세정보 보기'를 명시적으로 눌렀을 때만 해당 장소 상세로 이동.
+// 현재 보던 장소를 스택에 쌓아 뒤로가기로 대화까지 복원할 수 있게 한다.
+async function goToNearbyDetail(place) {
+  saveCurrentScroll()
+  clearNearbyMarker()
+  if (selectedAttraction.value && selectedAttraction.value.id !== place.id) {
+    detailStack.value.push(selectedAttraction.value)
+  }
+  // 앞으로 갈 때: 패널은 유지(이전이 사라지지 않음)하고 새 내용만 슬라이드 인
+  await selectAttraction(place, { keepStack: true, keepDetailOpen: true })
+  await openDetail()
+  playPushAnim()
+}
+
+// 뒤로가기: 직전 방문 장소로 복원 (대화·스크롤 위치 모두 복원)
+async function goBackDetail() {
+  saveCurrentScroll()
+  const prev = detailStack.value.pop()
+  if (!prev) { closeDetail(); return }
+  await selectAttraction(prev, { keepStack: true, keepDetailOpen: true })
+  await openDetail()
+}
+
 function updateSelectedMarker(a) {
   clearSelectedMarker()
   if (!naverMap || !a?.latitude || !a?.longitude) return
@@ -1238,20 +1332,26 @@ function clearFilters() {
   toast.show('필터가 초기화됐어요')
 }
 
-async function selectAttraction(a) {
+async function selectAttraction(a, { keepStack = false, keepDetailOpen = false } = {}) {
+  // 목록/마커에서의 새 선택은 드릴다운 이력을 초기화 (주변 드릴다운/뒤로가기는 keepStack)
+  if (!keepStack) detailStack.value = []
   if (selectedAttraction.value?.id === a.id) {
     if (detailOpen.value) closeDetail()
     else closePin()
     return
   }
+  clearNearbyMarker()
   infoWindow?.close()
-  detailSlideName.value = ''
-  detailOpen.value = false
-  selectedAttractionDetail.value = null
+  // keepDetailOpen(뒤로가기): 패널을 껐다 켜지 않아 좌측 슬라이드 애니메이션 없이 즉시 전환
+  if (!keepDetailOpen) {
+    detailSlideName.value = ''
+    detailOpen.value = false
+    selectedAttractionDetail.value = null
+  }
   currentImageIdx.value = 0
   lightboxOpen.value = false
   selectedAttraction.value = a
-  nextTick(() => { detailSlideName.value = 'detail-slide' })
+  if (!keepDetailOpen) nextTick(() => { detailSlideName.value = 'detail-slide' })
 
   if (naverMap && a.latitude && a.longitude) {
     const latlng = new naver.maps.LatLng(Number(a.latitude), Number(a.longitude))
@@ -1287,19 +1387,34 @@ async function openDetail() {
   if (!selectedAttraction.value) return
   detailOpen.value = true
   infoWindow?.close()
-  detailLoading.value = true
-  selectedAttractionDetail.value = null
   currentImageIdx.value = 0
   lightboxOpen.value = false
-  try {
-    selectedAttractionDetail.value = await fetchAttractionDetail(selectedAttraction.value.id)
-  } catch { /* 기본 정보로 대체 */ } finally {
+  const id = selectedAttraction.value.id
+  if (detailCache[id]) {
+    // 캐시 적중(뒤로가기 등): 재조회 없이 즉시 표시
+    selectedAttractionDetail.value = detailCache[id]
     detailLoading.value = false
+  } else {
+    detailLoading.value = true
+    selectedAttractionDetail.value = null
+    try {
+      const d = await fetchAttractionDetail(id)
+      detailCache[id] = d
+      selectedAttractionDetail.value = d
+    } catch { /* 기본 정보로 대체 */ } finally {
+      detailLoading.value = false
+    }
+  }
+  // 뒤로가기로 돌아온 경우 저장된 스크롤 위치 복원(없으면 최상단)
+  await nextTick()
+  if (detailScrollEl.value) {
+    detailScrollEl.value.scrollTop = scrollPositions.value[selectedAttraction.value?.id] ?? 0
   }
 }
 
 function closeDetail() {
   detailOpen.value = false
+  detailStack.value = []
   selectedAttractionDetail.value = null
   currentImageIdx.value = 0
   lightboxOpen.value = false
@@ -1312,7 +1427,9 @@ function closePin() {
   currentImageIdx.value = 0
   lightboxOpen.value = false
   detailOpen.value = false
+  detailStack.value = []
   clearSelectedMarker()
+  clearNearbyMarker()
   infoWindow?.close()
 }
 
