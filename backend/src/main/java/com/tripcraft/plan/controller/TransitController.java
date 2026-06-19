@@ -76,4 +76,19 @@ public class TransitController {
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }
+
+    @GetMapping("/segments")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getLaneSegments(
+            @RequestParam(name = "fromId") Long fromId,
+            @RequestParam(name = "toId") Long toId,
+            @RequestParam(name = "hour", defaultValue = "9") int hour) {
+        return ResponseEntity.ok(ApiResponse.ok(transitService.getLaneSegments(fromId, toId, hour)));
+    }
+
+    @GetMapping("/walking-coords")
+    public ResponseEntity<ApiResponse<List<double[]>>> getWalkingCoords(
+            @RequestParam double startLat, @RequestParam double startLng,
+            @RequestParam double endLat,   @RequestParam double endLng) {
+        return ResponseEntity.ok(ApiResponse.ok(transitService.getWalkingCoords(startLat, startLng, endLat, endLng)));
+    }
 }

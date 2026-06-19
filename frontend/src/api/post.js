@@ -14,6 +14,28 @@ export const postApi = {
   notices: () => http.get('/api/notices'),
 }
 
+export const bookmarkApi = {
+  toggle: (postId) => http.post(`/api/posts/${postId}/bookmark`),
+  myList: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/bookmarks/me?${p}`)
+  },
+}
+
+export const likeApi = {
+  myList: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/likes/me?${p}`)
+  },
+}
+
+export const myPostApi = {
+  list: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/posts/me?${p}`)
+  },
+}
+
 export const commentApi = {
   list:   (postId)          => http.get(`/api/posts/${postId}/comments`),
   /** parentId: 최상위 댓글이면 null, 대댓글이면 부모 댓글 id */

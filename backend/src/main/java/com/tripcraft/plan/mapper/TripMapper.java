@@ -26,4 +26,6 @@ public interface TripMapper {
     void deleteById(Long id);
 
     void updateDefaultTransitMode(@Param("id") Long id, @Param("mode") String mode);
+
+    List<Integer> findVisitedSidoCodes(@Param("memberId") Long memberId);
 }

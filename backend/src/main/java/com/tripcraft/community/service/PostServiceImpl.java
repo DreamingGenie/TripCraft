@@ -7,10 +7,11 @@ import com.tripcraft.community.dto.PostDetail;
 import com.tripcraft.community.dto.PostListItem;
 import com.tripcraft.community.dto.PostListPageResponse;
 import com.tripcraft.community.dto.PostUpdateRequest;
-import com.tripcraft.community.mapper.AttachMapper;
 import com.tripcraft.community.mapper.PostLikeMapper;
 import com.tripcraft.community.mapper.PostMapper;
-import com.tripcraft.global.service.FileStorageService;
+import com.tripcraft.global.attach.domain.Attach;
+import com.tripcraft.global.attach.mapper.AttachMapper;
+import com.tripcraft.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,16 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
-
-    // /uploads/images/{filename} 패턴에서 파일명 추출
-    private static final Pattern IMAGE_FILENAME_PATTERN =
-            Pattern.compile("/uploads/images/([^\"'\\s]+)");
 
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
@@ -52,11 +47,8 @@ public class PostServiceImpl implements PostService {
         post.setTripId(req.getTripId());
         postMapper.insert(post);
 
-        // 본문에 포함된 이미지들을 draft → post 상태로 연결
-        List<String> imageNames = extractImageNames(req.getContent());
-        if (!imageNames.isEmpty()) {
-            attachMapper.linkToPost(post.getId(), imageNames);
-        }
+        // 글 작성 중 업로드된 이미지(post_draft, targetId=memberId) → 이 게시글로 연결
+        attachMapper.updateTargetId("post_draft", memberId, "post", post.getId());
 
         return post.getId();
     }
@@ -64,10 +56,8 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetail getPost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postMapper.incrementViewCount(id);
-        // memberId가 null이면 0을 전달하여 liked/mine 모두 false 처리
         Long queryMemberId = memberId != null ? memberId : 0L;
         PostDetail detail = postMapper.findDetailById(id, queryMemberId);
         if (detail == null) {
@@ -79,8 +69,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long id, PostUpdateRequest req, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -92,33 +81,23 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
 
         // 게시글에 연결된 이미지 파일 삭제 후 attach 레코드 정리
-        List<String> imageNames = attachMapper.findNamesByPost(id);
-        imageNames.forEach(fileStorageService::deleteImage);
-        attachMapper.deleteByPost(id);
+        List<Attach> attaches = attachMapper.findByTarget("post", id);
+        attaches.forEach(a -> fileStorageService.delete(a.getHostPath()));
+        attachMapper.deleteByTarget("post", id);
 
-        postMapper.deleteById(id);
-    }
-
-    private List<String> extractImageNames(String content) {
-        if (content == null || content.isBlank()) return List.of();
-        Matcher m = IMAGE_FILENAME_PATTERN.matcher(content);
-        List<String> names = new java.util.ArrayList<>();
-        while (m.find()) names.add(m.group(1));
-        return names;
+        postMapper.softDeleteById(id);
     }
 
     @Override
     @Transactional
     public void toggleLike(Long id, Long memberId) {
-        postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postLikeMapper.findByPostIdAndMemberId(id, memberId).ifPresentOrElse(
             like -> {
                 postLikeMapper.deleteById(like.getId());
@@ -132,5 +111,18 @@ public class PostServiceImpl implements PostService {
                 postMapper.incrementLikeCount(id);
             }
         );
+    }
+
+    @Override
+    public PostListPageResponse getMyPosts(int page, int size, Long memberId) {
+        int offset = page * size;
+        var items = postMapper.findByMemberId(memberId, offset, size);
+        int total = postMapper.countByMemberId(memberId);
+        return new PostListPageResponse(items, total, page, size);
+    }
+
+    private Post findPostOrThrow(Long id) {
+        return postMapper.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

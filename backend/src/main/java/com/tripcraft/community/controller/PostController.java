@@ -7,9 +7,11 @@ import com.tripcraft.community.dto.PostUpdateRequest;
 import com.tripcraft.community.service.PostService;
 import com.tripcraft.global.response.ApiResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
@@ -31,10 +34,19 @@ public class PostController {
     public ResponseEntity<ApiResponse<PostListPageResponse>> getPosts(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size,
+            @Pattern(regexp = "^(latest|popular)$", message = "sort는 latest 또는 popular만 허용됩니다.")
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @RequestParam(name = "keyword", required = false) String keyword,
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPosts(page, size, sort, keyword, memberId)));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<PostListPageResponse>> getMyPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(postService.getMyPosts(page, size, memberId)));
     }
 
     @PostMapping
