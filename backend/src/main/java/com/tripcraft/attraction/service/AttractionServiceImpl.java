@@ -17,6 +17,7 @@ import com.tripcraft.attraction.dto.AttractionDetailDto;
 import com.tripcraft.attraction.dto.AttractionGroupStat;
 import com.tripcraft.attraction.dto.AttractionListItem;
 import com.tripcraft.attraction.dto.AttractionPageResponse;
+import com.tripcraft.attraction.dto.NearbyAttraction;
 import com.tripcraft.attraction.dto.RegionWithSigunguDto;
 import com.tripcraft.attraction.dto.SigunguItem;
 import com.tripcraft.attraction.mapper.AttractionDetailCommonMapper;
@@ -37,6 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -284,6 +286,21 @@ public class AttractionServiceImpl implements AttractionService {
             .images(imageItems)
             .infoList(infoItems)
             .build();
+    }
+
+    @Override
+    public List<NearbyAttraction> findNearby(BigDecimal lat, BigDecimal lng, Long excludeId, double radiusKm, int limit) {
+        if (lat == null || lng == null) return List.of();
+        // bounding box: 위도 1도≈111km, 경도는 cos(위도)로 보정
+        double latDelta = radiusKm / 111.0;
+        double lngDelta = radiusKm / (111.0 * Math.cos(Math.toRadians(lat.doubleValue())));
+        BigDecimal minLat = lat.subtract(BigDecimal.valueOf(latDelta));
+        BigDecimal maxLat = lat.add(BigDecimal.valueOf(latDelta));
+        BigDecimal minLng = lng.subtract(BigDecimal.valueOf(lngDelta));
+        BigDecimal maxLng = lng.add(BigDecimal.valueOf(lngDelta));
+        List<NearbyAttraction> list = attractionMapper.findNearby(lat, lng, minLat, maxLat, minLng, maxLng, excludeId, limit);
+        list.forEach(n -> n.setCategory(CODE_CATEGORY.get(n.getContentTypeId())));
+        return list;
     }
 
     private void fetchAndSaveDetailRealtime(Attraction a) {
