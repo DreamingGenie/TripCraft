@@ -1236,6 +1236,15 @@
   opacity: 0;
 }
 
+/* 주변 장소로 드릴다운(앞으로): 패널은 유지하고 새 내용만 좌측에서 슬라이드 인 */
+.detail-push-anim {
+  animation: detailPushIn .24s cubic-bezier(.25,.46,.45,.94);
+}
+@keyframes detailPushIn {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
 /* ── 반응형 안전장치 ── */
 @media (max-width: 900px) {
   .attr-list { width: calc(100% - 32px); }
