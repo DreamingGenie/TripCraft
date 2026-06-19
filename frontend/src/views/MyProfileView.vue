@@ -197,6 +197,8 @@ async function submitPassword() {
 </script>
 
 <style scoped>
+@import '@/assets/css/community.css';
+
 .profile-layout {
   max-width: 560px;
   margin: 0 auto;
@@ -206,15 +208,6 @@ async function submitPassword() {
   display: flex;
   flex-direction: column;
   gap: 32px;
-}
-.mypage-header {
-  padding: 24px 0 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-.mypage-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text);
 }
 
 /* 프로필 이미지 */

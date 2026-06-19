@@ -29,6 +29,17 @@
         (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount
     </sql>
 
+    <!-- 공통: 좋아요·북마크 목록용 SELECT 기본 컬럼 (liked 제외) -->
+    <sql id="myListSelectBase">
+        p.id,
+        CASE WHEN p.deleted_at IS NOT NULL THEN NULL ELSE p.title END AS title,
+        COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
+        p.view_count  AS viewCount,
+        p.like_count  AS likeCount,
+        <include refid="commentCountSubquery"/>,
+        p.created_at  AS createdAt
+    </sql>
+
     <select id="findById" parameterType="long" resultMap="postMap">
         SELECT * FROM post WHERE id = #{id} AND deleted_at IS NULL
     </select>
