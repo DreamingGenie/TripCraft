@@ -11,19 +11,6 @@
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
-    <!-- 공통: 작성자 프로필 이미지 서브쿼리 -->
-    <sql id="profileImageSubquery">
-        (SELECT CONCAT('/uploads/images/', a.name)
-         FROM attach a
-         WHERE a.target = 'profile' AND a.target_id = m.id
-         LIMIT 1) AS authorProfileImageUrl
-    </sql>
-
-    <!-- 공통: 댓글 수 서브쿼리 -->
-    <sql id="commentCountSubquery">
-        (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount
-    </sql>
-
     <select id="findByPostIdAndMemberId" resultMap="likeMap">
         SELECT id, post_id, member_id, created_at
         FROM post_like
@@ -47,16 +34,10 @@
     </delete>
 
     <select id="findByMemberId" resultType="com.tripcraft.community.dto.PostListItem">
-        SELECT p.id,
-               CASE WHEN p.deleted_at IS NOT NULL THEN NULL ELSE p.title END AS title,
-               COALESCE(m.nickname, '탈퇴한 사용자') AS authorNickname,
-               p.view_count  AS viewCount,
-               p.like_count  AS likeCount,
-               <include refid="commentCountSubquery"/>,
-               p.created_at  AS createdAt,
-               true          AS liked,
+        SELECT <include refid="com.tripcraft.community.mapper.PostMapper.myListSelectBase"/>,
+               true AS liked,
                (p.deleted_at IS NOT NULL) AS deleted,
-               <include refid="profileImageSubquery"/>
+               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageSubquery"/>
         FROM post_like pl
         JOIN post p   ON p.id = pl.post_id
         LEFT JOIN member m ON m.id = p.member_id

@@ -51,8 +51,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetail getPost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postMapper.incrementViewCount(id);
         // memberId가 null이면 0을 전달하여 liked/mine 모두 false 처리
         Long queryMemberId = memberId != null ? memberId : 0L;
@@ -66,8 +65,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long id, PostUpdateRequest req, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -79,8 +77,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long id, Long memberId) {
-        Post post = postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Post post = findPostOrThrow(id);
         if (!post.getMemberId().equals(memberId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -90,8 +87,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void toggleLike(Long id, Long memberId) {
-        postMapper.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        findPostOrThrow(id);
         postLikeMapper.findByPostIdAndMemberId(id, memberId).ifPresentOrElse(
             like -> {
                 postLikeMapper.deleteById(like.getId());
@@ -113,5 +109,10 @@ public class PostServiceImpl implements PostService {
         var items = postMapper.findByMemberId(memberId, offset, size);
         int total = postMapper.countByMemberId(memberId);
         return new PostListPageResponse(items, total, page, size);
+    }
+
+    private Post findPostOrThrow(Long id) {
+        return postMapper.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

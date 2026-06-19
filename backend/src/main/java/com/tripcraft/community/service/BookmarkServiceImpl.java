@@ -22,9 +22,7 @@ public class BookmarkServiceImpl implements BookmarkService {
     @Override
     @Transactional
     public void toggleBookmark(Long postId, Long memberId) {
-        postMapper.findById(postId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 게시글입니다."));
-
+        findPostOrThrow(postId);
         bookmarkMapper.findByPostIdAndMemberId(postId, memberId).ifPresentOrElse(
                 existing -> bookmarkMapper.delete(postId, memberId),
                 () -> bookmarkMapper.insert(postId, memberId)
@@ -37,5 +35,10 @@ public class BookmarkServiceImpl implements BookmarkService {
         List<PostListItem> items = bookmarkMapper.findByMemberId(memberId, page * size, size);
         int total = bookmarkMapper.countByMemberId(memberId);
         return new PostListPageResponse(items, total, page, size);
+    }
+
+    private void findPostOrThrow(Long postId) {
+        postMapper.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 게시글입니다."));
     }
 }

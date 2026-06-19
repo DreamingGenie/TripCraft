@@ -13,25 +13,11 @@
         </div>
 
         <div v-else class="post-list">
-          <div
-            v-for="post in items"
-            :key="post.id"
-            class="post-card"
-            @click="router.push(`/community/${post.id}`)"
-          >
-            <div class="post-card-body">
-              <h3 class="post-title">{{ post.title }}</h3>
-              <div class="post-meta-row">
-                <span class="post-date">{{ formatDate(post.createdAt) }}</span>
-              </div>
-              <div class="post-stats">
-                <span>👁 {{ post.viewCount }}</span>
-                <span>♥ {{ post.likeCount }}</span>
-                <span>💬 {{ post.commentCount }}</span>
-              </div>
-            </div>
-            <button class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
-          </div>
+          <MyPagePostCard v-for="post in items" :key="post.id" :post="post">
+            <template #actions>
+              <button class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
+            </template>
+          </MyPagePostCard>
         </div>
 
         <div v-if="totalPages > 1" class="pagination">
@@ -48,12 +34,10 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { myPostApi, postApi } from '@/api/post'
-import { formatDate } from '@/utils/format'
 import { usePostList } from '@/composables/usePostList'
+import MyPagePostCard from '@/components/MyPagePostCard.vue'
 
-const router = useRouter()
 const { items, page, loading, totalPages, loadPage } = usePostList(myPostApi.list)
 
 async function confirmDelete(post) {
@@ -72,16 +56,6 @@ onMounted(() => loadPage())
 <style scoped>
 @import '@/assets/css/community.css';
 
-.mypage-header {
-  padding: 24px 0 16px;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 20px;
-}
-.mypage-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
 .post-card {
   display: flex;
   align-items: center;

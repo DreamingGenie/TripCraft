@@ -16,18 +16,24 @@ export const postApi = {
 
 export const bookmarkApi = {
   toggle: (postId) => http.post(`/api/posts/${postId}/bookmark`),
-  myList: ({ page = 0, size = 10 } = {}) =>
-    http.get(`/api/bookmarks/me?page=${page}&size=${size}`),
+  myList: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/bookmarks/me?${p}`)
+  },
 }
 
 export const likeApi = {
-  myList: ({ page = 0, size = 10 } = {}) =>
-    http.get(`/api/likes/me?page=${page}&size=${size}`),
+  myList: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/likes/me?${p}`)
+  },
 }
 
 export const myPostApi = {
-  list: ({ page = 0, size = 10 } = {}) =>
-    http.get(`/api/posts/me?page=${page}&size=${size}`),
+  list: ({ page = 0, size = 10 } = {}) => {
+    const p = new URLSearchParams({ page, size })
+    return http.get(`/api/posts/me?${p}`)
+  },
 }
 
 export const commentApi = {
