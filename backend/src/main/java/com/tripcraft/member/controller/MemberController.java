@@ -34,7 +34,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MemberController {
 
-    private static final String PROFILE_DIR = "images";
+    private static final String PROFILE_DIR = "profile";
     private static final String PROFILE_TARGET = "profile";
 
     private final MemberMapper memberMapper;

@@ -34,6 +34,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 타입: `feat` · `fix` · `refactor` · `test` · `docs` · `style` · `chore` · `perf`
 
+## MR 설명 컨벤션
+
+제목: `feat(도메인): 기능 요약` (커밋 컨벤션과 동일)
+
+본문 구조:
+1. **개요** — 이번 MR에서 해결한 문제/목적 1~2문장
+2. **변경 내용** — 기능 단위로 섹션 구분
+   - 섹션 제목: 어떤 기능인지
+   - 섹션 내용: 해당 기능과 관련된 파일 목록 + 각 파일에서 한 작업 (`| 파일 | 작업 |` 표 형식)
+
+기능 중심으로 묶는 이유: 파일 중심으로 나열하면 나중에 "이 파일이 왜 바뀌었는지"를 역추적해야 하지만,
+기능 중심으로 묶으면 변경의 의도와 범위를 한눈에 파악할 수 있다.
+
 ## docs 업데이트 정책
 
 - `docs/03_dev/conventions.md`, `docs/01_planning/requirements.md` — 결정 사항 변경 즉시 업데이트 (승인 후)
