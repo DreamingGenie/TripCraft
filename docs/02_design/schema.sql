@@ -478,19 +478,22 @@ CREATE TABLE post_bookmark (
 -- 16. 첨부파일 (attach)
 -- 프로필 이미지, 게시글 이미지 메타데이터 통합 관리.
 -- 파일 자체는 서버 디스크에 저장, DB에는 경로 등 메타데이터만 보관.
--- target='post_draft': 글 작성 중 임시 저장 (target_id=0)
+-- target='post_draft': 글 작성 중 임시 저장 (target_id=memberId — 업로더 식별용)
 -- target='post'      : 게시글 확정 후 (target_id=post.id)
 -- target='profile'   : 프로필 이미지 (target_id=member.id)
+-- host_name/mimetype/host_path는 NULL 허용 — Spring MultipartFile.getOriginalFilename() 등이 null 반환 가능
+-- 최신 마이그레이션: migration_attach.sql (migration_attach_softdelete.sql은 MR#5 이전 버전)
 -- ---------------------------------------------
 CREATE TABLE attach (
-    id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '첨부파일 고유 번호',
-    name        VARCHAR(128) NOT NULL COMMENT '서버 저장 파일명 (UUID 기반)',
-    host_name   VARCHAR(128) NOT NULL COMMENT '원본 파일명',
-    size        BIGINT       NOT NULL DEFAULT 0 COMMENT '파일 크기 (bytes)',
-    mimetype    VARCHAR(128) NOT NULL COMMENT 'MIME 타입 (image/jpeg 등)',
-    host_path   VARCHAR(512) NOT NULL COMMENT '서버 내 저장 경로',
-    target      VARCHAR(32)  NOT NULL COMMENT '첨부 대상 구분 (profile / post / post_draft)',
-    target_id   BIGINT       NOT NULL DEFAULT 0 COMMENT '첨부 대상의 레코드 ID (post_draft는 0)',
-    created_at  DATETIME     NOT NULL DEFAULT NOW() COMMENT '등록일시',
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(255) NOT NULL COMMENT '저장 파일명 (UUID.ext)',
+    host_name  VARCHAR(255) NULL     COMMENT '원본 파일명',
+    size       BIGINT       NOT NULL DEFAULT 0,
+    mimetype   VARCHAR(100) NULL,
+    host_path  VARCHAR(500) NULL     COMMENT '서버 절대 경로 (파일 삭제 시 사용)',
+    target     VARCHAR(20)  NOT NULL COMMENT 'profile | post | post_draft',
+    target_id  BIGINT       NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
     INDEX idx_attach_target (target, target_id)
-) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='파일 첨부 메타데이터';
+) COMMENT='파일 첨부 메타데이터';

@@ -160,7 +160,7 @@ async function submitNickname() {
   nicknameForm.loading = true
   try {
     await memberApi.updateNickname(nicknameForm.value)
-    auth.user.nickname = nicknameForm.value
+    await auth.fetchMe()
     nicknameForm.value = ''
     nicknameForm.error = false
     nicknameForm.message = '닉네임이 변경되었습니다.'

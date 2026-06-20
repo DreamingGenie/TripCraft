@@ -22,4 +22,10 @@ public interface AttachMapper {
 
     void deleteByTarget(@Param("target") String target,
                         @Param("targetId") long targetId);
+
+    /** 24시간 이상 지난 post_draft 레코드 조회 (고아 파일 정리 스케줄러용) */
+    List<Attach> findExpiredDrafts();
+
+    /** 24시간 이상 지난 post_draft 레코드 삭제 */
+    void deleteExpiredDrafts();
 }

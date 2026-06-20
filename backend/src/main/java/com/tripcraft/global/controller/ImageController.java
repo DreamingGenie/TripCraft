@@ -40,6 +40,8 @@ public class ImageController {
 
         String filename = fileStorageService.save(file, SUB_DIR);
 
+        // 업로드 직후에는 어떤 게시글에도 연결되지 않은 임시 상태로 기록
+        // targetId에 memberId를 사용해 나중에 이 회원의 draft를 일괄 연결할 수 있게 함
         Attach attach = new Attach();
         attach.setName(filename);
         attach.setHostName(file.getOriginalFilename() != null ? file.getOriginalFilename() : filename);
