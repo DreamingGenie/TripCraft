@@ -1,7 +1,10 @@
 -- ============================================================
 -- migration: attach 테이블 신설 + post 소프트 딜리트
--- 작성일: 2026-06-14
--- 작성자: 전진
+-- 작성일: 2026-06-14 / 작성자: 전진
+-- ※ 이 파일은 MR#5(mypage)에서 최초 작성된 버전으로 히스토리 보존용.
+--   컬럼 설계가 일부 변경되었으므로 최신 스키마는 migration_attach.sql 또는 schema.sql을 참고.
+--   주요 차이: host_name·mimetype·host_path NOT NULL → NULL 허용 (Spring API null 반환 대응),
+--              name/host_name VARCHAR(128) → VARCHAR(255), target VARCHAR(32) → VARCHAR(20)
 -- ============================================================
 
 -- 1. attach 테이블 생성
