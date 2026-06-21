@@ -57,6 +57,6 @@ export const http = {
   post: (url, body) => request('POST', url, body),
   put: (url, body) => request('PUT', url, body),
   patch: (url, body) => request('PATCH', url, body),
-  del: (url) => request('DELETE', url),
+  del: (url, body) => request('DELETE', url, body),
   postForm: (url, formData) => requestForm('POST', url, formData),
 }

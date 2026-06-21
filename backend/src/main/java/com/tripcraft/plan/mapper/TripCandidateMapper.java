@@ -20,4 +20,6 @@ public interface TripCandidateMapper {
     void deleteById(Long id);
 
     void deleteByTripId(Long tripId);
+
+    void deleteByMemberId(Long memberId);
 }

@@ -95,6 +95,46 @@
             {{ passwordForm.message }}
           </p>
         </section>
+
+        <!-- 회원 탈퇴 -->
+        <section class="edit-section danger-zone">
+          <h3 class="section-title danger-title">회원 탈퇴</h3>
+          <p class="danger-desc">
+            탈퇴하면 내 일정, 즐겨찾기, 좋아요가 영구 삭제되며 복구할 수 없습니다.<br />
+            작성한 게시글·댓글은 <strong>탈퇴한 사용자</strong>로 표시되어 유지됩니다.
+          </p>
+          <template v-if="!withdrawForm.open">
+            <button class="edit-btn withdraw-btn" @click="withdrawForm.open = true">탈퇴하기</button>
+          </template>
+          <template v-else>
+            <div class="edit-form vertical">
+              <p class="danger-warn">계속하려면 현재 비밀번호를 입력하세요.</p>
+              <input
+                v-model="withdrawForm.password"
+                type="password"
+                class="edit-input"
+                placeholder="현재 비밀번호"
+                autocomplete="current-password"
+              />
+              <div class="withdraw-actions">
+                <button
+                  class="edit-btn cancel-btn"
+                  @click="withdrawForm.open = false; withdrawForm.password = ''; withdrawForm.message = ''"
+                >
+                  취소
+                </button>
+                <button
+                  class="edit-btn withdraw-btn"
+                  :disabled="withdrawForm.loading || !withdrawForm.password"
+                  @click="submitWithdraw"
+                >
+                  {{ withdrawForm.loading ? '처리 중...' : '탈퇴 확인' }}
+                </button>
+              </div>
+            </div>
+            <p v-if="withdrawForm.message" class="form-msg error">{{ withdrawForm.message }}</p>
+          </template>
+        </section>
       </div>
     </div>
   </main>
@@ -102,10 +142,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { memberApi } from '@/api/member'
 
-const auth = useAuthStore()
+const auth   = useAuthStore()
+const router = useRouter()
 
 const profileImageUrl = ref(null)
 const imageLoading    = ref(false)
@@ -114,6 +156,7 @@ const imageError      = ref(false)
 
 const nicknameForm = reactive({ value: '', loading: false, message: '', error: false })
 const passwordForm = reactive({ current: '', next: '', confirm: '', loading: false, message: '', error: false })
+const withdrawForm = reactive({ open: false, password: '', loading: false, message: '' })
 
 onMounted(async () => {
   try {
@@ -169,6 +212,21 @@ async function submitNickname() {
     nicknameForm.message = e.message || '닉네임 변경에 실패했습니다.'
   } finally {
     nicknameForm.loading = false
+  }
+}
+
+async function submitWithdraw() {
+  if (!withdrawForm.password) return
+  withdrawForm.loading = true
+  withdrawForm.message = ''
+  try {
+    await memberApi.withdraw(withdrawForm.password)
+    await auth.logout()
+    router.push('/')
+  } catch (e) {
+    withdrawForm.message = e.message || '탈퇴 처리에 실패했습니다.'
+  } finally {
+    withdrawForm.loading = false
   }
 }
 
@@ -330,4 +388,36 @@ async function submitPassword() {
 }
 .form-msg.success { color: var(--color-success, #16a34a); }
 .form-msg.error   { color: var(--color-danger, #e53e3e); }
+
+/* 회원 탈퇴 영역 */
+.danger-zone {
+  border-top: 1px solid var(--color-border);
+  padding-top: 24px;
+}
+.danger-title {
+  color: var(--color-danger, #e53e3e);
+}
+.danger-desc {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.danger-warn {
+  font-size: 0.875rem;
+  color: var(--color-danger, #e53e3e);
+  margin: 0;
+}
+.withdraw-btn {
+  background: var(--color-danger, #e53e3e) !important;
+}
+.cancel-btn {
+  background: var(--color-bg-subtle, #f1f5f9) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+.withdraw-actions {
+  display: flex;
+  gap: 8px;
+}
 </style>
