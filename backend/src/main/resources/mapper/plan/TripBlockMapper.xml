@@ -94,4 +94,12 @@
         )
     </delete>
 
+    <!-- 회원 탈퇴 시 해당 회원의 모든 trip_block 삭제 (RESTRICT FK 역순 삭제의 첫 단계) -->
+    <delete id="deleteByMemberId" parameterType="long">
+        DELETE tb FROM trip_block tb
+        JOIN trip_candidate tc ON tc.id = tb.candidate_id
+        JOIN trip t ON t.id = tc.trip_id
+        WHERE t.member_id = #{memberId}
+    </delete>
+
 </mapper>

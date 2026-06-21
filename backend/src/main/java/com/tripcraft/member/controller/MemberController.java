@@ -7,7 +7,9 @@ import com.tripcraft.global.storage.FileStorageService;
 import com.tripcraft.member.domain.Member;
 import com.tripcraft.member.dto.UpdateNicknameRequest;
 import com.tripcraft.member.dto.UpdatePasswordRequest;
+import com.tripcraft.member.dto.WithdrawRequest;
 import com.tripcraft.member.mapper.MemberMapper;
+import com.tripcraft.member.service.MemberService;
 import com.tripcraft.plan.mapper.TripMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public class MemberController {
     private final TripMapper tripMapper;
     private final AttachMapper attachMapper;
     private final FileStorageService fileStorageService;
+    private final MemberService memberService;
 
     @PatchMapping("/me/nickname")
     public ResponseEntity<ApiResponse<Void>> updateNickname(
@@ -119,5 +122,13 @@ public class MemberController {
     public ResponseEntity<ApiResponse<List<Integer>>> getVisitedRegions(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripMapper.findVisitedSidoCodes(memberId)));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<Void>> withdraw(
+            @Valid @RequestBody WithdrawRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        memberService.withdraw(memberId, request.getPassword());
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }

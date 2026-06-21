@@ -29,6 +29,8 @@ public interface TripBlockMapper {
 
     void deleteByTripId(Long tripId);
 
+    void deleteByMemberId(Long memberId);
+
     void updateTransitByAttractionPair(
             @Param("fromAttractionId") Long fromAttractionId,
             @Param("toAttractionId") Long toAttractionId,

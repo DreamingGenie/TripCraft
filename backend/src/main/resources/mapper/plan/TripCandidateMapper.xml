@@ -41,4 +41,10 @@
         DELETE FROM trip_candidate WHERE trip_id = #{tripId}
     </delete>
 
+    <delete id="deleteByMemberId" parameterType="long">
+        DELETE tc FROM trip_candidate tc
+        JOIN trip t ON t.id = tc.trip_id
+        WHERE t.member_id = #{memberId}
+    </delete>
+
 </mapper>
