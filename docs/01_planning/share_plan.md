@@ -8,6 +8,25 @@
 
 ---
 
+> ⚠️ **collab_plan.md와의 경계면 — 실시간 협업 구현 완료 후 정리 예정**
+>
+> 실시간 협업([`collab_plan.md`](collab_plan.md))이 authoritative이며 이미 구현이 진행 중이다.
+> 아래 본문(권한·뷰·삭제·UI)은 collab과 겹치는 부분이 있어, **실제 구현 형태가 확인된 뒤**
+> collab을 기준으로 맞춘다. 지금은 결정하지 않고 정리할 지점만 기록한다.
+>
+> 1. **권한** — `/api/trips/{id}/share`의 "소유자만"은 collab의 권한 리졸버
+>    `assertCanManage`(OWNER)로 통일할 것. `GET /shared/{token}`만 `permitAll`(익명).
+>    share_plan은 자체 권한 로직을 두지 않는다.
+> 2. **읽기 전용 뷰 모드** — 본 문서의 `readOnly`는 **익명 링크 = 정적 스냅샷**(JWT 없어 WS
+>    미구독, 새로고침으로 갱신)에 한정. *회원 VIEWER의 라이브 읽기전용*과 `ScheduleView`
+>    모드 정의는 collab 소관(편집/라이브뷰어/정적익명 3모드).
+> 3. **공유 UI(§4)** — 구글 시트식 통합 다이얼로그(링크+사람초대)로 갈지, 분리 유지할지는
+>    **collab UI 구현 확인 후 결정**(보류).
+> 4. **삭제 가드** — `share_enabled` 가드는 `deleteTrip`(collab/기존 코드)에서 통합 검사.
+>    share_plan은 규칙만 기술.
+
+---
+
 ## 목차
 
 1. [개념](#1-개념)
