@@ -47,6 +47,21 @@ export const useAuthStore = defineStore('auth', () => {
     return { ok: json.success, status: res.status, message: json.message }
   }
 
+  async function kakaoLogin(code) {
+    const res = await fetch('/api/auth/kakao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ code }),
+    })
+    const json = await res.json()
+    if (json.success) {
+      await fetchMe()
+      return { ok: true }
+    }
+    return { ok: false, status: res.status, message: json.message }
+  }
+
   async function logout() {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
@@ -54,5 +69,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  return { user, isLoggedIn, fetchMe, login, signup, logout }
+  return { user, isLoggedIn, fetchMe, login, signup, kakaoLogin, logout }
 })
