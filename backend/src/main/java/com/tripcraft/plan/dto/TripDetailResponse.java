@@ -17,5 +17,6 @@ public class TripDetailResponse {
     private Integer memberCount;
     private String defaultTransitMode;
     private String ownerNickname;
+    private String myRole;   // OWNER | EDITOR | VIEWER
     private List<CandidateItem> candidates;
 }
