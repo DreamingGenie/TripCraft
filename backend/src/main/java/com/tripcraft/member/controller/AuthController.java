@@ -67,7 +67,8 @@ public class AuthController {
         Member member = memberMapper.findById(memberId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         return ResponseEntity.ok(ApiResponse.ok(
-                new MeResponse(member.getId(), member.getEmail(), member.getNickname(), member.getRole().name())));
+                new MeResponse(member.getId(), member.getEmail(), member.getNickname(),
+                        member.getRole().name(), member.getSocialProvider())));
     }
 
     @PostMapping("/logout")

@@ -143,6 +143,7 @@ function startKakaoLogin() {
   }
   const url = `https://kauth.kakao.com/oauth/authorize?client_id=${restKey}`
     + `&redirect_uri=${encodeURIComponent(redirect)}&response_type=code`
+    + `&scope=profile_nickname,profile_image`   // 닉네임·프로필사진 동의 명시 요청
   window.location.href = url
 }
 

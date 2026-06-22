@@ -63,10 +63,21 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    const wasKakao = user.value?.socialProvider === 'kakao'
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     } catch {}
     user.value = null
+    // 카카오로 로그인한 경우 카카오 세션도 함께 로그아웃 (이후 재로그인 시 카카오가 다시 인증 요구)
+    if (wasKakao) {
+      const restKey = import.meta.env.VITE_KAKAO_REST_KEY
+      const logoutRedirect = import.meta.env.VITE_KAKAO_LOGOUT_REDIRECT_URI
+      if (restKey && logoutRedirect) {
+        window.location.href =
+          `https://kauth.kakao.com/oauth/logout?client_id=${restKey}`
+          + `&logout_redirect_uri=${encodeURIComponent(logoutRedirect)}`
+      }
+    }
   }
 
   return { user, isLoggedIn, fetchMe, login, signup, kakaoLogin, logout }

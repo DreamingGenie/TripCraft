@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -98,7 +99,12 @@ public class KakaoOAuthService {
                 nickname = root.path("properties").path("nickname").asText(null);
             }
 
-            return new KakaoUserInfo(socialId, email, nickname);
+            String profileImage = account.path("profile").path("profile_image_url").asText(null);
+            if (profileImage == null || profileImage.isBlank()) {
+                profileImage = root.path("properties").path("profile_image").asText(null);
+            }
+
+            return new KakaoUserInfo(socialId, email, nickname, profileImage);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
@@ -106,4 +112,27 @@ public class KakaoOAuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "카카오 사용자 정보 조회에 실패했습니다.");
         }
     }
+
+    /** 프로필 이미지 URL에서 바이트 다운로드 (실패 시 null — 프로필 이미지는 best-effort) */
+    public DownloadedImage downloadImage(String url) {
+        if (url == null || url.isBlank()) return null;
+        try {
+            ResponseEntity<byte[]> resp = restClient.get()
+                    .uri(URI.create(url))
+                    .retrieve()
+                    .toEntity(byte[].class);
+            String contentType = resp.getHeaders().getContentType() != null
+                    ? resp.getHeaders().getContentType().toString() : null;
+            if (contentType != null) {
+                int semi = contentType.indexOf(';');
+                if (semi > 0) contentType = contentType.substring(0, semi).trim();
+            }
+            return new DownloadedImage(resp.getBody(), contentType);
+        } catch (Exception e) {
+            log.warn("카카오 프로필 이미지 다운로드 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public record DownloadedImage(byte[] bytes, String contentType) {}
 }
