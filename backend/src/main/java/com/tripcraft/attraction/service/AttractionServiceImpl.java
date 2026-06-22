@@ -9,6 +9,7 @@ import com.tripcraft.attraction.client.dto.TourApiDetailImageItem;
 import com.tripcraft.attraction.client.dto.TourApiDetailInfoItem;
 import com.tripcraft.attraction.client.dto.TourApiDetailIntroItem;
 import com.tripcraft.attraction.domain.Attraction;
+import com.tripcraft.attraction.domain.ContentType;
 import com.tripcraft.attraction.domain.AttractionDetailCommon;
 import com.tripcraft.attraction.domain.AttractionDetailImage;
 import com.tripcraft.attraction.domain.AttractionDetailInfo;
@@ -55,7 +56,7 @@ public class AttractionServiceImpl implements AttractionService {
 
     private final AttractionMapper attractionMapper;
     private final FavoriteMapper favoriteMapper;
-    private final SigunguMapper sigunguMapper;
+    private final RegionService regionService;
     private final TourApiClient tourApiClient;
     private final ObjectMapper objectMapper;
     private final AttractionDetailCommonMapper detailCommonMapper;
@@ -64,57 +65,21 @@ public class AttractionServiceImpl implements AttractionService {
     private final AttractionDetailInfoMapper   detailInfoMapper;
     private final TourApiCallLimiter           limiter;
 
-    // sido_code → (sigungu_code → name)
-    private final Map<Integer, Map<Integer, String>> sigunguCache = new ConcurrentHashMap<>();
-
-    @PostConstruct
-    void loadSigunguCache() {
-        sigunguMapper.findAll().forEach(sg ->
-            sigunguCache.computeIfAbsent(sg.getSidoCode(), k -> new LinkedHashMap<>())
-                        .put(sg.getSigunguCode(), sg.getName()));
+    /** 시군구 표시명 조회 헬퍼 (없으면 빈 문자열) */
+    private static String sgName(Map<Integer, Map<Integer, String>> m, Integer sido, Integer sigungu) {
+        return m.getOrDefault(sido, Map.of()).getOrDefault(sigungu, "");
     }
-
-    private static final Map<String, List<Integer>> REGION_CODE = Map.ofEntries(
-        Map.entry("서울", List.of(1)),  Map.entry("인천", List.of(2)),
-        Map.entry("대전", List.of(3)),  Map.entry("대구", List.of(4)),
-        Map.entry("광주", List.of(5)),  Map.entry("부산", List.of(6)),
-        Map.entry("울산", List.of(7)),  Map.entry("세종", List.of(8)),
-        Map.entry("경기", List.of(31)), Map.entry("강원", List.of(32)),
-        Map.entry("충북", List.of(33)), Map.entry("충남", List.of(34)),
-        Map.entry("경북", List.of(35)), Map.entry("경남", List.of(36)),
-        Map.entry("전북", List.of(37)), Map.entry("전남", List.of(38)),
-        Map.entry("제주", List.of(39))
-    );
-
-    // 단일 시도 코드 → 이름 (광역 그룹 제외)
-    private static final Map<Integer, String> CODE_REGION = Map.ofEntries(
-        Map.entry(1, "서울"), Map.entry(2, "인천"), Map.entry(3, "대전"),
-        Map.entry(4, "대구"), Map.entry(5, "광주"), Map.entry(6, "부산"),
-        Map.entry(7, "울산"), Map.entry(8, "세종"), Map.entry(31, "경기"),
-        Map.entry(32, "강원"), Map.entry(33, "충북"), Map.entry(34, "충남"),
-        Map.entry(35, "경북"), Map.entry(36, "경남"), Map.entry(37, "전북"),
-        Map.entry(38, "전남"), Map.entry(39, "제주")
-    );
-
-    private static final Map<String, Integer> CATEGORY_CODE = Map.of(
-        "관광지", 12, "문화시설", 14, "레포츠", 28,
-        "숙박", 32, "쇼핑", 38, "음식점", 39
-    );
-
-    private static final Map<Integer, String> CODE_CATEGORY = Map.of(
-        12, "관광지", 14, "문화시설", 28, "레포츠",
-        32, "숙박", 38, "쇼핑", 39, "음식점"
-    );
 
     @Override
     public AttractionPageResponse search(String keyword, String region, String sigungu,
                                           String category, int page, int size, Long memberId) {
+        Map<String, Integer> sidoCodeByLabel = regionService.sidoCodeByLabel();
         List<Integer> sidoCodes = null;
         if (region != null && !region.isBlank()) {
             sidoCodes = Arrays.stream(region.split(","))
                 .map(String::trim)
-                .filter(REGION_CODE::containsKey)
-                .flatMap(r -> REGION_CODE.get(r).stream())
+                .map(sidoCodeByLabel::get)
+                .filter(java.util.Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
             if (sidoCodes.isEmpty()) sidoCodes = null;
@@ -140,8 +105,8 @@ public class AttractionServiceImpl implements AttractionService {
         if (category != null && !category.isBlank()) {
             contentTypeIds = Arrays.stream(category.split(","))
                 .map(String::trim)
-                .filter(CATEGORY_CODE::containsKey)
-                .map(CATEGORY_CODE::get)
+                .map(ContentType::codeOf)
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
             if (contentTypeIds.isEmpty()) contentTypeIds = null;
         }
@@ -167,14 +132,16 @@ public class AttractionServiceImpl implements AttractionService {
         }
 
         final Set<Long> favIds = favoritedIds;
+        Map<Integer, String> sidoLabels = regionService.sidoLabelMap();
+        Map<Integer, Map<Integer, String>> sigunguLabels = regionService.sigunguLabelMap();
         List<AttractionListItem> items = attractions.stream()
             .map(a -> new AttractionListItem(
                 a.getId(), a.getTitle(), a.getContentTypeId(),
-                CODE_CATEGORY.getOrDefault(a.getContentTypeId(), "기타"),
+                ContentType.labelOf(a.getContentTypeId()),
                 a.getSidoCode(),
-                CODE_REGION.getOrDefault(a.getSidoCode(), "기타"),
+                sidoLabels.getOrDefault(a.getSidoCode(), "기타"),
                 a.getSigunguCode(),
-                getSigunguName(a.getSidoCode(), a.getSigunguCode()),
+                sgName(sigunguLabels, a.getSidoCode(), a.getSigunguCode()),
                 a.getAddr1(),
                 a.getFirstImage(),
                 a.getLatitude(), a.getLongitude(),
@@ -184,9 +151,9 @@ public class AttractionServiceImpl implements AttractionService {
 
         List<AttractionGroupStat> groupStats = rawStats.stream()
             .map(r -> new AttractionGroupStat(
-                CODE_REGION.getOrDefault(r.getSidoCode(), "기타"),
-                getSigunguName(r.getSidoCode(), r.getSigunguCode()),
-                CODE_CATEGORY.getOrDefault(r.getContentTypeId(), "기타"),
+                sidoLabels.getOrDefault(r.getSidoCode(), "기타"),
+                sgName(sigunguLabels, r.getSidoCode(), r.getSigunguCode()),
+                ContentType.labelOf(r.getContentTypeId()),
                 r.getCount()
             ))
             .toList();
@@ -196,22 +163,7 @@ public class AttractionServiceImpl implements AttractionService {
 
     @Override
     public List<RegionWithSigunguDto> getRegionsWithSigungu() {
-        List<RegionWithSigunguDto> result = new ArrayList<>();
-        CODE_REGION.forEach((code, sido) -> {
-            Map<Integer, String> sgMap = sigunguCache.getOrDefault(code, Map.of());
-            List<SigunguItem> sgList = sgMap.entrySet().stream()
-                .map(e -> new SigunguItem(code, e.getKey(), e.getValue()))
-                .collect(Collectors.toList());
-            result.add(new RegionWithSigunguDto(sido, code, sgList));
-        });
-        result.sort((a, b) -> Integer.compare(a.sidoCode(), b.sidoCode()));
-        return result;
-    }
-
-    @Override
-    public String getSigunguName(Integer sidoCode, Integer sigunguCode) {
-        if (sidoCode == null || sigunguCode == null) return "";
-        return sigunguCache.getOrDefault(sidoCode, Map.of()).getOrDefault(sigunguCode, "");
+        return regionService.getRegionsWithSigungu();
     }
 
     @Override
@@ -269,9 +221,9 @@ public class AttractionServiceImpl implements AttractionService {
             .contentId(a.getContentId())
             .title(a.getTitle())
             .contentTypeId(a.getContentTypeId())
-            .category(CODE_CATEGORY.getOrDefault(a.getContentTypeId(), "기타"))
-            .region(CODE_REGION.getOrDefault(a.getSidoCode(), "기타"))
-            .sigunguName(getSigunguName(a.getSidoCode(), a.getSigunguCode()))
+            .category(ContentType.labelOf(a.getContentTypeId()))
+            .region(regionService.sidoLabelMap().getOrDefault(a.getSidoCode(), "기타"))
+            .sigunguName(sgName(regionService.sigunguLabelMap(), a.getSidoCode(), a.getSigunguCode()))
             .addr1(a.getAddr1())
             .addr2(a.getAddr2())
             .tel(a.getTel())
@@ -299,7 +251,7 @@ public class AttractionServiceImpl implements AttractionService {
         BigDecimal minLng = lng.subtract(BigDecimal.valueOf(lngDelta));
         BigDecimal maxLng = lng.add(BigDecimal.valueOf(lngDelta));
         List<NearbyAttraction> list = attractionMapper.findNearby(lat, lng, minLat, maxLat, minLng, maxLng, excludeId, limit);
-        list.forEach(n -> n.setCategory(CODE_CATEGORY.get(n.getContentTypeId())));
+        list.forEach(n -> n.setCategory(ContentType.labelOf(n.getContentTypeId())));
         return list;
     }
 

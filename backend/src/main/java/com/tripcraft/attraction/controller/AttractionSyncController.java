@@ -1,5 +1,6 @@
 package com.tripcraft.attraction.controller;
 
+import com.tripcraft.attraction.service.ReferenceDataSyncService;
 import com.tripcraft.attraction.service.TourApiSyncService;
 import com.tripcraft.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,19 @@ import java.util.Map;
 public class AttractionSyncController {
 
     private final TourApiSyncService syncService;
+    private final ReferenceDataSyncService referenceDataSyncService;
+
+    /** 시도·시군구 참조 데이터 동기화 (TourAPI areaCode2 → sido/sigungu, name 갱신·alias 보존) */
+    @PostMapping("/sync/regions")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> syncRegions() {
+        log.info("참조 데이터(시도·시군구) 동기화 시작");
+        ReferenceDataSyncService.SyncResult result = referenceDataSyncService.sync();
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+            "sidoCount", result.sidoCount(),
+            "sigunguCount", result.sigunguCount(),
+            "elapsedMs", result.elapsedMs()
+        )));
+    }
 
     /** 전체 수집 (모든 지역 × 콘텐츠 타입). 수 분 소요. */
     @PostMapping("/sync")
