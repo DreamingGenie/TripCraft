@@ -11,10 +11,15 @@
         </span>
       </button>
 
-      <template v-if="trips.length">
+      <template v-if="trips.length || collaboratingTrips.length">
         <div class="toolbar-select-wrap">
           <select class="toolbar-select" v-model="activeTripId" @change="loadTrip">
-            <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            <optgroup v-if="trips.length" label="내 일정">
+              <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            </optgroup>
+            <optgroup v-if="collaboratingTrips.length" label="초대받은 일정">
+              <option v-for="t in collaboratingTrips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            </optgroup>
           </select>
           <span class="toolbar-select-caret">▼</span>
         </div>
@@ -26,6 +31,7 @@
         </span>
       </template>
       <span v-else class="toolbar-trip-name-static">일정 없음</span>
+
 
       <span class="toolbar-spacer"></span>
 
@@ -428,6 +434,7 @@ const SNAP = 30
 const sidebarOpen = ref(true)
 
 const trips = ref([])
+const collaboratingTrips = ref([])
 const tripsLoading = ref(false)
 const activeTripId = ref(null)
 const activeTrip = ref(null)
@@ -1712,9 +1719,13 @@ onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
   tripsLoading.value = true
   try {
-    trips.value = await tripApi.list()
-    if (trips.value.length) {
-      activeTripId.value = trips.value[0].id
+    ;[trips.value, collaboratingTrips.value] = await Promise.all([
+      tripApi.list(),
+      tripApi.listCollaborating(),
+    ])
+    const first = trips.value[0] ?? collaboratingTrips.value[0]
+    if (first) {
+      activeTripId.value = first.id
       await loadTrip()
     }
   } catch {
