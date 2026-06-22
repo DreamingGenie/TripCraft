@@ -15,8 +15,6 @@ public interface AttractionService {
 
     List<RegionWithSigunguDto> getRegionsWithSigungu();
 
-    String getSigunguName(Integer sidoCode, Integer sigunguCode);
-
     AttractionDetailDto getById(Long id);
 
     /** 좌표 기준 반경 radiusKm 내 가까운 관광지 최대 limit개 (excludeId 제외). */

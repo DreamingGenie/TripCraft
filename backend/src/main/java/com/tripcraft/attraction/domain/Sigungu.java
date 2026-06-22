@@ -10,4 +10,5 @@ public class Sigungu {
     private Integer sidoCode;
     private Integer sigunguCode;
     private String name;
+    private String alias;
 }

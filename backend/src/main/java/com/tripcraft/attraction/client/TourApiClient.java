@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tripcraft.attraction.client.dto.TourApiDetailCommonItem;
 import com.tripcraft.attraction.client.dto.TourApiDetailImageItem;
 import com.tripcraft.attraction.client.dto.TourApiDetailInfoItem;
+import com.tripcraft.attraction.client.dto.TourApiAreaItem;
 import com.tripcraft.attraction.client.dto.TourApiDetailIntroItem;
 import com.tripcraft.attraction.client.dto.TourApiItem;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,37 @@ public class TourApiClient {
             return parseItems(response);
         } catch (Exception e) {
             log.error("TourAPI 호출 실패 areaCode={} contentTypeId={} pageNo={}: {}", areaCode, contentTypeId, pageNo, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** areaCode2: 시도 목록 (areaCode 미지정). 응답 {code, name}. */
+    public List<TourApiAreaItem> fetchSidoList() {
+        String url = baseUrl + "/areaCode2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&numOfRows=50&pageNo=1";
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            return parseListItems(response, TourApiAreaItem.class);
+        } catch (Exception e) {
+            log.error("areaCode2(시도) 호출 실패: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** areaCode2: 특정 시도의 시군구 목록 (areaCode 지정). 응답 {code, name}. */
+    public List<TourApiAreaItem> fetchSigunguList(int sidoCode) {
+        String url = baseUrl + "/areaCode2"
+            + "?serviceKey=" + serviceKey
+            + "&MobileOS=ETC&MobileApp=TripCraft&_type=json"
+            + "&numOfRows=50&pageNo=1"
+            + "&areaCode=" + sidoCode;
+        try {
+            String response = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
+            return parseListItems(response, TourApiAreaItem.class);
+        } catch (Exception e) {
+            log.error("areaCode2(시군구) 호출 실패 areaCode={}: {}", sidoCode, e.getMessage());
             return List.of();
         }
     }

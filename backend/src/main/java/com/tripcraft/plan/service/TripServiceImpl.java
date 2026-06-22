@@ -1,8 +1,9 @@
 package com.tripcraft.plan.service;
 
 import com.tripcraft.attraction.domain.Attraction;
+import com.tripcraft.attraction.domain.ContentType;
 import com.tripcraft.attraction.mapper.AttractionMapper;
-import com.tripcraft.attraction.service.AttractionService;
+import com.tripcraft.attraction.service.RegionService;
 import com.tripcraft.plan.domain.Trip;
 import com.tripcraft.plan.domain.TripBlock;
 import com.tripcraft.plan.domain.TripCandidate;
@@ -47,20 +48,7 @@ public class TripServiceImpl implements TripService {
     private final TripBlockMapper blockMapper;
     private final AttractionMapper attractionMapper;
     private final TransitService transitService;
-    private final AttractionService attractionService;
-
-    private static final Map<Integer, String> SIDO_NAME = Map.ofEntries(
-        Map.entry(1, "서울"), Map.entry(2, "인천"), Map.entry(3, "대전"),
-        Map.entry(4, "대구"), Map.entry(5, "광주"), Map.entry(6, "부산"),
-        Map.entry(7, "울산"), Map.entry(8, "세종"), Map.entry(31, "경기"),
-        Map.entry(32, "강원"), Map.entry(33, "충북"), Map.entry(34, "충남"),
-        Map.entry(35, "경북"), Map.entry(36, "경남"), Map.entry(37, "전북"),
-        Map.entry(38, "전남"), Map.entry(39, "제주")
-    );
-
-    private static final Map<Integer, String> TYPE_NAME = Map.of(
-        12, "관광지", 14, "문화시설", 28, "레포츠", 32, "숙박", 38, "쇼핑", 39, "음식점"
-    );
+    private final RegionService regionService;
 
     @Override
     public List<TripSummary> getMyTrips(Long memberId) {
@@ -91,14 +79,17 @@ public class TripServiceImpl implements TripService {
                     b.getTransitDurationMinutes(), b.getTransitMode(), b.getTransitOptionIndex()),
                     Collectors.toList())));
 
+        Map<Integer, String> sidoLabels = regionService.sidoLabelMap();
+        Map<Integer, Map<Integer, String>> sigunguLabels = regionService.sigunguLabelMap();
         List<CandidateItem> candidateItems = candidates.stream().map(c -> {
             Attraction a = attractionMapper.findById(c.getAttractionId()).orElse(null);
             String name = a != null ? a.getTitle() : "알 수 없음";
             String img = a != null ? a.getFirstImage() : null;
-            String cat = a != null ? TYPE_NAME.getOrDefault(a.getContentTypeId(), "") : "";
-            String city = SIDO_NAME.getOrDefault(c.getCityCode(), "");
+            String cat = a != null ? ContentType.labelOf(a.getContentTypeId()) : "";
+            String city = sidoLabels.getOrDefault(c.getCityCode(), "");
             Integer sgCode = a != null ? a.getSigunguCode() : null;
-            String sgName = attractionService.getSigunguName(c.getCityCode(), sgCode);
+            String sgName = sgCode == null ? ""
+                : sigunguLabels.getOrDefault(c.getCityCode(), Map.of()).getOrDefault(sgCode, "");
             var lat = a != null ? a.getLatitude() : null;
             var lng = a != null ? a.getLongitude() : null;
             return new CandidateItem(c.getId(), c.getAttractionId(), name, img,

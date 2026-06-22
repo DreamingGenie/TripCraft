@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.attraction.mapper.SidoMapper">
+
+    <resultMap id="sidoMap" type="com.tripcraft.attraction.domain.Sido">
+        <result column="sido_code" property="sidoCode"/>
+        <result column="name"      property="name"/>
+        <result column="alias"     property="alias"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="sidoMap">
+        SELECT sido_code, name, alias
+        FROM sido
+        ORDER BY sido_code
+    </select>
+
+    <!-- 공식명(name)만 갱신, alias(사용자 편집)는 보존 -->
+    <insert id="upsert">
+        INSERT INTO sido (sido_code, name)
+        VALUES (#{sidoCode}, #{name})
+        ON DUPLICATE KEY UPDATE name = VALUES(name)
+    </insert>
+
+</mapper>

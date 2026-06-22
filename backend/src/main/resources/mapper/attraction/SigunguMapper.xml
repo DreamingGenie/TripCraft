@@ -8,19 +8,27 @@
         <result column="sido_code"    property="sidoCode"/>
         <result column="sigungu_code" property="sigunguCode"/>
         <result column="name"         property="name"/>
+        <result column="alias"        property="alias"/>
     </resultMap>
 
     <select id="findAll" resultMap="sigunguMap">
-        SELECT sido_code, sigungu_code, name
+        SELECT sido_code, sigungu_code, name, alias
         FROM sigungu
         ORDER BY sido_code, sigungu_code
     </select>
 
     <select id="findBySidoCode" parameterType="int" resultMap="sigunguMap">
-        SELECT sido_code, sigungu_code, name
+        SELECT sido_code, sigungu_code, name, alias
         FROM sigungu
         WHERE sido_code = #{sidoCode}
         ORDER BY sigungu_code
     </select>
+
+    <!-- 공식명(name)만 갱신, alias(사용자 편집)는 보존 -->
+    <insert id="upsert">
+        INSERT INTO sigungu (sido_code, sigungu_code, name)
+        VALUES (#{sidoCode}, #{sigunguCode}, #{name})
+        ON DUPLICATE KEY UPDATE name = VALUES(name)
+    </insert>
 
 </mapper>
