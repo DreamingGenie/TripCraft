@@ -2,6 +2,7 @@ package com.tripcraft.member.controller;
 
 import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.member.domain.Member;
+import com.tripcraft.member.dto.KakaoLoginRequest;
 import com.tripcraft.member.dto.LoginRequest;
 import com.tripcraft.member.dto.MeResponse;
 import com.tripcraft.member.dto.SignupRequest;
@@ -40,6 +41,14 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response) {
         authService.login(request, response);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @PostMapping("/kakao")
+    public ResponseEntity<ApiResponse<Void>> kakaoLogin(
+            @Valid @RequestBody KakaoLoginRequest request,
+            HttpServletResponse response) {
+        authService.kakaoLogin(request.code(), response);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 

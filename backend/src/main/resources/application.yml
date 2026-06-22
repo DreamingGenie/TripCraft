@@ -50,6 +50,13 @@ tmap:
   api-key: ${TMAP_API_KEY}
   base-url: https://apis.openapi.sk.com/tmap
 
+kakao:
+  client-id: ${KAKAO_CLIENT_ID:}                # 카카오 REST API 키 (지도 JS 키와 별개). 미설정 시 카카오 로그인만 비활성
+  client-secret: ${KAKAO_CLIENT_SECRET:}        # 콘솔에서 사용 설정한 경우만, 없으면 빈 값
+  redirect-uri: ${KAKAO_REDIRECT_URI:}          # 카카오 앱에 등록한 Redirect URI와 일치
+  token-url: https://kauth.kakao.com/oauth/token
+  user-info-url: https://kapi.kakao.com/v2/user/me
+
 upload:
   dir: ${UPLOAD_DIR:./uploads}   # 이미지 업로드 저장 경로 (기본: 실행 디렉토리 하위)
 

@@ -28,15 +28,18 @@
 -- 1. 회원 (member)
 -- ---------------------------------------------
 CREATE TABLE member (
-    id         BIGINT                   NOT NULL AUTO_INCREMENT COMMENT '회원 PK',
-    email      VARCHAR(100)             NOT NULL COMMENT '로그인 이메일 (유일)',
-    nickname   VARCHAR(20)              NOT NULL COMMENT '닉네임 (2~20자)',
-    password   VARCHAR(255)             NOT NULL COMMENT 'BCrypt 해시 저장',
-    role       ENUM('USER', 'ADMIN')    NOT NULL DEFAULT 'USER' COMMENT '권한',
-    created_at TIMESTAMP                NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP                NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id              BIGINT                NOT NULL AUTO_INCREMENT COMMENT '회원 PK',
+    email           VARCHAR(100)          NULL COMMENT '로그인 이메일 (소셜 계정은 NULL 가능)',
+    nickname        VARCHAR(20)           NOT NULL COMMENT '닉네임 (2~20자)',
+    password        VARCHAR(255)          NULL COMMENT 'BCrypt 해시 (소셜 전용 계정은 NULL)',
+    role            ENUM('USER', 'ADMIN') NOT NULL DEFAULT 'USER' COMMENT '권한',
+    social_provider VARCHAR(20)           NULL COMMENT '소셜 로그인 제공자 (kakao 등)',
+    social_id       VARCHAR(100)          NULL COMMENT '소셜 제공자의 사용자 고유 ID',
+    created_at      TIMESTAMP             NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP             NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_member_email (email)
+    UNIQUE KEY uq_member_email (email),
+    UNIQUE KEY uq_member_social (social_provider, social_id)
 ) COMMENT='회원. 탈퇴 시 하드 딜리트 — 앱 레이어에서 연관 데이터 순서대로 삭제 필요'
   DEFAULT CHARSET = utf8mb4;
 
