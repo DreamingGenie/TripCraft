@@ -23,9 +23,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtChannelInterceptor implements ChannelInterceptor {
 
-    private static final String MEMBER_ID_ATTR = "memberId";
-
-    private final JwtTokenProvider jwtTokenProvider;
     private final TripMapper tripMapper;
     private final TripCollaboratorMapper tripCollaboratorMapper;
 
@@ -46,15 +43,12 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         return message;
     }
 
-    // ── CONNECT: JWT 검증 → Principal 설정 ──────────────────────────────────
+    // ── CONNECT: 핸드셰이크에서 쿠키로 저장된 memberId로 Principal 설정 ─────
     private void handleConnect(StompHeaderAccessor accessor) {
-        String token = extractToken(accessor);
-        if (token == null || !jwtTokenProvider.validate(token)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid JWT");
+        Long memberId = getMemberIdFromSession(accessor);
+        if (memberId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "WebSocket 인증 실패: 로그인이 필요합니다.");
         }
-        Long memberId = jwtTokenProvider.getMemberId(token);
-        accessor.getSessionAttributes().put(MEMBER_ID_ATTR, memberId);
-
         Principal principal = new UsernamePasswordAuthenticationToken(memberId, null, List.of());
         accessor.setUser(principal);
     }
@@ -89,17 +83,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
-    private String extractToken(StompHeaderAccessor accessor) {
-        List<String> auth = accessor.getNativeHeader("Authorization");
-        if (auth == null || auth.isEmpty()) return null;
-        String header = auth.get(0);
-        if (header.startsWith("Bearer ")) return header.substring(7);
-        return null;
-    }
-
     private Long getMemberIdFromSession(StompHeaderAccessor accessor) {
         if (accessor.getSessionAttributes() == null) return null;
-        Object id = accessor.getSessionAttributes().get(MEMBER_ID_ATTR);
+        Object id = accessor.getSessionAttributes().get(JwtHandshakeInterceptor.MEMBER_ID_ATTR);
         return id instanceof Long l ? l : null;
     }
 }

@@ -38,7 +38,10 @@
       <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
       <button v-if="activeTrip" class="btn-share-trip" @click="shareToComm">📢 공유하기</button>
       <button v-if="activeTrip" class="btn-collab" :class="{ active: collabPanelOpen }"
-              @click="collabPanelOpen = !collabPanelOpen">👥 협업자</button>
+              @click="collabPanelOpen = !collabPanelOpen">
+        <span class="collab-status-dot" :class="{ connected: collab.connected }" :title="collab.connected ? '실시간 연결됨' : '연결 끊김'"></span>
+        👥 협업자
+      </button>
       <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
     </div>
 
@@ -438,7 +441,14 @@ const toast = useToastStore()
 const auth = useAuthStore()
 const collab = useCollabStore()
 const router = useRouter()
-const openScheduleModal = inject('openScheduleModal')
+const _openScheduleModal = inject('openScheduleModal')
+function openScheduleModal() {
+  _openScheduleModal((newTrip) => {
+    trips.value = [...trips.value, newTrip]
+    activeTripId.value = newTrip.id
+    loadTrip()
+  })
+}
 const wrapperEl = ref(null)
 const mapEl = ref(null)
 
@@ -457,10 +467,7 @@ const collabPanelOpen = ref(false)
 const activeTripIsOwner = computed(() =>
   trips.value.some(t => t.id === activeTripId.value)
 )
-const activeTripOwnerLabel = computed(() => {
-  const t = [...trips.value, ...collaboratingTrips.value].find(t => t.id === activeTripId.value)
-  return t?.title ?? '일정 소유자'
-})
+const activeTripOwnerLabel = computed(() => activeTrip.value?.ownerNickname ?? '소유자')
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
@@ -1480,8 +1487,15 @@ async function loadTrip() {
       if (updated) mapDay.value = updated
       if (naverMapInstance) await drawDayRoute()
     }
-  } catch {
-    toast.show('일정 로드 실패')
+  } catch (err) {
+    if (err?.status === 403 || err?.response?.status === 403) {
+      collaboratingTrips.value = collaboratingTrips.value.filter(t => t.id !== activeTripId.value)
+      const next = trips.value[0] ?? collaboratingTrips.value[0]
+      activeTripId.value = next?.id ?? null
+      if (activeTripId.value) await loadTrip()
+    } else {
+      toast.show('일정 로드 실패')
+    }
   }
 }
 
@@ -1676,9 +1690,17 @@ async function removeEvent(day, ev) {
   await removeEventFrom(day, ev)
 }
 
-function onDocumentClick() {
+function onDocumentClick(e) {
   openPillKey.value = null
   currentPillData.value = null
+  // 협업자 패널 바깥 클릭 시 닫기
+  if (collabPanelOpen.value) {
+    const overlay = document.querySelector('.collab-panel-overlay')
+    const collabBtn = document.querySelector('.btn-collab')
+    if (overlay && !overlay.contains(e.target) && !collabBtn?.contains(e.target)) {
+      collabPanelOpen.value = false
+    }
+  }
 }
 
 onUnmounted(() => {
@@ -1687,6 +1709,7 @@ onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('mousemove', onPanelResizeMove)
   document.removeEventListener('mouseup', onPanelResizeEnd)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
   collab.disconnect()
@@ -1729,7 +1752,7 @@ function applyTransitUpdate(payload) {
 }
 
 function connectCollab(tripId) {
-  collab.setHandlers({ tripEvent: handleTripEvent, presence: null })
+  collab.setHandlers({ tripEvent: handleTripEvent, presence: null, reconnect: loadTrip })
   collab.connect(tripId)
 }
 
@@ -1740,14 +1763,23 @@ watch(activeTripId, (newId, oldId) => {
   if (newId != null) connectCollab(newId)
 })
 
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible' && activeTripId.value != null) {
+    loadTrip()
+  }
+}
+
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   tripsLoading.value = true
   try {
-    ;[trips.value, collaboratingTrips.value] = await Promise.all([
+    const [tripsResult, collabResult] = await Promise.allSettled([
       tripApi.list(),
       tripApi.listCollaborating(),
     ])
+    trips.value = tripsResult.status === 'fulfilled' ? tripsResult.value : []
+    collaboratingTrips.value = collabResult.status === 'fulfilled' ? collabResult.value : []
     const first = trips.value[0] ?? collaboratingTrips.value[0]
     if (first) {
       activeTripId.value = first.id
@@ -1765,15 +1797,39 @@ onMounted(async () => {
 <style scoped>
 .btn-collab {
   padding: 6px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 13px;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: color .12s, background .12s, border-color .12s;
+  font-family: inherit;
 }
-.btn-collab:hover { background: #f3f4f6; }
-.btn-collab.active { background: #e0e7ff; border-color: #818cf8; color: #4338ca; }
+.btn-collab:hover {
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border-color: var(--purple-100);
+}
+.btn-collab.active {
+  background: var(--purple-50);
+  border-color: var(--purple-900);
+  color: var(--purple-900);
+  font-weight: 600;
+}
+
+.collab-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.collab-status-dot.connected { background: #22c55e; }
 
 .collab-panel-overlay {
   position: absolute;
