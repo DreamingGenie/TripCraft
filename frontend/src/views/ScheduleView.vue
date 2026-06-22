@@ -464,9 +464,7 @@ const tripsLoading = ref(false)
 const activeTripId = ref(null)
 const collabPanelOpen = ref(false)
 
-const activeTripIsOwner = computed(() =>
-  trips.value.some(t => t.id === activeTripId.value)
-)
+const activeTripIsOwner = computed(() => activeTrip.value?.myRole === 'OWNER')
 const activeTripOwnerLabel = computed(() => activeTrip.value?.ownerNickname ?? '소유자')
 const activeTrip = ref(null)
 const candidates = ref([])

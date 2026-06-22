@@ -195,10 +195,11 @@ public class TripServiceImpl implements TripService {
 
         String ownerNickname = memberMapper.findById(trip.getMemberId())
             .map(Member::getNickname).orElse("");
+        String myRole = resolveRole(tripId, memberId).name();
 
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
             trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),
-            trip.getDefaultTransitMode(), ownerNickname, candidateItems);
+            trip.getDefaultTransitMode(), ownerNickname, myRole, candidateItems);
     }
 
     @Override
@@ -261,6 +262,10 @@ public class TripServiceImpl implements TripService {
     @Transactional
     public Long placeBlock(Long tripId, BlockCreateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
+        TripCandidate candidate = candidateMapper.findById(req.getCandidateId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "후보군을 찾을 수 없습니다."));
+        if (!candidate.getTripId().equals(tripId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 일정의 후보군입니다.");
         TripBlock block = new TripBlock();
         block.setCandidateId(req.getCandidateId());
         block.setTripDate(req.getTripDate());
