@@ -5,6 +5,7 @@ const routes = [
   { path: '/', component: () => import('@/views/LandingView.vue') },
   { path: '/about', component: () => import('@/views/AboutView.vue') },
   { path: '/auth', component: () => import('@/views/AuthView.vue') },
+  { path: '/auth/kakao/callback', component: () => import('@/views/KakaoCallbackView.vue') },
   { path: '/explore', component: () => import('@/views/ExploreView.vue') },
   {
     path: '/schedule',
