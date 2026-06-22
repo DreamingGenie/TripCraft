@@ -37,8 +37,22 @@
 
       <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
       <button v-if="activeTrip" class="btn-share-trip" @click="shareToComm">📢 공유하기</button>
+      <button v-if="activeTrip" class="btn-collab" :class="{ active: collabPanelOpen }"
+              @click="collabPanelOpen = !collabPanelOpen">👥 협업자</button>
       <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
     </div>
+
+    <!-- 협업자 패널 (툴바 아래 슬라이드) -->
+    <Transition name="collab-slide">
+      <div v-if="collabPanelOpen && activeTrip" class="collab-panel-overlay">
+        <CollaboratorPanel
+          :trip-id="activeTrip.id"
+          :is-owner="activeTripIsOwner"
+          :owner-label="activeTripOwnerLabel"
+          @close="collabPanelOpen = false"
+        />
+      </div>
+    </Transition>
 
     <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
     <div class="schedule-body">
@@ -417,6 +431,7 @@ import { useToastStore } from '@/stores/toast'
 import { useAuthStore } from '@/stores/auth'
 import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
+import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 
 const toast = useToastStore()
@@ -437,6 +452,15 @@ const trips = ref([])
 const collaboratingTrips = ref([])
 const tripsLoading = ref(false)
 const activeTripId = ref(null)
+const collabPanelOpen = ref(false)
+
+const activeTripIsOwner = computed(() =>
+  trips.value.some(t => t.id === activeTripId.value)
+)
+const activeTripOwnerLabel = computed(() => {
+  const t = [...trips.value, ...collaboratingTrips.value].find(t => t.id === activeTripId.value)
+  return t?.title ?? '일정 소유자'
+})
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
@@ -1711,6 +1735,7 @@ function connectCollab(tripId) {
 
 // 일정 전환 시 WebSocket 재연결
 watch(activeTripId, (newId, oldId) => {
+  collabPanelOpen.value = false
   if (oldId != null) collab.disconnect()
   if (newId != null) connectCollab(newId)
 })
@@ -1736,3 +1761,39 @@ onMounted(async () => {
   if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
 })
 </script>
+
+<style scoped>
+.btn-collab {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-collab:hover { background: #f3f4f6; }
+.btn-collab.active { background: #e0e7ff; border-color: #818cf8; color: #4338ca; }
+
+.collab-panel-overlay {
+  position: absolute;
+  top: 48px; /* 툴바 높이 */
+  right: 16px;
+  z-index: 200;
+  width: 320px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.collab-slide-enter-active,
+.collab-slide-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.collab-slide-enter-from,
+.collab-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>

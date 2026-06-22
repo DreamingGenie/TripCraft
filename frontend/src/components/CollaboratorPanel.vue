@@ -1,6 +1,9 @@
 <template>
   <div class="collab-panel">
-    <h3 class="collab-panel-title">협업자 관리</h3>
+    <div class="collab-panel-header">
+      <h3 class="collab-panel-title">협업자 관리</h3>
+      <button class="collab-close-btn" @click="$emit('close')">✕</button>
+    </div>
 
     <!-- 초대 (OWNER만) -->
     <div v-if="isOwner" class="collab-invite">
@@ -41,6 +44,8 @@
 import { ref, onMounted } from 'vue'
 import { tripApi } from '@/api/trip'
 import { http } from '@/api/http'
+
+defineEmits(['close'])
 
 const props = defineProps({
   tripId: { type: Number, required: true },
@@ -101,7 +106,13 @@ onMounted(loadCollaborators)
 
 <style scoped>
 .collab-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.collab-panel-header { display: flex; align-items: center; justify-content: space-between; }
 .collab-panel-title { font-size: 15px; font-weight: 600; margin: 0; }
+.collab-close-btn {
+  background: none; border: none; cursor: pointer; font-size: 14px;
+  color: #9ca3af; padding: 2px 6px; border-radius: 4px;
+}
+.collab-close-btn:hover { background: #f3f4f6; color: #374151; }
 
 .collab-invite { position: relative; }
 .collab-search-input {
