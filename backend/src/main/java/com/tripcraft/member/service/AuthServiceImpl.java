@@ -1,6 +1,9 @@
 package com.tripcraft.member.service;
 
+import com.tripcraft.global.attach.domain.Attach;
+import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.security.JwtTokenProvider;
+import com.tripcraft.global.storage.FileStorageService;
 import com.tripcraft.member.domain.Member;
 import com.tripcraft.member.domain.MemberToken;
 import com.tripcraft.member.dto.KakaoUserInfo;
@@ -11,6 +14,7 @@ import com.tripcraft.member.mapper.MemberTokenMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -29,6 +34,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final KakaoOAuthService kakaoOAuthService;
+    private final AttachMapper attachMapper;
+    private final FileStorageService fileStorageService;
 
     @Value("${jwt.access-token-expiry}")
     private long accessTokenExpiry;
@@ -104,20 +111,38 @@ public class AuthServiceImpl implements AuthService {
         member.setSocialProvider("kakao");
         member.setSocialId(info.socialId());
         memberMapper.insert(member);
+        saveKakaoProfileImage(member.getId(), info.profileImage());
         return member;
     }
 
-    /** 닉네임 중복 시 접미사로 유니크 보장 (없으면 기본값) */
-    private String resolveNickname(String base) {
-        String candidate = (base != null && !base.isBlank()) ? base : "카카오사용자";
-        if (candidate.length() > 16) candidate = candidate.substring(0, 16);  // 접미사 여유(최대 20자)
-        String result = candidate;
-        int suffix = 1;
-        while (memberMapper.findByNickname(result).isPresent()) {
-            suffix++;
-            result = candidate + "_" + suffix;
+    /** 카카오 프로필 이미지를 다운로드해 attach(profile)로 저장 (best-effort, 실패해도 가입은 유지) */
+    private void saveKakaoProfileImage(Long memberId, String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+        try {
+            KakaoOAuthService.DownloadedImage img = kakaoOAuthService.downloadImage(imageUrl);
+            if (img == null || img.bytes() == null || img.bytes().length == 0) return;
+            String filename = fileStorageService.saveBytes(img.bytes(), img.contentType(), "profile");
+            Attach attach = new Attach();
+            attach.setName(filename);
+            attach.setHostName(filename);
+            attach.setSize(img.bytes().length);
+            attach.setMimetype(img.contentType());
+            attach.setHostPath(fileStorageService.toHostPath("profile", filename));
+            attach.setTarget("profile");
+            attach.setTargetId(memberId);
+            attachMapper.insert(attach);
+        } catch (Exception e) {
+            log.warn("카카오 프로필 이미지 저장 실패 memberId={}: {}", memberId, e.getMessage());
         }
-        return result;
+    }
+
+    /**
+     * 카카오 닉네임 사용 (없으면 기본값).
+     * 닉네임은 유니크 제약이 없고 일반 회원가입도 중복을 허용하므로 dedup하지 않는다.
+     */
+    private String resolveNickname(String base) {
+        String name = (base != null && !base.isBlank()) ? base : "카카오사용자";
+        return name.length() > 20 ? name.substring(0, 20) : name;  // nickname VARCHAR(20) 안전 처리
     }
 
     @Override
