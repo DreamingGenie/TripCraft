@@ -4,25 +4,33 @@ import com.tripcraft.attraction.domain.Attraction;
 import com.tripcraft.attraction.domain.ContentType;
 import com.tripcraft.attraction.mapper.AttractionMapper;
 import com.tripcraft.attraction.service.RegionService;
+import com.tripcraft.member.domain.Member;
+import com.tripcraft.member.mapper.MemberMapper;
 import com.tripcraft.plan.domain.Trip;
 import com.tripcraft.plan.domain.TripBlock;
 import com.tripcraft.plan.domain.TripCandidate;
+import com.tripcraft.plan.domain.TripCollaborator;
+import com.tripcraft.plan.domain.TripRole;
 import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockItem;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateItem;
+import com.tripcraft.plan.dto.CollaboratorItem;
 import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripCopyRequest;
+import com.tripcraft.plan.dto.TripEvent;
 import com.tripcraft.plan.dto.TripSummary;
 import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
+import com.tripcraft.plan.mapper.TripCollaboratorMapper;
 import com.tripcraft.plan.mapper.TripMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -46,9 +54,99 @@ public class TripServiceImpl implements TripService {
     private final TripMapper tripMapper;
     private final TripCandidateMapper candidateMapper;
     private final TripBlockMapper blockMapper;
+    private final TripCollaboratorMapper collaboratorMapper;
     private final AttractionMapper attractionMapper;
+    private final MemberMapper memberMapper;
     private final TransitService transitService;
     private final RegionService regionService;
+    private final SimpMessagingTemplate messaging;
+
+    // ── 권한 헬퍼 ──────────────────────────────────────────────────────────────
+
+    private TripRole resolveRole(Long tripId, Long memberId) {
+        Trip trip = tripMapper.findById(tripId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (trip.getMemberId().equals(memberId)) return TripRole.OWNER;
+        return collaboratorMapper.findByTripAndMember(tripId, memberId)
+            .map(c -> TripRole.valueOf(c.getRole()))
+            .orElse(null);
+    }
+
+    private void assertCanView(Long tripId, Long memberId) {
+        if (resolveRole(tripId, memberId) == null)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
+
+    private void assertCanEdit(Long tripId, Long memberId) {
+        TripRole r = resolveRole(tripId, memberId);
+        if (r == null || r == TripRole.VIEWER)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
+
+    private void assertCanManage(Long tripId, Long memberId) {
+        if (resolveRole(tripId, memberId) != TripRole.OWNER)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
+
+    private String nickname(Long memberId) {
+        return memberMapper.findById(memberId).map(Member::getNickname).orElse("(알 수 없음)");
+    }
+
+    private void broadcast(Long tripId, TripEvent event) {
+        messaging.convertAndSend("/topic/trip/" + tripId, event);
+    }
+
+    // ── 협업자 관리 ────────────────────────────────────────────────────────────
+
+    @Override
+    public List<TripSummary> getCollaboratingTrips(Long memberId) {
+        return tripMapper.findCollaboratingByMemberId(memberId).stream()
+            .map(t -> {
+                int cnt = candidateMapper.findByTripId(t.getId()).size();
+                return new TripSummary(t.getId(), t.getTitle(), t.getStartDate(), t.getEndDate(),
+                    t.getMemberCount(), cnt);
+            })
+            .toList();
+    }
+
+    @Override
+    public List<CollaboratorItem> getCollaborators(Long tripId, Long requesterId) {
+        assertCanView(tripId, requesterId);
+        return collaboratorMapper.findByTripId(tripId).stream()
+            .map(c -> {
+                String nickname = memberMapper.findById(c.getMemberId())
+                    .map(Member::getNickname).orElse("(알 수 없음)");
+                return new CollaboratorItem(c.getMemberId(), nickname, c.getRole());
+            })
+            .toList();
+    }
+
+    @Override
+    @Transactional
+    public void inviteCollaborator(Long tripId, Long targetMemberId, String role, Long requesterId) {
+        assertCanManage(tripId, requesterId);
+        Trip trip = tripMapper.findById(tripId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (trip.getMemberId().equals(targetMemberId))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "소유자는 협업자로 추가할 수 없습니다.");
+        memberMapper.findById(targetMemberId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."));
+
+        TripCollaborator collab = new TripCollaborator();
+        collab.setTripId(tripId);
+        collab.setMemberId(targetMemberId);
+        collab.setRole(role != null ? role : "EDITOR");
+        collaboratorMapper.insert(collab);
+    }
+
+    @Override
+    @Transactional
+    public void removeCollaborator(Long tripId, Long targetMemberId, Long requesterId) {
+        assertCanManage(tripId, requesterId);
+        collaboratorMapper.delete(tripId, targetMemberId);
+    }
+
+    // ── 기존 조회/편집 메서드 ──────────────────────────────────────────────────
 
     @Override
     public List<TripSummary> getMyTrips(Long memberId) {
@@ -63,11 +161,9 @@ public class TripServiceImpl implements TripService {
 
     @Override
     public TripDetailResponse getTripDetail(Long tripId, Long memberId) {
+        assertCanView(tripId, memberId);
         Trip trip = tripMapper.findById(tripId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
 
         List<TripCandidate> candidates = candidateMapper.findByTripId(tripId);
         List<TripBlock> blocks = blockMapper.findByTripId(tripId);
@@ -120,11 +216,7 @@ public class TripServiceImpl implements TripService {
     @Override
     @Transactional
     public void deleteTrip(Long tripId, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanManage(tripId, memberId);
         if (tripMapper.existsPostByTripId(tripId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "공유된 게시글이 있어 삭제할 수 없습니다.");
         }
@@ -134,11 +226,7 @@ public class TripServiceImpl implements TripService {
     @Override
     @Transactional
     public Long addCandidate(Long tripId, Long attractionId, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         Attraction a = attractionMapper.findById(attractionId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "관광지를 찾을 수 없습니다."));
         TripCandidate candidate = new TripCandidate();
@@ -147,33 +235,29 @@ public class TripServiceImpl implements TripService {
         candidate.setCityCode(a.getSidoCode());
         candidate.setSource("MANUAL");
         candidateMapper.insert(candidate);
+        broadcast(tripId, TripEvent.of("CANDIDATE_ADDED", memberId, nickname(memberId),
+                Map.of("candidateId", candidate.getId(), "attractionId", attractionId)));
         return candidate.getId();
     }
 
     @Override
     @Transactional
     public void removeCandidate(Long tripId, Long candidateId, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         candidateMapper.findById(candidateId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (candidateMapper.existsBlockByCandidateId(candidateId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "타임라인에 배치된 블록이 있습니다.");
         }
         candidateMapper.deleteById(candidateId);
+        broadcast(tripId, TripEvent.of("CANDIDATE_REMOVED", memberId, nickname(memberId),
+                Map.of("candidateId", candidateId)));
     }
 
     @Override
     @Transactional
     public Long placeBlock(Long tripId, BlockCreateRequest req, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         TripBlock block = new TripBlock();
         block.setCandidateId(req.getCandidateId());
         block.setTripDate(req.getTripDate());
@@ -181,6 +265,9 @@ public class TripServiceImpl implements TripService {
         block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
         block.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : 1);
         blockMapper.insert(block);
+        broadcast(tripId, TripEvent.of("BLOCK_ADDED", memberId, nickname(memberId),
+                Map.of("blockId", block.getId(), "candidateId", req.getCandidateId(),
+                       "tripDate", req.getTripDate(), "displayOrder", block.getDisplayOrder())));
         recalculateTransitForDate(tripId, req.getTripDate());
         return block.getId();
     }
@@ -188,11 +275,7 @@ public class TripServiceImpl implements TripService {
     @Override
     @Transactional
     public void updateBlock(Long tripId, Long blockId, BlockUpdateRequest req, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         LocalDate oldDate = block.getTripDate();
@@ -213,31 +296,28 @@ public class TripServiceImpl implements TripService {
                 recalculateTransitForDate(tripId, oldDate);
             }
         }
+        broadcast(tripId, TripEvent.of("BLOCK_MOVED", memberId, nickname(memberId),
+                Map.of("blockId", blockId, "tripDate", req.getTripDate(),
+                       "displayOrder", req.getDisplayOrder())));
     }
 
     @Override
     @Transactional
     public void removeBlock(Long tripId, Long blockId, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         LocalDate date = block.getTripDate();
         blockMapper.deleteById(blockId);
+        broadcast(tripId, TripEvent.of("BLOCK_DELETED", memberId, nickname(memberId),
+                Map.of("blockId", blockId, "tripDate", date)));
         recalculateTransitForDate(tripId, date);
     }
 
     @Override
     @Transactional
     public void updateDefaultTransitMode(Long tripId, String mode, Long memberId) {
-        Trip trip = tripMapper.findById(tripId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (!trip.getMemberId().equals(memberId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
+        assertCanEdit(tripId, memberId);
         tripMapper.updateDefaultTransitMode(tripId, mode);
     }
 
@@ -402,5 +482,18 @@ public class TripServiceImpl implements TripService {
                         block.getId(), tripId, date, e.getMessage());
             }
         }
+
+        // transit 재계산 완료 브로드캐스트
+        List<Map<String, Object>> transitSummary = blocks.stream()
+                .map(b -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("blockId", b.getId());
+                    m.put("transitDurationMinutes", b.getTransitDurationMinutes());
+                    m.put("transitMode", b.getTransitMode());
+                    return m;
+                })
+                .toList();
+        broadcast(tripId, TripEvent.of("TRANSIT_RECALCULATED", null, null,
+                Map.of("tripDate", date, "blocks", transitSummary)));
     }
 }

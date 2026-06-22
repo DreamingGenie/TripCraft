@@ -71,6 +71,15 @@
         DELETE FROM trip WHERE member_id = #{memberId}
     </delete>
 
+    <select id="findCollaboratingByMemberId" parameterType="long" resultMap="tripMap">
+        SELECT t.id, t.member_id, t.title, t.start_date, t.end_date, t.member_count,
+               t.is_public, t.default_transit_mode, t.created_at, t.updated_at
+        FROM trip t
+        JOIN trip_collaborator tc ON tc.trip_id = t.id
+        WHERE tc.member_id = #{memberId}
+        ORDER BY tc.invited_at DESC
+    </select>
+
     <select id="findVisitedSidoCodes" resultType="int">
         SELECT DISTINCT a.sido_code
         FROM trip t
