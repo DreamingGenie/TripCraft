@@ -1,6 +1,13 @@
 -- ============================================================
 -- 시군구 참조 테이블 생성 및 시드 데이터
 -- TourAPI 실제 attraction 데이터 기준 (alphabetical 코드 순서)
+--
+-- [참고] 이 시드는 이후 schema.sql에 통합되었습니다.
+--   - 신규 셋업: schema.sql 하나로 충분 (이 파일 적용 불필요)
+--   - 시도 테이블 / sigungu.alias 컬럼은 migration_sido_v1.sql 참조
+--   - 지역 명칭의 최신 출처는 TourAPI areaCode2 동기화
+--     (POST /api/admin/attractions/sync/regions, 또는 일일 배치)
+-- 과거 적용 이력 보존을 위해 파일은 유지합니다.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS sigungu (

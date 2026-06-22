@@ -1,5 +1,6 @@
 package com.tripcraft.attraction.batch;
 
+import com.tripcraft.attraction.service.ReferenceDataSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -27,6 +28,7 @@ public class TourApiSyncScheduler {
 
     private final JobLauncher jobLauncher;
     private final Job tourApiSyncJob;
+    private final ReferenceDataSyncService referenceDataSyncService;
 
     /**
      * 매일 새벽 2시 실행.
@@ -35,6 +37,14 @@ public class TourApiSyncScheduler {
     @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul")
     public void runDailySync() {
         log.info("TourAPI 정기 배치 시작 — runDate={}", LocalDate.now());
+
+        // 지역 참조 데이터(시도·시군구) 동기화 — 실패해도 관광지 배치는 계속 진행
+        try {
+            referenceDataSyncService.sync();
+        } catch (Exception e) {
+            log.error("참조 데이터(시도·시군구) 동기화 실패", e);
+        }
+
         try {
             JobParameters params = new JobParametersBuilder()
                     .addLocalDate("runDate", LocalDate.now())
