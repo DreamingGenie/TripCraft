@@ -13,4 +13,5 @@ export const memberApi = {
   },
   deleteProfileImage: () => http.del('/api/members/me/profile-image'),
   withdraw: (password) => http.del('/api/members/me', { password }),
+  getVisitedRegions: () => http.get('/api/members/me/visited-regions'),
 }

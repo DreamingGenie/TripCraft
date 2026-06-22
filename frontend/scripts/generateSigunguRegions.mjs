@@ -296,7 +296,7 @@ const geoJson = JSON.parse(readFileSync(resolve(DATA_DIR, 'korea_sigungu.json'),
 const sidoGeoJson = JSON.parse(readFileSync(resolve(DATA_DIR, 'korea_sido.json'), 'utf-8'))
 const sidoFeatures = topojson.feature(sidoGeoJson, sidoGeoJson.objects[Object.keys(sidoGeoJson.objects)[0]])
 
-const proj = geoMercator().fitSize([500, 620], sidoFeatures)
+const proj = geoMercator().fitSize([300, 620], sidoFeatures)
 const pathGen = geoPath().projection(proj)
 
 const regions = []

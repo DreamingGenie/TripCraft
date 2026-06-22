@@ -15,7 +15,7 @@
 
         <svg
           v-else
-          viewBox="0 44 500 532"
+          viewBox="0 44 300 532"
           xmlns="http://www.w3.org/2000/svg"
           class="korea-map"
           aria-label="대한민국 방문 지역 지도"
@@ -52,7 +52,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { http } from '@/api/http'
+import { memberApi } from '@/api/member'
 import { KOREA_REGIONS } from '@/assets/data/koreaRegions.js'
 
 const visited      = ref(new Set())
@@ -61,7 +61,7 @@ const visitedCount = computed(() => visited.value.size)
 
 onMounted(async () => {
   try {
-    const codes = await http.get('/api/members/me/visited-regions')
+    const codes = await memberApi.getVisitedRegions()
     visited.value = new Set(codes)
   } catch {
     visited.value = new Set()
