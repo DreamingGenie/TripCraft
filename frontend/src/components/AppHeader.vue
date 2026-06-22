@@ -17,8 +17,7 @@
 
         <div v-show="menuOpen" class="gnb-dropdown" @click="menuOpen = false">
           <RouterLink class="dropdown-item" to="/mypage/profile">내 정보 수정</RouterLink>
-          <!-- TODO: 방문 지도 기능 미완성 — 완성 후 주석 해제 -->
-          <!-- <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink> -->
+          <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink>
           <RouterLink class="dropdown-item" to="/mypage/posts">내가 쓴 글</RouterLink>
           <RouterLink class="dropdown-item" to="/mypage/bookmarks">북마크</RouterLink>
           <RouterLink class="dropdown-item" to="/mypage/likes">좋아요한 글</RouterLink>
