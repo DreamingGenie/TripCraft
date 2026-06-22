@@ -70,7 +70,7 @@
           <div class="divider-line"></div>
         </div>
 
-        <button class="kakao-btn" disabled>💬 카카오로 로그인</button>
+        <button class="kakao-btn" @click="startKakaoLogin">💬 카카오로 로그인</button>
 
         <p class="switch-link">
           <template v-if="tab === 'login'">
@@ -132,6 +132,19 @@ async function doLogin() {
   } else {
     toast.show(result.status === 401 ? '이메일 또는 비밀번호가 올바르지 않습니다.' : (result.message || '오류가 발생했습니다.'))
   }
+}
+
+function startKakaoLogin() {
+  const restKey = import.meta.env.VITE_KAKAO_REST_KEY
+  const redirect = import.meta.env.VITE_KAKAO_REDIRECT_URI
+  if (!restKey || !redirect) {
+    toast.show('카카오 로그인이 아직 설정되지 않았습니다.')
+    return
+  }
+  const url = `https://kauth.kakao.com/oauth/authorize?client_id=${restKey}`
+    + `&redirect_uri=${encodeURIComponent(redirect)}&response_type=code`
+    + `&scope=profile_nickname,profile_image`   // 닉네임·프로필사진 동의 명시 요청
+  window.location.href = url
 }
 
 async function doSignup() {

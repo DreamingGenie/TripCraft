@@ -18,7 +18,7 @@
 
     <!-- 공통: 작성자 프로필 이미지 — SELECT 컬럼 -->
     <sql id="profileImageCol">
-        CONCAT('/uploads/images/', pa.name) AS authorProfileImageUrl
+        CONCAT('/uploads/profile/', pa.name) AS authorProfileImageUrl
     </sql>
 
     <!-- 공통: 작성자 프로필 이미지 — LEFT JOIN (alias pa, member m 이후에 추가) -->

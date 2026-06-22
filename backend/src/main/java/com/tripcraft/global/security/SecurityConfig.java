@@ -45,7 +45,7 @@ public class SecurityConfig {
                 // CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 인증 불필요
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh", "/api/auth/logout", "/api/auth/kakao").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**", "/api/notices/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/trips/*/blocks-summary").permitAll()
                 .requestMatchers("/error").permitAll()

@@ -41,6 +41,42 @@ public class FileStorageService {
         return filename;
     }
 
+    /**
+     * 원격에서 받은 이미지 바이트를 저장 (예: 카카오 프로필 이미지).
+     * Content-Type·크기·magic bytes를 동일하게 검증한다.
+     */
+    public String saveBytes(byte[] bytes, String contentType, String subDir) throws IOException {
+        if (bytes == null || bytes.length == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "빈 이미지입니다.");
+        }
+        if (bytes.length > MAX_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "파일 크기는 5 MB 이하여야 합니다.");
+        }
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일(JPEG·PNG·GIF·WebP)만 저장할 수 있습니다.");
+        }
+        byte[] header = new byte[12];
+        System.arraycopy(bytes, 0, header, 0, Math.min(12, bytes.length));
+        if (!isJpeg(header) && !isPng(header) && !isGif(header) && !isWebp(header)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바른 이미지 파일이 아닙니다.");
+        }
+
+        Path dir = Paths.get(uploadDir, subDir).toAbsolutePath();
+        Files.createDirectories(dir);
+        String filename = UUID.randomUUID() + extFor(contentType);
+        Files.write(dir.resolve(filename), bytes);
+        return filename;
+    }
+
+    private String extFor(String contentType) {
+        return switch (contentType) {
+            case "image/png"  -> ".png";
+            case "image/gif"  -> ".gif";
+            case "image/webp" -> ".webp";
+            default            -> ".jpg";
+        };
+    }
+
     public String toHostPath(String subDir, String filename) {
         return Paths.get(uploadDir, subDir, filename).toAbsolutePath().toString();
     }
