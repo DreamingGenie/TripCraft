@@ -4,6 +4,9 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
+  define: {
+    global: 'globalThis',
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -18,6 +21,11 @@ export default defineConfig({
       '/uploads': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/ws': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },

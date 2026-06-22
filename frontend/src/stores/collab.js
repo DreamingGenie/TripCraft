@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
-import { useAuthStore } from './auth'
+import { tripApi } from '@/api/trip'
 
 export const useCollabStore = defineStore('collab', () => {
   const participants = ref([])   // [{ memberId, nickname, x, y, interaction, targetBlockId }]
@@ -16,26 +16,33 @@ export const useCollabStore = defineStore('collab', () => {
   // 이벤트 핸들러 콜백 — ScheduleView에서 주입
   let onTripEvent = null
   let onPresence = null
+  let onReconnect = null  // 재연결 시 loadTrip() 콜백
 
-  function setHandlers({ tripEvent, presence }) {
+  function setHandlers({ tripEvent, presence, reconnect }) {
     onTripEvent = tripEvent
     onPresence = presence
+    onReconnect = reconnect ?? null
   }
 
-  function connect(tripId) {
+  async function connect(tripId) {
     activeTripId = tripId
-    _doConnect(tripId)
+    await _doConnect(tripId)
   }
 
-  function _doConnect(tripId) {
-    const auth = useAuthStore()
-    const token = auth.user?.token
+  async function _doConnect(tripId) {
+    // 핸드셰이크 전 REST 호출로 access_token 쿠키 최신화 (만료 시 http.js 자동 갱신)
+    try {
+      await tripApi.get(tripId)
+    } catch {
+      connected.value = false
+      return  // 인증 불가 또는 일정 접근 불가 → 재연결 중단
+    }
 
     stompClient = new Client({
       webSocketFactory: () => new SockJS('/ws'),
-      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-      reconnectDelay: 0,   // 수동 재연결
-      onConnect: () => {
+      connectHeaders: {},   // 인증은 쿠키(access_token)로 핸드셰이크 시 처리
+      reconnectDelay: 0,    // 수동 재연결
+      onConnect: async () => {
         connected.value = true
         clearTimeout(reconnectTimer)
 
@@ -54,6 +61,9 @@ export const useCollabStore = defineStore('collab', () => {
           grabMap.value = map
           if (onPresence) onPresence(list)
         })
+
+        // 재연결 시 끊긴 동안 놓친 변경 사항 재동기화
+        if (onReconnect) await onReconnect()
       },
       onDisconnect: () => {
         connected.value = false

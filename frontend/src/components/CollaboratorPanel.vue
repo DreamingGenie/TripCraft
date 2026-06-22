@@ -33,7 +33,14 @@
         <span class="collab-avatar">👤</span>
         <span class="collab-name">{{ c.nickname }}</span>
         <span class="collab-role-badge" :class="c.role.toLowerCase()">{{ c.role }}</span>
-        <button v-if="isOwner" class="collab-remove-btn" @click="remove(c.memberId)">✕</button>
+        <template v-if="isOwner">
+          <template v-if="confirmRemoveId === c.memberId">
+            <span class="collab-confirm-text">삭제?</span>
+            <button class="collab-confirm-btn yes" @click="confirmRemove(c.memberId)">확인</button>
+            <button class="collab-confirm-btn no" @click="confirmRemoveId = null">취소</button>
+          </template>
+          <button v-else class="collab-remove-btn" @click="confirmRemoveId = c.memberId">✕</button>
+        </template>
       </li>
       <li v-if="!collaborators.length" class="collab-empty">협업자가 없습니다.</li>
     </ul>
@@ -44,18 +51,21 @@
 import { ref, onMounted } from 'vue'
 import { tripApi } from '@/api/trip'
 import { http } from '@/api/http'
+import { useToastStore } from '@/stores/toast'
 
 defineEmits(['close'])
 
 const props = defineProps({
   tripId: { type: Number, required: true },
   isOwner: { type: Boolean, default: false },
-  ownerLabel: { type: String, default: '일정 소유자' },
+  ownerLabel: { type: String, default: '소유자' },
 })
 
+const toast = useToastStore()
 const collaborators = ref([])
 const searchQuery = ref('')
 const searchResults = ref([])
+const confirmRemoveId = ref(null)
 
 let searchTimer = null
 
@@ -85,19 +95,21 @@ async function invite(member) {
     await tripApi.inviteCollaborator(props.tripId, member.id, 'EDITOR')
     searchQuery.value = ''
     searchResults.value = []
+    toast.show(`${member.nickname}님을 초대했습니다.`)
     await loadCollaborators()
   } catch (e) {
-    alert(e?.message || '초대에 실패했습니다.')
+    toast.show(e?.message || '초대에 실패했습니다.')
   }
 }
 
-async function remove(memberId) {
-  if (!confirm('협업자를 제거하시겠습니까?')) return
+async function confirmRemove(memberId) {
   try {
     await tripApi.removeCollaborator(props.tripId, memberId)
+    confirmRemoveId.value = null
+    toast.show('협업자를 제거했습니다.')
     await loadCollaborators()
   } catch {
-    alert('제거에 실패했습니다.')
+    toast.show('제거에 실패했습니다.')
   }
 }
 
@@ -149,5 +161,13 @@ onMounted(loadCollaborators)
   font-size: 12px; padding: 2px 6px; border-radius: 4px;
 }
 .collab-remove-btn:hover { background: #fee2e2; color: #dc2626; }
+.collab-confirm-text { font-size: 12px; color: #dc2626; font-weight: 500; }
+.collab-confirm-btn {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px; cursor: pointer; border: 1px solid;
+}
+.collab-confirm-btn.yes { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+.collab-confirm-btn.yes:hover { background: #fecaca; }
+.collab-confirm-btn.no { background: #f3f4f6; border-color: #d1d5db; color: #6b7280; }
+.collab-confirm-btn.no:hover { background: #e5e7eb; }
 .collab-empty { color: #aaa; font-size: 13px; text-align: center; padding: 8px 0; }
 </style>

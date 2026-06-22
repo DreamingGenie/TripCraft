@@ -193,9 +193,12 @@ public class TripServiceImpl implements TripService {
                 blocksByCandidate.getOrDefault(c.getId(), List.of()));
         }).toList();
 
+        String ownerNickname = memberMapper.findById(trip.getMemberId())
+            .map(Member::getNickname).orElse("");
+
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
             trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),
-            trip.getDefaultTransitMode(), candidateItems);
+            trip.getDefaultTransitMode(), ownerNickname, candidateItems);
     }
 
     @Override
