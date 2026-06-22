@@ -38,7 +38,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         switch (command) {
             case CONNECT -> handleConnect(accessor);
             case SUBSCRIBE -> handleSubscribe(accessor);
-            default -> { /* SEND, DISCONNECT 등: 인증 세션 이미 보장 */ }
+            case SEND -> handleSend(accessor);
+            default -> { /* DISCONNECT 등 */ }
         }
         return message;
     }
@@ -58,28 +59,49 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         String destination = accessor.getDestination();
         if (destination == null || !destination.startsWith("/topic/trip/")) return;
 
-        // /topic/trip/{tripId} or /topic/trip/{tripId}/presence
-        String[] parts = destination.split("/");
-        if (parts.length < 4) return;
-
-        Long tripId;
-        try {
-            tripId = Long.parseLong(parts[3]);
-        } catch (NumberFormatException e) {
-            return;
-        }
+        Long tripId = parseTripId(destination, 3);
+        if (tripId == null) return;
 
         Long memberId = getMemberIdFromSession(accessor);
         if (memberId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+
+        // 같은 trip의 두 번째 구독(/presence 등)은 캐시 활용
+        String cacheKey = "tripAccess:" + tripId;
+        if (Boolean.TRUE.equals(accessor.getSessionAttributes().get(cacheKey))) return;
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
                         || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
                 .orElse(false);
 
-        if (!canView) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
-        }
+        if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+
+        accessor.getSessionAttributes().put(cacheKey, true);
+    }
+
+    // ── SEND: /app/trip/{tripId}/... 발행 시 조회 권한 확인 ─────────────────
+    private void handleSend(StompHeaderAccessor accessor) {
+        String destination = accessor.getDestination();
+        if (destination == null || !destination.startsWith("/app/trip/")) return;
+
+        Long tripId = parseTripId(destination, 3);
+        if (tripId == null) return;
+
+        Long memberId = getMemberIdFromSession(accessor);
+        if (memberId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+
+        // SUBSCRIBE 캐시와 공유
+        String cacheKey = "tripAccess:" + tripId;
+        if (Boolean.TRUE.equals(accessor.getSessionAttributes().get(cacheKey))) return;
+
+        boolean canView = tripMapper.findById(tripId)
+                .map(trip -> trip.getMemberId().equals(memberId)
+                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
+                .orElse(false);
+
+        if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+
+        accessor.getSessionAttributes().put(cacheKey, true);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -87,5 +109,16 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         if (accessor.getSessionAttributes() == null) return null;
         Object id = accessor.getSessionAttributes().get(JwtHandshakeInterceptor.MEMBER_ID_ATTR);
         return id instanceof Long l ? l : null;
+    }
+
+    /** destination을 '/'로 분할 후 index 위치의 세그먼트를 Long으로 파싱. 실패 시 null. */
+    private Long parseTripId(String destination, int index) {
+        String[] parts = destination.split("/");
+        if (parts.length <= index) return null;
+        try {
+            return Long.parseLong(parts[index]);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
