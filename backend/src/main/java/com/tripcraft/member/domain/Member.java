@@ -14,6 +14,8 @@ public class Member {
     private String password;
     private String nickname;
     private Role role;
+    private String socialProvider;
+    private String socialId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

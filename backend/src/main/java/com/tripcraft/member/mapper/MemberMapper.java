@@ -15,7 +15,12 @@ public interface MemberMapper {
 
     Optional<Member> findByNickname(String nickname);
 
+    Optional<Member> findBySocial(@Param("provider") String provider, @Param("socialId") String socialId);
+
     void insert(Member member);
+
+    /** 기존 회원에 소셜 계정 연결 */
+    void linkSocial(@Param("id") Long id, @Param("provider") String provider, @Param("socialId") String socialId);
 
     void deleteById(Long id);
 
