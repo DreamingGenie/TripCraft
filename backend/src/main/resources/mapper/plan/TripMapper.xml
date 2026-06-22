@@ -85,7 +85,9 @@
         FROM trip t
         JOIN trip_candidate tc ON tc.trip_id = t.id
         JOIN attraction a ON a.id = tc.attraction_id
-        WHERE t.member_id = #{memberId}
+        WHERE (t.member_id = #{memberId}
+               OR EXISTS (SELECT 1 FROM trip_collaborator col
+                          WHERE col.trip_id = t.id AND col.member_id = #{memberId}))
           AND a.sido_code IS NOT NULL
     </select>
 
