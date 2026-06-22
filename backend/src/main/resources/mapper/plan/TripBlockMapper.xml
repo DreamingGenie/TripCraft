@@ -24,6 +24,14 @@
         SELECT * FROM trip_block WHERE id = #{id}
     </select>
 
+    <select id="findTripIdByBlockId" parameterType="long" resultType="Long">
+        SELECT tc.trip_id
+        FROM trip_block tb
+        JOIN trip_candidate tc ON tc.id = tb.candidate_id
+        WHERE tb.id = #{blockId}
+        LIMIT 1
+    </select>
+
     <select id="findByCandidateId" parameterType="long" resultMap="blockMap">
         SELECT * FROM trip_block WHERE candidate_id = #{candidateId}
         ORDER BY trip_date, display_order

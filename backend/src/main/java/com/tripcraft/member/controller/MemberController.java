@@ -30,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/members")
@@ -122,6 +123,21 @@ public class MemberController {
     public ResponseEntity<ApiResponse<List<Integer>>> getVisitedRegions(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripMapper.findVisitedSidoCodes(memberId)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchMembers(
+            @RequestParam("q") String q) {
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
+        List<Map<String, Object>> result = memberMapper.searchByNicknameOrEmail(q).stream()
+            .map(m -> Map.<String, Object>of(
+                "id",       m.getId(),
+                "nickname", m.getNickname(),
+                "email",    m.getEmail()))
+            .toList();
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @DeleteMapping("/me")

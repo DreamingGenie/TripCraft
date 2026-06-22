@@ -4,6 +4,7 @@ import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
 import com.tripcraft.plan.dto.CandidateAddRequest;
+import com.tripcraft.plan.dto.CollaboratorItem;
 import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCopyRequest;
 import com.tripcraft.plan.dto.TripCreateRequest;
@@ -38,6 +39,39 @@ public class TripController {
     public ResponseEntity<ApiResponse<List<TripSummary>>> getMyTrips(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getMyTrips(memberId)));
+    }
+
+    @GetMapping("/collaborating")
+    public ResponseEntity<ApiResponse<List<TripSummary>>> getCollaboratingTrips(
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getCollaboratingTrips(memberId)));
+    }
+
+    @GetMapping("/{id}/collaborators")
+    public ResponseEntity<ApiResponse<List<CollaboratorItem>>> getCollaborators(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getCollaborators(id, memberId)));
+    }
+
+    @PostMapping("/{id}/collaborators")
+    public ResponseEntity<ApiResponse<Void>> inviteCollaborator(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal Long memberId) {
+        Long targetMemberId = Long.valueOf(body.get("memberId").toString());
+        String role = body.getOrDefault("role", "EDITOR").toString();
+        tripService.inviteCollaborator(id, targetMemberId, role, memberId);
+        return ResponseEntity.status(201).body(ApiResponse.ok());
+    }
+
+    @DeleteMapping("/{id}/collaborators/{targetMemberId}")
+    public ResponseEntity<ApiResponse<Void>> removeCollaborator(
+            @PathVariable("id") Long id,
+            @PathVariable("targetMemberId") Long targetMemberId,
+            @AuthenticationPrincipal Long memberId) {
+        tripService.removeCollaborator(id, targetMemberId, memberId);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping

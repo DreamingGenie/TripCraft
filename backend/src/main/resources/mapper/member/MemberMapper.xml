@@ -34,6 +34,15 @@
         WHERE email = #{email}
     </select>
 
+    <select id="searchByNicknameOrEmail" resultMap="memberMap">
+        SELECT id, email, password, nickname, role, created_at, updated_at
+        FROM member
+        WHERE nickname LIKE CONCAT('%', #{q}, '%')
+           OR email    LIKE CONCAT('%', #{q}, '%')
+        ORDER BY nickname
+        LIMIT 20
+    </select>
+
     <insert id="insert" parameterType="com.tripcraft.member.domain.Member" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO member (email, password, nickname, role, social_provider, social_id)
         VALUES (#{email}, #{password}, #{nickname}, #{role}, #{socialProvider}, #{socialId})

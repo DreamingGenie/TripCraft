@@ -15,6 +15,8 @@ public interface TripMapper {
 
     List<Trip> findByMemberId(Long memberId);
 
+    List<Trip> findCollaboratingByMemberId(Long memberId);
+
     boolean existsPostByTripId(Long tripId);
 
     List<BlockRow> findBlocksSummary(Long tripId);

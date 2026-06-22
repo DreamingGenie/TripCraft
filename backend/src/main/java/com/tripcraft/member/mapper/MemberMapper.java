@@ -4,6 +4,7 @@ import com.tripcraft.member.domain.Member;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 @Mapper
@@ -16,6 +17,8 @@ public interface MemberMapper {
     Optional<Member> findByNickname(String nickname);
 
     Optional<Member> findBySocial(@Param("provider") String provider, @Param("socialId") String socialId);
+
+    List<Member> searchByNicknameOrEmail(@Param("q") String q);
 
     void insert(Member member);
 
