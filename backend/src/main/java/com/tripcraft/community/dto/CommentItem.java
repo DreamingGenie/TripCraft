@@ -17,6 +17,7 @@ public class CommentItem {
     private Long postId;
     private Long parentId;           // null = 최상위 댓글
     private String authorNickname;
+    private String authorProfileImageUrl;
     private String content;
     private LocalDateTime createdAt;
     private boolean mine;

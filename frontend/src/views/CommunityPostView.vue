@@ -90,7 +90,10 @@
           <div v-if="comments.length" class="comment-list">
             <div v-for="c in comments" :key="c.id" class="comment-item">
               <div class="comment-header">
-                <div class="avatar avatar-sm">{{ (c.authorNickname || '?')[0] }}</div>
+                <div class="avatar avatar-sm">
+                  <img v-if="c.authorProfileImageUrl" :src="c.authorProfileImageUrl" class="avatar-img" alt="" />
+                  <span v-else>{{ (c.authorNickname || '?')[0] }}</span>
+                </div>
                 <span class="comment-author">{{ c.authorNickname }}</span>
                 <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
                 <div class="comment-actions">
@@ -107,7 +110,10 @@
                 <div v-for="r in c.replies" :key="r.id" class="comment-item reply-item">
                   <div class="comment-header">
                     <span class="reply-arrow">↳</span>
-                    <div class="avatar avatar-sm">{{ (r.authorNickname || '?')[0] }}</div>
+                    <div class="avatar avatar-sm">
+                      <img v-if="r.authorProfileImageUrl" :src="r.authorProfileImageUrl" class="avatar-img" alt="" />
+                      <span v-else>{{ (r.authorNickname || '?')[0] }}</span>
+                    </div>
                     <span class="comment-author">{{ r.authorNickname }}</span>
                     <span class="comment-date">{{ formatDate(r.createdAt) }}</span>
                     <button v-if="r.mine" class="comment-delete" @click="deleteComment(r.id)">삭제</button>
