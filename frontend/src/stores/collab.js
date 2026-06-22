@@ -12,6 +12,7 @@ export const useCollabStore = defineStore('collab', () => {
   let stompClient = null
   let activeTripId = null
   let reconnectTimer = null
+  let isReconnecting = false
 
   // 이벤트 핸들러 콜백 — ScheduleView에서 주입
   let onTripEvent = null
@@ -62,11 +63,16 @@ export const useCollabStore = defineStore('collab', () => {
           if (onPresence) onPresence(list)
         })
 
-        // 재연결 시 끊긴 동안 놓친 변경 사항 재동기화
-        if (onReconnect) await onReconnect()
+        // 재연결인 경우에만 놓친 변경 사항 재동기화
+        if (isReconnecting && onReconnect) {
+          try { await onReconnect() }
+          catch (e) { console.warn('[collab] reconnect sync failed', e) }
+        }
+        isReconnecting = false
       },
       onDisconnect: () => {
         connected.value = false
+        isReconnecting = true
         reconnectTimer = setTimeout(() => _doConnect(tripId), 3000)
       },
       onStompError: (frame) => {
@@ -80,6 +86,7 @@ export const useCollabStore = defineStore('collab', () => {
   function disconnect() {
     clearTimeout(reconnectTimer)
     activeTripId = null
+    isReconnecting = false
     if (stompClient) {
       stompClient.deactivate()
       stompClient = null
