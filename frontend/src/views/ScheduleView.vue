@@ -52,6 +52,8 @@
           :trip-id="activeTrip.id"
           :is-owner="activeTripIsOwner"
           :owner-label="activeTripOwnerLabel"
+          :participants="collab.participants"
+          :color-map="collab.colorMap"
           @close="collabPanelOpen = false"
         />
       </div>
@@ -160,7 +162,7 @@
       <div class="timetable-main">
         <div class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
-        <div class="timetable-wrapper" ref="wrapperEl" @scroll="openPillKey = null">
+        <div class="timetable-wrapper" ref="wrapperEl" @scroll="openPillKey = null" @mousemove="onPointerMove">
           <div class="timetable-header">
             <div class="th-gutter"></div>
             <div v-for="d in days" :key="d.label" class="th-day">
@@ -204,9 +206,16 @@
 
                 <div v-for="ev in d.events" :key="ev.id"
                      class="event-block" :data-color="ev.color"
-                     :class="{ 'event-dragging': ev.dragging, 'event-processing': isProcessing && ev.id === processingEvId }"
+                     :class="{
+                       'event-dragging': ev.dragging,
+                       'event-processing': isProcessing && ev.id === processingEvId,
+                       'grabbed-by-other': collab.isGrabbedByOther(ev.id, myMemberId),
+                     }"
                      draggable="true"
-                     :style="{ top: ev.top + 'px', height: ev.height + 'px' }"
+                     :style="{
+                       top: ev.top + 'px', height: ev.height + 'px',
+                       '--grabber-color': grabberColor(ev.id),
+                     }"
                      @dragstart="onEventDragStart($event, ev, d)"
                      @dragend="onDragEnd">
                   <span class="event-name">{{ ev.name }}</span>
@@ -424,6 +433,34 @@
     </div>
   </Teleport>
 
+  <!-- 협업자 커서 + 유령 블록 오버레이 -->
+  <Teleport to="body">
+    <template v-for="p in otherParticipants" :key="p.memberId">
+      <!-- 일반 커서 -->
+      <div v-if="p.interaction !== 'grab' && p.x > 0"
+           class="collab-cursor"
+           :style="{ left: p.x + 'px', top: p.y + 'px', '--cursor-color': collab.colorMap[p.memberId] }">
+        <svg class="cursor-icon" viewBox="0 0 16 20" width="16" height="20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 0 L0 16 L4 12 L7 18 L9 17 L6 11 L11 11 Z"
+                fill="var(--cursor-color)" stroke="white" stroke-width="1.2"/>
+        </svg>
+        <span class="cursor-label">{{ p.nickname }}</span>
+      </div>
+      <!-- 드래그 중 유령 블록 -->
+      <div v-if="p.interaction === 'grab' && p.targetBlockId && p.x > 0"
+           class="collab-ghost-block"
+           :style="{
+             left: p.x + 'px',
+             top: p.y + 'px',
+             '--cursor-color': collab.colorMap[p.memberId],
+             height: ghostBlockHeight(p.targetBlockId) + 'px',
+           }">
+        <span class="ghost-label">{{ p.nickname }}</span>
+        <span class="ghost-name">{{ ghostBlockName(p.targetBlockId) }}</span>
+      </div>
+    </template>
+  </Teleport>
+
   </main>
 </template>
 
@@ -469,6 +506,11 @@ const activeTripOwnerLabel = computed(() => activeTrip.value?.ownerNickname ?? '
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
+
+const myMemberId = computed(() => auth.user?.id)
+const otherParticipants = computed(() =>
+  collab.participants.filter(p => p.memberId !== myMemberId.value)
+)
 
 // ── 이동수단 모달 ──
 const openPillKey = ref(null)
@@ -1558,6 +1600,46 @@ function onDragEnd() {
   sidebarDragOver.value = false
   dragPreview.value = null
   dragState = null
+  if (activeTripId.value) {
+    collab.sendPointer(activeTripId.value, {
+      x: 0, y: 0, interaction: '', targetBlockId: null,
+      nickname: auth.user?.nickname ?? '',
+    })
+  }
+}
+
+// ── 협업자 커서 전송 ──
+let pointerThrottle = null
+function onPointerMove(e) {
+  if (!activeTripId.value) return
+  if (pointerThrottle) return
+  pointerThrottle = setTimeout(() => { pointerThrottle = null }, 50)
+  collab.sendPointer(activeTripId.value, {
+    x: e.clientX, y: e.clientY,
+    interaction: '',
+    targetBlockId: null,
+    nickname: auth.user?.nickname ?? '',
+  })
+}
+
+// ── 유령 블록 헬퍼 ──
+function ghostBlockHeight(blockId) {
+  for (const d of days.value) {
+    const ev = d.events.find(e => e.id === blockId)
+    if (ev) return ev.height
+  }
+  return 60
+}
+function ghostBlockName(blockId) {
+  for (const d of days.value) {
+    const ev = d.events.find(e => e.id === blockId)
+    if (ev) return ev.name
+  }
+  return ''
+}
+function grabberColor(blockId) {
+  const grabberId = collab.grabMap[blockId]
+  return grabberId ? collab.colorMap[grabberId] : undefined
 }
 
 function onDragOver(e, day) {
@@ -1566,6 +1648,14 @@ function onDragOver(e, day) {
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
+  if (dragState.type === 'event' && activeTripId.value) {
+    collab.sendPointer(activeTripId.value, {
+      x: e.clientX, y: e.clientY,
+      interaction: 'grab',
+      targetBlockId: dragState.data.id,
+      nickname: auth.user?.nickname ?? '',
+    })
+  }
 }
 
 async function onDrop(e, day) {
@@ -1750,7 +1840,11 @@ function applyTransitUpdate(payload) {
 }
 
 function connectCollab(tripId) {
-  collab.setHandlers({ tripEvent: handleTripEvent, presence: null, reconnect: loadTrip })
+  collab.setHandlers({
+    tripEvent: handleTripEvent,
+    presence: (list) => collab.assignColors(list, myMemberId.value),
+    reconnect: loadTrip,
+  })
   collab.connect(tripId)
 }
 
@@ -1849,5 +1943,63 @@ onMounted(async () => {
 .collab-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* ── 협업자 커서 오버레이 ── */
+.collab-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.cursor-icon { flex-shrink: 0; }
+.cursor-label {
+  background: var(--cursor-color);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-top: 14px;
+}
+
+/* ── 드래그 중 유령 블록 ── */
+.collab-ghost-block {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  width: 140px;
+  transform: translate(4px, 0);
+  background: var(--cursor-color);
+  opacity: 0.4;
+  border-left: 3px solid var(--cursor-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+  overflow: hidden;
+}
+.ghost-label {
+  display: block;
+  font-size: 10px;
+  color: #fff;
+  font-weight: 700;
+}
+.ghost-name {
+  display: block;
+  font-size: 11px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 다른 협업자가 잡고 있는 블록 실루엣 ── */
+.event-block.grabbed-by-other {
+  opacity: 0.35;
+  outline: 2px dashed var(--grabber-color, #999);
+  pointer-events: none;
 }
 </style>

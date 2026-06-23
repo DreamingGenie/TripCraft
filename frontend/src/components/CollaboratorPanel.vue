@@ -31,6 +31,9 @@
       </li>
       <li v-for="c in collaborators" :key="c.memberId" class="collab-item">
         <span class="collab-avatar">👤</span>
+        <span v-if="onlineColor(c.memberId)"
+              class="presence-dot"
+              :style="{ background: onlineColor(c.memberId) }"></span>
         <span class="collab-name">{{ c.nickname }}</span>
         <span class="collab-role-badge" :class="c.role.toLowerCase()">{{ c.role }}</span>
         <template v-if="isOwner">
@@ -59,7 +62,14 @@ const props = defineProps({
   tripId: { type: Number, required: true },
   isOwner: { type: Boolean, default: false },
   ownerLabel: { type: String, default: '소유자' },
+  participants: { type: Array, default: () => [] },
+  colorMap: { type: Object, default: () => ({}) },
 })
+
+function onlineColor(memberId) {
+  return props.participants.some(p => p.memberId === memberId)
+    ? props.colorMap[memberId] : null
+}
 
 const toast = useToastStore()
 const collaborators = ref([])
@@ -170,4 +180,5 @@ onMounted(loadCollaborators)
 .collab-confirm-btn.no { background: #f3f4f6; border-color: #d1d5db; color: #6b7280; }
 .collab-confirm-btn.no:hover { background: #e5e7eb; }
 .collab-empty { color: #aaa; font-size: 13px; text-align: center; padding: 8px 0; }
+.presence-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 </style>
