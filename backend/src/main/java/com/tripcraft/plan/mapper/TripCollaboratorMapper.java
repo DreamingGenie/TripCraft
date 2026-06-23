@@ -1,6 +1,7 @@
 package com.tripcraft.plan.mapper;
 
 import com.tripcraft.plan.domain.TripCollaborator;
+import com.tripcraft.plan.dto.CollaboratorItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -15,6 +16,8 @@ public interface TripCollaboratorMapper {
     void delete(@Param("tripId") Long tripId, @Param("memberId") Long memberId);
 
     List<TripCollaborator> findByTripId(Long tripId);
+
+    List<CollaboratorItem> findItemsByTripId(Long tripId);
 
     Optional<TripCollaborator> findByTripAndMember(
             @Param("tripId") Long tripId,

@@ -25,15 +25,18 @@
     <!-- 협업자 목록 -->
     <ul class="collab-list">
       <li class="collab-item owner-item">
-        <span class="collab-avatar">👑</span>
+        <div class="collab-avatar-circle" style="background: #f59e0b;">
+          <span>{{ ownerLabel?.charAt(0)?.toUpperCase() ?? '?' }}</span>
+        </div>
         <span class="collab-name">{{ ownerLabel }}</span>
         <span class="collab-role-badge owner">OWNER</span>
       </li>
       <li v-for="c in collaborators" :key="c.memberId" class="collab-item">
-        <span class="collab-avatar">👤</span>
-        <span v-if="onlineColor(c.memberId)"
-              class="presence-dot"
-              :style="{ background: onlineColor(c.memberId) }"></span>
+        <div class="collab-avatar-circle"
+             :style="{ background: onlineColor(c.memberId) || '#d1d5db' }">
+          <img v-if="c.profileImageUrl" :src="c.profileImageUrl" class="collab-avatar-img" />
+          <span v-else>{{ c.nickname?.charAt(0)?.toUpperCase() ?? '?' }}</span>
+        </div>
         <span class="collab-name">{{ c.nickname }}</span>
         <span class="collab-role-badge" :class="c.role.toLowerCase()">{{ c.role }}</span>
         <template v-if="isOwner">
@@ -93,8 +96,10 @@ function onSearch() {
   searchTimer = setTimeout(async () => {
     try {
       const res = await http.get(`/api/members/search?q=${encodeURIComponent(searchQuery.value)}`)
-      searchResults.value = res
-    } catch {
+      searchResults.value = Array.isArray(res) ? res : []
+    } catch (e) {
+      console.error('[members/search]', e)
+      toast.show('검색 중 오류가 발생했습니다.')
       searchResults.value = []
     }
   }, 300)
@@ -159,6 +164,15 @@ onMounted(loadCollaborators)
   padding: 8px 12px; background: #f9f9f9; border-radius: 8px; font-size: 13px;
 }
 .collab-avatar { font-size: 16px; }
+.collab-avatar-circle {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden; transition: background 0.3s;
+}
+.collab-avatar-circle span {
+  font-size: 13px; font-weight: 700; color: #fff; line-height: 1;
+}
+.collab-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .collab-name { flex: 1; font-weight: 500; }
 .collab-role-badge {
   font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;

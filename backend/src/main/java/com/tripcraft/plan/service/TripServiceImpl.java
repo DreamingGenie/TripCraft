@@ -112,13 +112,7 @@ public class TripServiceImpl implements TripService {
     @Override
     public List<CollaboratorItem> getCollaborators(Long tripId, Long requesterId) {
         assertCanView(tripId, requesterId);
-        return collaboratorMapper.findByTripId(tripId).stream()
-            .map(c -> {
-                String nickname = memberMapper.findById(c.getMemberId())
-                    .map(Member::getNickname).orElse("(알 수 없음)");
-                return new CollaboratorItem(c.getMemberId(), nickname, c.getRole());
-            })
-            .toList();
+        return collaboratorMapper.findItemsByTripId(tripId);
     }
 
     @Override
@@ -273,10 +267,10 @@ public class TripServiceImpl implements TripService {
         block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
         block.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : 1);
         blockMapper.insert(block);
+        recalculateTransitForDate(tripId, req.getTripDate());
         broadcast(tripId, TripEvent.of("BLOCK_ADDED", memberId, nickname(memberId),
                 Map.of("blockId", block.getId(), "candidateId", req.getCandidateId(),
                        "tripDate", req.getTripDate(), "displayOrder", block.getDisplayOrder())));
-        recalculateTransitForDate(tripId, req.getTripDate());
         return block.getId();
     }
 
@@ -317,9 +311,9 @@ public class TripServiceImpl implements TripService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         LocalDate date = block.getTripDate();
         blockMapper.deleteById(blockId);
+        recalculateTransitForDate(tripId, date);
         broadcast(tripId, TripEvent.of("BLOCK_DELETED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "tripDate", date)));
-        recalculateTransitForDate(tripId, date);
     }
 
     @Override
