@@ -10,6 +10,7 @@
         <result column="trip_id" property="tripId"/>
         <result column="title" property="title"/>
         <result column="content" property="content"/>
+        <result column="cover_image" property="coverImage"/>
         <result column="view_count" property="viewCount"/>
         <result column="like_count" property="likeCount"/>
         <result column="created_at" property="createdAt"/>
@@ -71,7 +72,14 @@
                <include refid="commentCountSubquery"/>,
                p.created_at AS createdAt,
                false AS liked,
-               <include refid="profileImageCol"/>
+               <include refid="profileImageCol"/>,
+               COALESCE(p.cover_image,
+                        (SELECT a.first_image
+                           FROM trip_candidate tc
+                           JOIN attraction a ON a.id = tc.attraction_id
+                          WHERE tc.trip_id = p.trip_id
+                          ORDER BY tc.id
+                          LIMIT 1)) AS cover_image_url
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <include refid="profileImageJoin"/>
@@ -124,13 +132,13 @@
     </update>
 
     <insert id="insert" parameterType="com.tripcraft.community.domain.Post" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO post (member_id, trip_id, title, content)
-        VALUES (#{memberId}, #{tripId}, #{title}, #{content})
+        INSERT INTO post (member_id, trip_id, title, content, cover_image)
+        VALUES (#{memberId}, #{tripId}, #{title}, #{content}, #{coverImage})
     </insert>
 
     <update id="update" parameterType="com.tripcraft.community.domain.Post">
         UPDATE post
-        SET title = #{title}, content = #{content}, updated_at = CURRENT_TIMESTAMP
+        SET title = #{title}, content = #{content}, cover_image = #{coverImage}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 

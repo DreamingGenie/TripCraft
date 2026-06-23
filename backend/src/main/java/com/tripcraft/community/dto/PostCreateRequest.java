@@ -8,4 +8,5 @@ public class PostCreateRequest {
     private String title;
     private String content;
     private Long tripId;
+    private String coverImageUrl;
 }
