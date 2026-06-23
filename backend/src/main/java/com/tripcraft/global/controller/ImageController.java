@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -32,10 +34,18 @@ public class ImageController {
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> upload(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "type", required = false) String type,
             @AuthenticationPrincipal Long memberId) throws IOException {
 
         if (memberId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+
+        boolean isCover = "cover".equals(type);
+
+        // 대표사진은 회원당 1장만 유지 — 기존 draft 레코드·파일을 정리해 교체
+        if (isCover) {
+            deleteCoverDraft(memberId);
         }
 
         String filename = fileStorageService.save(file, SUB_DIR);
@@ -48,12 +58,32 @@ public class ImageController {
         attach.setSize(file.getSize());
         attach.setMimetype(file.getContentType());
         attach.setHostPath(fileStorageService.toHostPath(SUB_DIR, filename));
-        attach.setTarget("post_draft");
+        attach.setTarget(isCover ? "post_cover_draft" : "post_draft");
         attach.setTargetId(memberId);
         attachMapper.insert(attach);
 
-        log.debug("이미지 업로드 완료 — memberId={}, filename={}, attachId={}", memberId, filename, attach.getId());
+        log.debug("이미지 업로드 완료 — memberId={}, type={}, filename={}, attachId={}", memberId, type, filename, attach.getId());
 
         return ResponseEntity.ok(ApiResponse.ok(fileStorageService.toUrl(SUB_DIR, filename)));
+    }
+
+    @DeleteMapping("/cover-draft")
+    public ResponseEntity<ApiResponse<Void>> deleteCover(@AuthenticationPrincipal Long memberId) {
+        if (memberId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        deleteCoverDraft(memberId);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    // member의 임시 대표사진(post_cover_draft) attach 레코드와 파일을 함께 정리
+    private void deleteCoverDraft(Long memberId) {
+        List<Attach> drafts = attachMapper.findByTarget("post_cover_draft", memberId);
+        drafts.forEach(a -> {
+            if (a.getHostPath() != null && !a.getHostPath().isBlank()) {
+                fileStorageService.delete(a.getHostPath());
+            }
+        });
+        attachMapper.deleteByTarget("post_cover_draft", memberId);
     }
 }

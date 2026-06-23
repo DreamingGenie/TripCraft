@@ -14,7 +14,6 @@ public class Post {
     private Long tripId;
     private String title;
     private String content;
-    private String coverImage;
     private Integer viewCount;
     private Integer likeCount;
     private LocalDateTime createdAt;

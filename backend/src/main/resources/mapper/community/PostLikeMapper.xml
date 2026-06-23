@@ -37,7 +37,8 @@
         SELECT <include refid="com.tripcraft.community.mapper.PostMapper.myListSelectBase"/>,
                true AS liked,
                (p.deleted_at IS NOT NULL) AS deleted,
-               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageCol"/>
+               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageCol"/>,
+               <include refid="com.tripcraft.community.mapper.PostMapper.coverImageCol"/>
         FROM post_like pl
         JOIN post p   ON p.id = pl.post_id
         LEFT JOIN member m ON m.id = p.member_id

@@ -10,7 +10,6 @@
         <result column="trip_id" property="tripId"/>
         <result column="title" property="title"/>
         <result column="content" property="content"/>
-        <result column="cover_image" property="coverImage"/>
         <result column="view_count" property="viewCount"/>
         <result column="like_count" property="likeCount"/>
         <result column="created_at" property="createdAt"/>
@@ -26,6 +25,16 @@
     <sql id="profileImageJoin">
         LEFT JOIN (SELECT target_id, name FROM attach WHERE target = 'profile') pa
                   ON pa.target_id = m.id
+    </sql>
+
+    <!-- 공통: 대표사진(cover) — SELECT 컬럼 (alias p, JOIN post p 필요)
+         우선순위: 업로드 대표사진(post_cover) → 본문 첫 이미지(post) → 연결 일정 대표이미지 → null -->
+    <sql id="coverImageCol">
+        COALESCE(
+          (SELECT CONCAT('/uploads/images/', a.name) FROM attach a WHERE a.target='post_cover' AND a.target_id=p.id ORDER BY a.id DESC LIMIT 1),
+          (SELECT CONCAT('/uploads/images/', a.name) FROM attach a WHERE a.target='post'       AND a.target_id=p.id ORDER BY a.id ASC  LIMIT 1),
+          (SELECT at.first_image FROM trip_candidate tc JOIN attraction at ON at.id=tc.attraction_id WHERE tc.trip_id=p.trip_id ORDER BY tc.id LIMIT 1)
+        ) AS coverImageUrl
     </sql>
 
     <!-- 공통: 댓글 수 서브쿼리 -->
@@ -73,13 +82,7 @@
                p.created_at AS createdAt,
                false AS liked,
                <include refid="profileImageCol"/>,
-               COALESCE(p.cover_image,
-                        (SELECT a.first_image
-                           FROM trip_candidate tc
-                           JOIN attraction a ON a.id = tc.attraction_id
-                          WHERE tc.trip_id = p.trip_id
-                          ORDER BY tc.id
-                          LIMIT 1)) AS cover_image_url
+               <include refid="coverImageCol"/>
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <include refid="profileImageJoin"/>
@@ -132,13 +135,13 @@
     </update>
 
     <insert id="insert" parameterType="com.tripcraft.community.domain.Post" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO post (member_id, trip_id, title, content, cover_image)
-        VALUES (#{memberId}, #{tripId}, #{title}, #{content}, #{coverImage})
+        INSERT INTO post (member_id, trip_id, title, content)
+        VALUES (#{memberId}, #{tripId}, #{title}, #{content})
     </insert>
 
     <update id="update" parameterType="com.tripcraft.community.domain.Post">
         UPDATE post
-        SET title = #{title}, content = #{content}, cover_image = #{coverImage}, updated_at = CURRENT_TIMESTAMP
+        SET title = #{title}, content = #{content}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 
@@ -158,7 +161,8 @@
                <include refid="commentCountSubquery"/>,
                p.created_at AS createdAt,
                false AS liked,
-               <include refid="profileImageCol"/>
+               <include refid="profileImageCol"/>,
+               <include refid="coverImageCol"/>
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <include refid="profileImageJoin"/>
