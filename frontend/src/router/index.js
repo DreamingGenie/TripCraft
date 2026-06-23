@@ -6,7 +6,8 @@ const routes = [
   { path: '/about', component: () => import('@/views/AboutView.vue') },
   { path: '/auth', component: () => import('@/views/AuthView.vue') },
   { path: '/auth/kakao/callback', component: () => import('@/views/KakaoCallbackView.vue') },
-  { path: '/explore', component: () => import('@/views/ExploreView.vue') },
+  { path: '/discover', component: () => import('@/views/ExploreView.vue') },
+  { path: '/explore', redirect: '/discover' },
   {
     path: '/plan/:tripId(\\d+)?',
     component: () => import('@/views/PlanView.vue'),
@@ -15,6 +16,11 @@ const routes = [
   {
     path: '/schedule',
     component: () => import('@/views/ScheduleView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/trips',
+    component: () => import('@/views/TripsView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -58,7 +64,7 @@ router.beforeEach(async (to) => {
       if (!auth.isLoggedIn) return { path: '/auth' }
     }
     if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
-      return { path: '/explore' }
+      return { path: '/discover' }
     }
   }
 })
