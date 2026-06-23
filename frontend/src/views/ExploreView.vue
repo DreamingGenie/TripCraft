@@ -642,7 +642,8 @@ async function loadGroup(region, sg, cat) {
   }
 }
 
-const regions = ['서울', '경기', '강원', '충북', '충남', '경북', '경남', '전북', '전남', '제주']
+// 지역 칩은 백엔드(sido 테이블) 응답에서 파생 — 광역시 포함 전체 시도 노출
+const regions = computed(() => regionsData.value.map(r => r.sido))
 const categories = ['관광지', '음식점', '숙박', '문화시설', '레포츠']
 const PAGE_SIZE = 20
 
