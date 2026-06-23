@@ -22,4 +22,12 @@ export const tripApi = {
 
   /** 공유된 일정 가져오기 — newStartDate(YYYY-MM-DD) 기준으로 날짜 재계산 후 내 일정으로 복제 */
   copy: (tripId, newStartDate) => http.post(`/api/trips/${tripId}/copy`, { newStartDate }),
+
+  // 협업 관련
+  listCollaborating: () => http.get('/api/trips/collaborating'),
+  getCollaborators: (tripId) => http.get(`/api/trips/${tripId}/collaborators`),
+  inviteCollaborator: (tripId, memberId, role = 'EDITOR') =>
+    http.post(`/api/trips/${tripId}/collaborators`, { memberId, role }),
+  removeCollaborator: (tripId, targetMemberId) =>
+    http.del(`/api/trips/${tripId}/collaborators/${targetMemberId}`),
 }

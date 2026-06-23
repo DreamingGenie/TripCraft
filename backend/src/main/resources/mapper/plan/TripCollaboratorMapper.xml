@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.plan.mapper.TripCollaboratorMapper">
+
+    <resultMap id="collaboratorMap" type="com.tripcraft.plan.domain.TripCollaborator">
+        <id     column="id"         property="id"/>
+        <result column="trip_id"    property="tripId"/>
+        <result column="member_id"  property="memberId"/>
+        <result column="role"       property="role"/>
+        <result column="invited_at" property="invitedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.tripcraft.plan.domain.TripCollaborator"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trip_collaborator (trip_id, member_id, role)
+        VALUES (#{tripId}, #{memberId}, #{role})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM trip_collaborator
+        WHERE trip_id = #{tripId} AND member_id = #{memberId}
+    </delete>
+
+    <select id="findByTripId" resultMap="collaboratorMap">
+        SELECT id, trip_id, member_id, role, invited_at
+        FROM trip_collaborator
+        WHERE trip_id = #{tripId}
+        ORDER BY invited_at
+    </select>
+
+    <select id="findItemsByTripId" resultType="com.tripcraft.plan.dto.CollaboratorItem">
+        SELECT
+            tc.member_id                                        AS memberId,
+            m.nickname                                          AS nickname,
+            tc.role                                             AS role,
+            CASE WHEN pa.name IS NOT NULL
+                 THEN CONCAT('/uploads/profile/', pa.name)
+                 ELSE NULL END                                  AS profileImageUrl
+        FROM trip_collaborator tc
+        JOIN member m ON m.id = tc.member_id
+        LEFT JOIN (
+            SELECT target_id, name
+            FROM attach
+            WHERE target = 'profile'
+        ) pa ON pa.target_id = m.id
+        WHERE tc.trip_id = #{tripId}
+        ORDER BY tc.invited_at
+    </select>
+
+    <select id="findByTripAndMember" resultMap="collaboratorMap">
+        SELECT id, trip_id, member_id, role, invited_at
+        FROM trip_collaborator
+        WHERE trip_id = #{tripId} AND member_id = #{memberId}
+        LIMIT 1
+    </select>
+
+</mapper>

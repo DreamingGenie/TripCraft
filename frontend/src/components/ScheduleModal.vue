@@ -60,12 +60,10 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { useToastStore } from '@/stores/toast'
-import { useRouter } from 'vue-router'
 import { tripApi } from '@/api/trip'
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'created'])
 const toast = useToastStore()
-const router = useRouter()
 
 const form = reactive({ title: '', start: '', end: '' })
 const count = ref(2)
@@ -93,7 +91,7 @@ async function create() {
   if (creating.value) return
   creating.value = true
   try {
-    await tripApi.create({
+    const newTripId = await tripApi.create({
       title: form.title,
       startDate: form.start,
       endDate: form.end,
@@ -101,8 +99,8 @@ async function create() {
       defaultTransitMode: defaultTransitMode.value,
     })
     toast.show('새 일정이 생성됐어요!')
+    emit('created', { id: newTripId, title: form.title, startDate: form.start, endDate: form.end, memberCount: count.value })
     emit('close')
-    router.push('/schedule')
   } catch (e) {
     toast.show(e.status === 401 ? '로그인이 필요합니다.' : (e.message || '오류가 발생했습니다.'))
   } finally {
