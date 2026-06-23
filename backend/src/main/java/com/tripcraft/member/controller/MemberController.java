@@ -132,10 +132,13 @@ public class MemberController {
             return ResponseEntity.ok(ApiResponse.ok(List.of()));
         }
         List<Map<String, Object>> result = memberMapper.searchByNicknameOrEmail(q).stream()
-            .map(m -> Map.<String, Object>of(
-                "id",       m.getId(),
-                "nickname", m.getNickname(),
-                "email",    m.getEmail()))
+            .map(m -> {
+                Map<String, Object> row = new java.util.HashMap<>();
+                row.put("id",       m.getId());
+                row.put("nickname", m.getNickname());
+                row.put("email",    m.getEmail());
+                return row;
+            })
             .toList();
         return ResponseEntity.ok(ApiResponse.ok(result));
     }

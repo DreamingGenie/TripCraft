@@ -30,6 +30,25 @@
         ORDER BY invited_at
     </select>
 
+    <select id="findItemsByTripId" resultType="com.tripcraft.plan.dto.CollaboratorItem">
+        SELECT
+            tc.member_id                                        AS memberId,
+            m.nickname                                          AS nickname,
+            tc.role                                             AS role,
+            CASE WHEN pa.name IS NOT NULL
+                 THEN CONCAT('/uploads/profile/', pa.name)
+                 ELSE NULL END                                  AS profileImageUrl
+        FROM trip_collaborator tc
+        JOIN member m ON m.id = tc.member_id
+        LEFT JOIN (
+            SELECT target_id, name
+            FROM attach
+            WHERE target = 'profile'
+        ) pa ON pa.target_id = m.id
+        WHERE tc.trip_id = #{tripId}
+        ORDER BY tc.invited_at
+    </select>
+
     <select id="findByTripAndMember" resultMap="collaboratorMap">
         SELECT id, trip_id, member_id, role, invited_at
         FROM trip_collaborator
