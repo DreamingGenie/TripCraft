@@ -4,9 +4,12 @@ import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { tripApi } from '@/api/trip'
 
+const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#e91e63']
+
 export const useCollabStore = defineStore('collab', () => {
   const participants = ref([])   // [{ memberId, nickname, x, y, interaction, targetBlockId }]
   const grabMap = ref({})        // blockId → memberId
+  const colorMap = ref({})       // memberId → hex color
   const connected = ref(false)
 
   let stompClient = null
@@ -94,6 +97,7 @@ export const useCollabStore = defineStore('collab', () => {
     connected.value = false
     participants.value = []
     grabMap.value = {}
+    colorMap.value = {}
   }
 
   function sendPointer(tripId, payload) {
@@ -109,14 +113,33 @@ export const useCollabStore = defineStore('collab', () => {
     return owner != null && owner !== myMemberId
   }
 
+  function assignColors(list, myMemberId) {
+    const used = new Set(Object.values(colorMap.value))
+    list.forEach(p => {
+      if (p.memberId === myMemberId) return
+      if (!colorMap.value[p.memberId]) {
+        const free = PALETTE.find(c => !used.has(c)) ?? PALETTE[0]
+        colorMap.value[p.memberId] = free
+        used.add(free)
+      }
+    })
+  }
+
+  function resetColors() {
+    colorMap.value = {}
+  }
+
   return {
     participants,
     grabMap,
+    colorMap,
     connected,
     connect,
     disconnect,
     sendPointer,
     setHandlers,
     isGrabbedByOther,
+    assignColors,
+    resetColors,
   }
 })
