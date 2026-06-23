@@ -52,60 +52,7 @@
           아직 게시글이 없어요.<br>첫 글을 남겨보세요.
         </div>
         <div v-else class="posts-grid">
-          <article v-for="post in posts" :key="post.id"
-                   class="story-card" @click="router.push(`/community/${post.id}`)">
-            <div class="story-cover" :class="{ 'is-placeholder': !post.coverImageUrl }"
-                 :style="!post.coverImageUrl ? placeholderStyle(post.id) : null">
-              <img v-if="post.coverImageUrl" :src="post.coverImageUrl" :alt="post.title" loading="lazy" />
-              <svg v-else class="story-cover-glyph" viewBox="0 0 24 24" width="40" height="40" fill="none"
-                   stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" />
-                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20" />
-              </svg>
-              <span v-if="post.tripId" class="story-trip-badge">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-                </svg>
-                일정
-              </span>
-            </div>
-            <div class="story-body">
-              <h3 class="story-title">{{ post.title }}</h3>
-              <div class="story-meta">
-                <div class="avatar avatar-sm">
-                  <img v-if="post.authorProfileImageUrl" :src="post.authorProfileImageUrl" class="avatar-img" alt="" />
-                  <span v-else>{{ (post.authorNickname || '?')[0] }}</span>
-                </div>
-                <span class="post-author">{{ post.authorNickname }}</span>
-                <span class="meta-dot">·</span>
-                <span class="post-date">{{ formatDate(post.createdAt) }}</span>
-              </div>
-              <div class="story-stats">
-                <span class="stat">
-                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
-                  </svg>
-                  {{ post.likeCount }}
-                </span>
-                <span class="stat">
-                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-1L3 20l1.1-4A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z" />
-                  </svg>
-                  {{ post.commentCount ?? 0 }}
-                </span>
-                <span class="stat">
-                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" /><circle cx="12" cy="12" r="3" />
-                  </svg>
-                  {{ post.viewCount }}
-                </span>
-              </div>
-            </div>
-          </article>
+          <PostCard v-for="post in posts" :key="post.id" :post="post" />
         </div>
 
         <div v-if="totalPages > 1" class="pagination">
@@ -204,10 +151,10 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
-import { postApi } from '@/api/post'
+import { postApi, imageApi } from '@/api/post'
 import { tripApi } from '@/api/trip'
-import { formatDate } from '@/utils/format'
 import TiptapEditor from '@/components/TiptapEditor.vue'
+import PostCard from '@/components/PostCard.vue'
 
 const toast   = useToastStore()
 const route   = useRoute()
@@ -290,6 +237,8 @@ async function openWriteModal() {
   newPost.body  = ''
   newPost.tripId = null
   newPost.coverImageUrl = ''
+  // 이전에 올렸다가 글을 등록하지 않은 대표사진 draft가 남아있을 수 있어 초기화
+  try { await imageApi.deleteCoverDraft() } catch {}
   writeModal.value = true
   try { myTrips.value = await tripApi.list() } catch { myTrips.value = [] }
 }
@@ -302,18 +251,8 @@ async function handleCoverUpload(e) {
 
   coverUploading.value = true
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await fetch('/api/images/upload', {
-      method: 'POST',
-      credentials: 'include',
-      body: formData,
-    })
-    const json = await res.json()
-    if (!res.ok || !json?.success) {
-      throw new Error(json?.message || '업로드 실패')
-    }
-    newPost.coverImageUrl = json.data
+    // type='cover' → 서버가 post_cover_draft로 저장(회원당 1장, 기존 교체)
+    newPost.coverImageUrl = await imageApi.upload(file, 'cover')
   } catch (err) {
     toast.show(err.message || '대표사진 업로드에 실패했습니다.')
   } finally {
@@ -321,22 +260,9 @@ async function handleCoverUpload(e) {
   }
 }
 
-function removeCover() {
+async function removeCover() {
+  try { await imageApi.deleteCoverDraft() } catch {}
   newPost.coverImageUrl = ''
-}
-
-// 커버 이미지가 없을 때 글 id 기반 분류색 그라데이션 플레이스홀더
-const PLACEHOLDER_GRADIENTS = [
-  'linear-gradient(135deg, #6b62cf, #534ab7)',
-  'linear-gradient(135deg, #f0a868, #d97742)',
-  'linear-gradient(135deg, #5fa8d3, #2c7da0)',
-  'linear-gradient(135deg, #7cb083, #4a8c5a)',
-  'linear-gradient(135deg, #c97b9e, #993556)',
-  'linear-gradient(135deg, #e0b94a, #c19320)',
-]
-function placeholderStyle(id) {
-  const g = PLACEHOLDER_GRADIENTS[(Number(id) || 0) % PLACEHOLDER_GRADIENTS.length]
-  return { background: g }
 }
 
 /** Tiptap HTML에서 태그를 제거한 순수 텍스트 추출 */
@@ -360,7 +286,6 @@ async function doSubmitPost() {
   try {
     const body = { title: newPost.title, content: newPost.body }
     if (newPost.tripId) body.tripId = newPost.tripId
-    if (newPost.coverImageUrl) body.coverImageUrl = newPost.coverImageUrl
     const newId = await postApi.create(body)
     tripShareWarning.value = false
     writeModal.value = false

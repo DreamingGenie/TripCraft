@@ -487,7 +487,6 @@ CREATE TABLE post (
     trip_id    BIGINT       NULL     COMMENT '공유된 일정 FK (일정 삭제 시 NULL, 게시글 보존)',
     title      VARCHAR(100) NOT NULL COMMENT '게시글 제목',
     content    TEXT         NULL     COMMENT '본문',
-    cover_image VARCHAR(500) NULL     COMMENT '대표사진 URL (업로드 우선, 없으면 본문/일정 폴백)',
     view_count INT          NOT NULL DEFAULT 0 COMMENT '조회수',
     like_count INT          NOT NULL DEFAULT 0 COMMENT '좋아요 수 (post_like 집계 캐시)',
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,

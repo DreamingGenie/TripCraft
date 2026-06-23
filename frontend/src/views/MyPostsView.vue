@@ -10,12 +10,12 @@
       작성한 글이 없어요.
     </div>
 
-    <div v-else class="posts-list">
-      <MyPagePostCard v-for="post in items" :key="post.id" :post="post">
+    <div v-else class="posts-grid">
+      <PostCard v-for="post in items" :key="post.id" :post="post">
         <template #actions>
-          <button class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
+          <button v-if="!post.deleted" class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
         </template>
-      </MyPagePostCard>
+      </PostCard>
     </div>
 
     <div v-if="totalPages > 1" class="pagination">
@@ -32,7 +32,7 @@
 import { onMounted } from 'vue'
 import { myPostApi, postApi } from '@/api/post'
 import { usePostList } from '@/composables/usePostList'
-import MyPagePostCard from '@/components/MyPagePostCard.vue'
+import PostCard from '@/components/PostCard.vue'
 
 const { items, page, loading, totalPages, loadPage } = usePostList(myPostApi.list)
 
@@ -50,6 +50,8 @@ onMounted(() => loadPage())
 </script>
 
 <style scoped>
+@import '@/assets/css/community.css';
+
 .delete-btn {
   flex-shrink: 0;
   padding: 6px 14px;

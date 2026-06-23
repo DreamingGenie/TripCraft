@@ -10,8 +10,8 @@
       좋아요한 글이 없어요.
     </div>
 
-    <div v-else class="posts-list">
-      <MyPagePostCard v-for="post in items" :key="post.id" :post="post" />
+    <div v-else class="posts-grid">
+      <PostCard v-for="post in items" :key="post.id" :post="post" />
     </div>
 
     <div v-if="totalPages > 1" class="pagination">
@@ -28,7 +28,7 @@
 import { onMounted } from 'vue'
 import { likeApi } from '@/api/post'
 import { usePostList } from '@/composables/usePostList'
-import MyPagePostCard from '@/components/MyPagePostCard.vue'
+import PostCard from '@/components/PostCard.vue'
 
 const { items, page, loading, totalPages, loadPage } = usePostList(likeApi.myList)
 

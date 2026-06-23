@@ -20,16 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
-
-    // 본문 HTML에서 첫 <img src="..."> 의 src 추출용 (cover 폴백 2단계)
-    private static final Pattern FIRST_IMG_SRC =
-            Pattern.compile("<img[^>]*\\ssrc\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
 
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
@@ -52,11 +46,12 @@ public class PostServiceImpl implements PostService {
         post.setTitle(req.getTitle());
         post.setContent(req.getContent());
         post.setTripId(req.getTripId());
-        post.setCoverImage(resolveCover(req.getCoverImageUrl(), req.getContent()));
         postMapper.insert(post);
 
         // 글 작성 중 업로드된 이미지(post_draft, targetId=memberId) → 이 게시글로 연결
         attachMapper.updateTargetId("post_draft", memberId, "post", post.getId());
+        // 대표사진(post_cover_draft, targetId=memberId) → 이 게시글의 커버로 연결
+        attachMapper.updateTargetId("post_cover_draft", memberId, "post_cover", post.getId());
 
         return post.getId();
     }
@@ -83,27 +78,13 @@ public class PostServiceImpl implements PostService {
         }
         post.setTitle(req.getTitle());
         post.setContent(req.getContent());
-        post.setCoverImage(resolveCover(req.getCoverImageUrl(), req.getContent()));
         postMapper.update(post);
-    }
 
-    /**
-     * cover 우선순위 1~2단계 해석:
-     * 1) 업로드한 대표사진(coverImageUrl)이 있으면 그대로 사용
-     * 2) 없으면 본문 HTML의 첫 <img src="..."> 추출
-     * 둘 다 없으면 null (목록 쿼리에서 일정 대표이미지 폴백 → 그것도 없으면 null)
-     */
-    private String resolveCover(String coverImageUrl, String content) {
-        if (coverImageUrl != null && !coverImageUrl.isBlank()) {
-            return coverImageUrl.trim();
+        // 새 대표사진을 올린 경우에만 기존 커버를 교체 (안 올렸으면 기존 커버 유지)
+        if (!attachMapper.findByTarget("post_cover_draft", memberId).isEmpty()) {
+            attachMapper.deleteByTarget("post_cover", id);
+            attachMapper.updateTargetId("post_cover_draft", memberId, "post_cover", id);
         }
-        if (content != null && !content.isBlank()) {
-            Matcher m = FIRST_IMG_SRC.matcher(content);
-            if (m.find()) {
-                return m.group(1);
-            }
-        }
-        return null;
     }
 
     @Override
@@ -116,12 +97,14 @@ public class PostServiceImpl implements PostService {
 
         // attach 레코드 먼저 삭제 후 게시글 soft delete (DB 트랜잭션 범위)
         // 파일 삭제는 커밋 성공 이후 이벤트 리스너에서 처리해 트랜잭션 롤백 시 파일이 먼저 지워지는 불일치를 방지
-        List<Attach> attaches = attachMapper.findByTarget("post", id);
+        List<Attach> attaches = new java.util.ArrayList<>(attachMapper.findByTarget("post", id));
+        attaches.addAll(attachMapper.findByTarget("post_cover", id));
         List<String> hostPaths = attaches.stream()
                 .map(Attach::getHostPath)
                 .filter(p -> p != null && !p.isBlank())
                 .toList();
         attachMapper.deleteByTarget("post", id);
+        attachMapper.deleteByTarget("post_cover", id);
         postMapper.softDeleteById(id);
 
         if (!hostPaths.isEmpty()) {
