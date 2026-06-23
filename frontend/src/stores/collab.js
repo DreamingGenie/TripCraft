@@ -16,6 +16,7 @@ export const useCollabStore = defineStore('collab', () => {
   let activeTripId = null
   let reconnectTimer = null
   let isReconnecting = false
+  let keepaliveTimer = null
 
   // 이벤트 핸들러 콜백 — ScheduleView에서 주입
   let onTripEvent = null
@@ -66,6 +67,8 @@ export const useCollabStore = defineStore('collab', () => {
           if (onPresence) onPresence(list)
         })
 
+        startKeepalive(tripId)
+
         // 재연결인 경우에만 놓친 변경 사항 재동기화
         if (isReconnecting && onReconnect) {
           try { await onReconnect() }
@@ -86,7 +89,23 @@ export const useCollabStore = defineStore('collab', () => {
     stompClient.activate()
   }
 
+  function startKeepalive(tripId) {
+    stopKeepalive()
+    keepaliveTimer = setInterval(() => {
+      if (!stompClient?.connected) return
+      stompClient.publish({
+        destination: `/app/trip/${tripId}/pointer`,
+        body: JSON.stringify({ x: 0, y: 0, interaction: '', targetBlockId: null, nickname: '', snapDayIndex: -1, snapTop: -1 }),
+      })
+    }, 4000)
+  }
+
+  function stopKeepalive() {
+    if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null }
+  }
+
   function disconnect() {
+    stopKeepalive()
     clearTimeout(reconnectTimer)
     activeTripId = null
     isReconnecting = false
@@ -114,13 +133,10 @@ export const useCollabStore = defineStore('collab', () => {
   }
 
   function assignColors(list, myMemberId) {
-    const used = new Set(Object.values(colorMap.value))
     list.forEach(p => {
       if (p.memberId === myMemberId) return
       if (!colorMap.value[p.memberId]) {
-        const free = PALETTE.find(c => !used.has(c)) ?? PALETTE[0]
-        colorMap.value[p.memberId] = free
-        used.add(free)
+        colorMap.value[p.memberId] = PALETTE[p.memberId % PALETTE.length]
       }
     })
   }
