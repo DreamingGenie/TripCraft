@@ -106,7 +106,12 @@
             <div class="panel-date-label">
               {{ selectedDate.year }}년 {{ selectedDate.month + 1 }}월 {{ selectedDate.date }}일
             </div>
-            <button class="panel-close" @click="selectedDate = null">✕</button>
+            <button class="panel-close" @click="selectedDate = null" aria-label="닫기">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           <div class="panel-body">

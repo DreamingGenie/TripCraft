@@ -336,7 +336,7 @@ async function submitPassword() {
 .info-row {
   display: flex;
   gap: 12px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 .info-label {
   width: 60px;
@@ -360,7 +360,7 @@ async function submitPassword() {
   padding: 22px 24px;
 }
 .section-title {
-  font-size: 1rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.01em;
@@ -379,7 +379,7 @@ async function submitPassword() {
   padding: 10px 13px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   background: var(--bg-page);
   color: var(--color-text);
   transition: border-color .14s, background .14s, box-shadow .14s;
@@ -396,7 +396,7 @@ async function submitPassword() {
   border-radius: var(--radius-lg);
   background: var(--color-primary);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -414,7 +414,7 @@ async function submitPassword() {
   box-shadow: none;
 }
 .form-msg {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   margin: 0;
 }
 .form-msg.success { color: var(--color-success, #16a34a); }
@@ -431,13 +431,13 @@ async function submitPassword() {
   color: var(--color-danger);
 }
 .danger-desc {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   line-height: 1.6;
   margin: 0;
 }
 .danger-warn {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--color-danger, #e53e3e);
   margin: 0;
 }
