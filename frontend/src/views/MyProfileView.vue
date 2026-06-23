@@ -1,10 +1,9 @@
 <template>
-  <main id="main">
-    <div class="profile-layout">
-      <div class="profile-content">
-        <div class="mypage-header">
-          <h2 class="mypage-title">내 정보 수정</h2>
-        </div>
+  <div class="profile-view">
+    <div class="profile-content">
+      <div class="mypage-header">
+        <h2 class="mypage-title">내 정보 수정</h2>
+      </div>
 
         <!-- 프로필 이미지 -->
         <section class="edit-section">
@@ -140,9 +139,8 @@
             <p v-if="withdrawForm.message" class="form-msg error">{{ withdrawForm.message }}</p>
           </template>
         </section>
-      </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <script setup>
@@ -265,15 +263,19 @@ async function submitPassword() {
 <style scoped>
 @import '@/assets/css/community.css';
 
-.profile-layout {
-  max-width: 560px;
+.profile-view {
+  max-width: 620px;
   margin: 0 auto;
-  padding: 0 16px 40px;
 }
 .profile-content {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
+}
+.profile-content .mypage-header {
+  border-bottom: none;
+  padding: 4px 0 0;
+  margin-bottom: 0;
 }
 
 /* 프로필 이미지 */
@@ -326,9 +328,10 @@ async function submitPassword() {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px;
-  background: var(--color-bg-subtle, #f7f8fa);
-  border-radius: 8px;
+  padding: 18px 20px;
+  background: var(--purple-50);
+  border: 1px solid var(--purple-100);
+  border-radius: var(--radius-xl);
 }
 .info-row {
   display: flex;
@@ -345,16 +348,22 @@ async function submitPassword() {
   font-weight: 500;
 }
 
-/* 폼 공통 */
+/* 폼 공통 — 섹션 카드 */
 .edit-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 24px;
 }
 .section-title {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 .edit-form {
   display: flex;
@@ -367,28 +376,42 @@ async function submitPassword() {
 }
 .edit-input {
   flex: 1;
-  padding: 9px 12px;
+  padding: 10px 13px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   font-size: 0.9rem;
-  background: var(--color-bg);
+  background: var(--bg-page);
   color: var(--color-text);
+  transition: border-color .14s, background .14s, box-shadow .14s;
+}
+.edit-input:focus {
+  outline: none;
+  border-color: var(--purple-900);
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 3px rgba(83, 74, 183, .1);
 }
 .edit-btn {
-  padding: 9px 18px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 6px;
-  background: var(--color-primary, #3b82f6);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
   color: #fff;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   text-align: center;
+  transition: opacity .14s, transform .1s, box-shadow .14s;
+  box-shadow: 0 2px 8px rgba(83, 74, 183, .18);
+}
+.edit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(83, 74, 183, .26);
 }
 .edit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: default;
+  box-shadow: none;
 }
 .form-msg {
   font-size: 0.85rem;
@@ -399,11 +422,13 @@ async function submitPassword() {
 
 /* 회원 탈퇴 영역 */
 .danger-zone {
-  border-top: 1px solid var(--color-border);
-  padding-top: 24px;
+  margin-top: 8px;
+  background: var(--color-danger-soft);
+  border-color: #f0c9c4;
+  box-shadow: none;
 }
 .danger-title {
-  color: var(--color-danger, #e53e3e);
+  color: var(--color-danger);
 }
 .danger-desc {
   font-size: 0.875rem;

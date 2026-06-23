@@ -1,35 +1,31 @@
 <template>
-  <main id="main">
-    <div id="community-layout">
-      <div id="community-content">
-        <div class="mypage-header">
-          <h2 class="mypage-title">내가 쓴 글</h2>
-        </div>
-
-        <div v-if="loading" class="posts-empty">로딩 중...</div>
-
-        <div v-else-if="!items.length" class="posts-empty">
-          작성한 글이 없어요.
-        </div>
-
-        <div v-else class="post-list">
-          <MyPagePostCard v-for="post in items" :key="post.id" :post="post">
-            <template #actions>
-              <button class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
-            </template>
-          </MyPagePostCard>
-        </div>
-
-        <div v-if="totalPages > 1" class="pagination">
-          <button
-            v-for="p in totalPages" :key="p"
-            class="page-btn" :class="{ active: p - 1 === page }"
-            @click="loadPage(p - 1)"
-          >{{ p }}</button>
-        </div>
-      </div>
+  <div class="mypage-section">
+    <div class="mypage-header">
+      <h2 class="mypage-title">내가 쓴 글</h2>
     </div>
-  </main>
+
+    <div v-if="loading" class="posts-empty">로딩 중...</div>
+
+    <div v-else-if="!items.length" class="posts-empty">
+      작성한 글이 없어요.
+    </div>
+
+    <div v-else class="posts-list">
+      <MyPagePostCard v-for="post in items" :key="post.id" :post="post">
+        <template #actions>
+          <button class="delete-btn" @click.stop="confirmDelete(post)">삭제</button>
+        </template>
+      </MyPagePostCard>
+    </div>
+
+    <div v-if="totalPages > 1" class="pagination">
+      <button
+        v-for="p in totalPages" :key="p"
+        class="page-btn" :class="{ active: p - 1 === page }"
+        @click="loadPage(p - 1)"
+      >{{ p }}</button>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -54,31 +50,20 @@ onMounted(() => loadPage())
 </script>
 
 <style scoped>
-@import '@/assets/css/community.css';
-
-.post-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.post-card-body {
-  flex: 1;
-  min-width: 0;
-}
 .delete-btn {
   flex-shrink: 0;
   padding: 6px 14px;
-  border: 1px solid var(--color-danger, #e53e3e);
-  border-radius: 6px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--color-danger, #e53e3e);
-  font-size: 0.85rem;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 .delete-btn:hover {
-  background: var(--color-danger, #e53e3e);
+  background: var(--color-danger);
   color: #fff;
 }
 </style>
