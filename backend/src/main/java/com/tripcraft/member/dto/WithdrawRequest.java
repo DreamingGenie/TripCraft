@@ -1,11 +1,10 @@
 package com.tripcraft.member.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 
 @Getter
 public class WithdrawRequest {
 
-    @NotBlank(message = "비밀번호를 입력해주세요.")
+    /** 일반 계정은 본인 확인용, 소셜 전용 계정은 비밀번호가 없어 선택값(null). */
     private String password;
 }
