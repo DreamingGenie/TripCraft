@@ -42,7 +42,9 @@ public class TripPresenceController {
     private static final long STALE_MILLIS = 5_000;
 
     record PresenceState(Long memberId, String nickname, double x, double y,
-                         String interaction, Long targetBlockId, Instant lastSeen) {}
+                         String interaction, Long targetBlockId, Instant lastSeen,
+                         int snapDayIndex, double snapTop, double cursorRelY,
+                         double grabOffsetX, double grabOffsetY) {}
 
     @MessageMapping("/trip/{tripId}/pointer")
     public void handlePointer(@DestinationVariable Long tripId,
@@ -69,9 +71,15 @@ public class TripPresenceController {
         Long targetBlockId = payload.get("targetBlockId") instanceof Number n
                 ? n.longValue() : null;
         String nickname = (String) payload.getOrDefault("nickname", "");
+        int snapDayIndex  = payload.get("snapDayIndex")  instanceof Number n ? n.intValue()    : -1;
+        double snapTop    = payload.get("snapTop")       instanceof Number n ? n.doubleValue() : -1;
+        double cursorRelY  = payload.get("cursorRelY")   instanceof Number n ? n.doubleValue() : y;
+        double grabOffsetX = payload.get("grabOffsetX") instanceof Number n ? n.doubleValue() : 0;
+        double grabOffsetY = payload.get("grabOffsetY") instanceof Number n ? n.doubleValue() : 0;
 
         PresenceState state = new PresenceState(memberId, nickname, x, y,
-                interaction, targetBlockId, Instant.now());
+                interaction, targetBlockId, Instant.now(), snapDayIndex, snapTop, cursorRelY,
+                grabOffsetX, grabOffsetY);
         presenceMap.computeIfAbsent(tripId, k -> new ConcurrentHashMap<>())
                    .put(sessionId, state);
 
@@ -137,13 +145,21 @@ public class TripPresenceController {
     private void broadcastPresence(Long tripId) {
         Map<String, PresenceState> sessions = presenceMap.getOrDefault(tripId, Map.of());
         List<Map<String, Object>> participants = sessions.values().stream()
-                .map(s -> Map.<String, Object>of(
-                        "memberId", s.memberId(),
-                        "nickname", s.nickname(),
-                        "x", s.x(),
-                        "y", s.y(),
-                        "interaction", s.interaction(),
-                        "targetBlockId", s.targetBlockId() != null ? s.targetBlockId() : 0L))
+                .map(s -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("memberId",     s.memberId());
+                    m.put("nickname",     s.nickname());
+                    m.put("x",           s.x());
+                    m.put("y",           s.y());
+                    m.put("interaction", s.interaction());
+                    m.put("targetBlockId", s.targetBlockId() != null ? s.targetBlockId() : 0L);
+                    m.put("snapDayIndex", (long) s.snapDayIndex());
+                    m.put("snapTop",      s.snapTop());
+                    m.put("cursorRelY",   s.cursorRelY());
+                    m.put("grabOffsetX",  s.grabOffsetX());
+                    m.put("grabOffsetY",  s.grabOffsetY());
+                    return m;
+                })
                 .toList();
         messaging.convertAndSend("/topic/trip/" + tripId + "/presence",
                 TripEvent.of("PRESENCE_UPDATE", null, null,
