@@ -459,14 +459,18 @@
 
 <script setup>
 import { ref, computed, reactive, inject, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useActiveTripStore } from '@/stores/activeTrip'
+import { useAuthStore } from '@/stores/auth'
 import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
 import AttractionChat from '@/components/AttractionChat.vue'
 
+const router = useRouter()
 const toast = useToastStore()
 const activeTripStore = useActiveTripStore()
+const auth = useAuthStore()
 const openScheduleModal = inject('openScheduleModal')
 
 // ── UI state (트레이 토글 / 드래그 감지) ──
@@ -1453,6 +1457,12 @@ function closePin() {
 
 async function addToTrip(attraction) {
   if (addedIds.value.has(attraction.id)) return
+  // 비회원(비로그인): 로그인 유도 후 /auth 이동 (§9 /discover)
+  if (!auth.isLoggedIn) {
+    toast.show('담으려면 로그인이 필요해요.')
+    router.push('/auth')
+    return
+  }
   if (!activeTrip.value) {
     toast.show('먼저 일정을 선택해주세요.')
     trayOpen.value = true
@@ -1480,6 +1490,10 @@ async function addToTrip(attraction) {
 onMounted(async () => {
   scrollEl.value?.addEventListener('scroll', checkScroll)
   scrollEl.value?.addEventListener('scroll', onScrollCheck)
+
+  // /discover 는 공개 라우트라 가드가 세션을 확인하지 않는다.
+  // 로그인 사용자가 새로고침/직접진입 시에도 "담기"가 정상 동작하도록 세션 1회 확인.
+  if (!auth.isLoggedIn) await auth.fetchMe()
 
   loadTrips()
   loadRegions()
