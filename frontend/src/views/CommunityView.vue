@@ -48,11 +48,31 @@
         </div>
 
         <div v-if="loading" class="posts-empty">로딩 중...</div>
-        <div v-else class="posts-list">
-          <div v-for="post in posts" :key="post.id"
-               class="post-card" @click="router.push(`/community/${post.id}`)">
-            <div class="post-card-left">
-              <div class="post-meta">
+        <div v-else-if="!posts.length" class="posts-empty">
+          아직 게시글이 없어요.<br>첫 글을 남겨보세요.
+        </div>
+        <div v-else class="posts-grid">
+          <article v-for="post in posts" :key="post.id"
+                   class="story-card" @click="router.push(`/community/${post.id}`)">
+            <div class="story-cover" :class="{ 'is-placeholder': !post.coverImageUrl }"
+                 :style="!post.coverImageUrl ? placeholderStyle(post.id) : null">
+              <img v-if="post.coverImageUrl" :src="post.coverImageUrl" :alt="post.title" loading="lazy" />
+              <svg v-else class="story-cover-glyph" viewBox="0 0 24 24" width="40" height="40" fill="none"
+                   stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20" />
+              </svg>
+              <span v-if="post.tripId" class="story-trip-badge">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+                </svg>
+                일정
+              </span>
+            </div>
+            <div class="story-body">
+              <h3 class="story-title">{{ post.title }}</h3>
+              <div class="story-meta">
                 <div class="avatar avatar-sm">
                   <img v-if="post.authorProfileImageUrl" :src="post.authorProfileImageUrl" class="avatar-img" alt="" />
                   <span v-else>{{ (post.authorNickname || '?')[0] }}</span>
@@ -61,10 +81,7 @@
                 <span class="meta-dot">·</span>
                 <span class="post-date">{{ formatDate(post.createdAt) }}</span>
               </div>
-              <p class="post-title">{{ post.title }}</p>
-            </div>
-            <div class="post-card-right">
-              <div class="post-stats">
+              <div class="story-stats">
                 <span class="stat">
                   <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -88,10 +105,7 @@
                 </span>
               </div>
             </div>
-          </div>
-          <div v-if="!posts.length" class="posts-empty">
-            아직 게시글이 없어요.<br>첫 글을 남겨보세요.
-          </div>
+          </article>
         </div>
 
         <div v-if="totalPages > 1" class="pagination">
@@ -142,6 +156,31 @@
         <div class="modal-body">
           <label class="field-label"><span class="required">*</span> 제목</label>
           <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
+
+          <label class="field-label">대표사진 <span class="field-optional">(선택)</span></label>
+          <div class="cover-uploader" style="margin-bottom:16px">
+            <div v-if="newPost.coverImageUrl" class="cover-preview">
+              <img :src="newPost.coverImageUrl" alt="대표사진 미리보기" />
+              <button type="button" class="cover-remove" @click="removeCover" aria-label="대표사진 제거">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <button v-else type="button" class="cover-select" :disabled="coverUploading"
+                    @click="coverInput?.click()">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20" />
+              </svg>
+              <span>{{ coverUploading ? '업로드 중…' : '대표사진 추가' }}</span>
+            </button>
+            <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                   style="display:none" @change="handleCoverUpload" />
+          </div>
+
           <label class="field-label"><span class="required">*</span> 내용</label>
           <TiptapEditor v-model="newPost.body" style="margin-bottom:16px" />
           <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
@@ -187,9 +226,11 @@ const PAGE_SIZE = 10
 
 const writeModal      = ref(false)
 const submitting      = ref(false)
-const newPost         = reactive({ title: '', body: '', tripId: null })
+const newPost         = reactive({ title: '', body: '', tripId: null, coverImageUrl: '' })
 const myTrips         = ref([])
 const tripShareWarning = ref(false)
+const coverInput      = ref(null)
+const coverUploading  = ref(false)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
@@ -248,8 +289,54 @@ async function openWriteModal() {
   newPost.title = ''
   newPost.body  = ''
   newPost.tripId = null
+  newPost.coverImageUrl = ''
   writeModal.value = true
   try { myTrips.value = await tripApi.list() } catch { myTrips.value = [] }
+}
+
+// ── 대표사진 업로드 (Tiptap 이미지와 동일 엔드포인트 재사용) ──
+async function handleCoverUpload(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  e.target.value = '' // 같은 파일 재선택 허용
+
+  coverUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch('/api/images/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    })
+    const json = await res.json()
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.message || '업로드 실패')
+    }
+    newPost.coverImageUrl = json.data
+  } catch (err) {
+    toast.show(err.message || '대표사진 업로드에 실패했습니다.')
+  } finally {
+    coverUploading.value = false
+  }
+}
+
+function removeCover() {
+  newPost.coverImageUrl = ''
+}
+
+// 커버 이미지가 없을 때 글 id 기반 분류색 그라데이션 플레이스홀더
+const PLACEHOLDER_GRADIENTS = [
+  'linear-gradient(135deg, #6b62cf, #534ab7)',
+  'linear-gradient(135deg, #f0a868, #d97742)',
+  'linear-gradient(135deg, #5fa8d3, #2c7da0)',
+  'linear-gradient(135deg, #7cb083, #4a8c5a)',
+  'linear-gradient(135deg, #c97b9e, #993556)',
+  'linear-gradient(135deg, #e0b94a, #c19320)',
+]
+function placeholderStyle(id) {
+  const g = PLACEHOLDER_GRADIENTS[(Number(id) || 0) % PLACEHOLDER_GRADIENTS.length]
+  return { background: g }
 }
 
 /** Tiptap HTML에서 태그를 제거한 순수 텍스트 추출 */
@@ -273,6 +360,7 @@ async function doSubmitPost() {
   try {
     const body = { title: newPost.title, content: newPost.body }
     if (newPost.tripId) body.tripId = newPost.tripId
+    if (newPost.coverImageUrl) body.coverImageUrl = newPost.coverImageUrl
     const newId = await postApi.create(body)
     tripShareWarning.value = false
     writeModal.value = false

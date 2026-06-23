@@ -20,10 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    // 본문 HTML에서 첫 <img src="..."> 의 src 추출용 (cover 폴백 2단계)
+    private static final Pattern FIRST_IMG_SRC =
+            Pattern.compile("<img[^>]*\\ssrc\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
 
     private final PostMapper postMapper;
     private final PostLikeMapper postLikeMapper;
@@ -46,6 +52,7 @@ public class PostServiceImpl implements PostService {
         post.setTitle(req.getTitle());
         post.setContent(req.getContent());
         post.setTripId(req.getTripId());
+        post.setCoverImage(resolveCover(req.getCoverImageUrl(), req.getContent()));
         postMapper.insert(post);
 
         // 글 작성 중 업로드된 이미지(post_draft, targetId=memberId) → 이 게시글로 연결
@@ -76,7 +83,27 @@ public class PostServiceImpl implements PostService {
         }
         post.setTitle(req.getTitle());
         post.setContent(req.getContent());
+        post.setCoverImage(resolveCover(req.getCoverImageUrl(), req.getContent()));
         postMapper.update(post);
+    }
+
+    /**
+     * cover 우선순위 1~2단계 해석:
+     * 1) 업로드한 대표사진(coverImageUrl)이 있으면 그대로 사용
+     * 2) 없으면 본문 HTML의 첫 <img src="..."> 추출
+     * 둘 다 없으면 null (목록 쿼리에서 일정 대표이미지 폴백 → 그것도 없으면 null)
+     */
+    private String resolveCover(String coverImageUrl, String content) {
+        if (coverImageUrl != null && !coverImageUrl.isBlank()) {
+            return coverImageUrl.trim();
+        }
+        if (content != null && !content.isBlank()) {
+            Matcher m = FIRST_IMG_SRC.matcher(content);
+            if (m.find()) {
+                return m.group(1);
+            }
+        }
+        return null;
     }
 
     @Override
