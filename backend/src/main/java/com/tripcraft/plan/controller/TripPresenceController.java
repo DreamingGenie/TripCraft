@@ -1,8 +1,6 @@
 package com.tripcraft.plan.controller;
 
 import com.tripcraft.plan.dto.TripEvent;
-import com.tripcraft.plan.mapper.TripCollaboratorMapper;
-import com.tripcraft.plan.mapper.TripMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -27,8 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TripPresenceController {
 
     private final SimpMessagingTemplate messaging;
-    private final TripMapper tripMapper;
-    private final TripCollaboratorMapper collaboratorMapper;
 
     // tripId → sessionId → PresenceState
     private final Map<Long, Map<String, PresenceState>> presenceMap = new ConcurrentHashMap<>();
@@ -54,12 +50,8 @@ public class TripPresenceController {
         Long memberId = memberIdFrom(principal, headerAccessor);
         if (memberId == null) return;
 
-        // 접근 권한 확인
-        boolean allowed = tripMapper.findById(tripId)
-                .map(t -> t.getMemberId().equals(memberId)
-                        || collaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
-                .orElse(false);
-        if (!allowed) return;
+        // 권한은 JwtChannelInterceptor.handleSend()가 SEND 프레임 단계에서 이미 검증(+세션 캐시)하므로
+        // 여기서 매 포인터마다 DB를 재조회하지 않는다. (커서 throttle·keepalive로 호출 빈도가 높음)
 
         String sessionId = headerAccessor.getSessionId();
         sessionMemberMap.put(sessionId, memberId);
