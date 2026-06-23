@@ -1,15 +1,15 @@
 <template>
-  <main id="main">
-    <div class="map-layout">
-      <div class="mypage-header">
-        <h2 class="mypage-title">방문 지도</h2>
-        <p class="map-subtitle">
-          <span v-if="!loading" class="visited-count">
-            {{ visitedCount }} / {{ KOREA_REGIONS.length }}개 지역 방문
-          </span>
-        </p>
-      </div>
+  <div class="mypage-section">
+    <div class="mypage-header">
+      <h2 class="mypage-title">방문 지도</h2>
+      <p class="map-subtitle">
+        <span v-if="!loading" class="visited-count">
+          {{ visitedCount }} / {{ KOREA_REGIONS.length }}개 지역 방문
+        </span>
+      </p>
+    </div>
 
+    <div class="map-card">
       <div class="map-wrap">
         <div v-if="loading" class="map-loading">로딩 중...</div>
 
@@ -47,7 +47,7 @@
         </div>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <script setup>
@@ -72,21 +72,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.map-layout {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 16px 40px;
-}
-.mypage-header {
-  padding: 24px 0 16px;
-  border-bottom: 1px solid var(--gray-border, #e5e7eb);
-  margin-bottom: 24px;
-}
-.mypage-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
 .map-subtitle {
   margin: 6px 0 0;
   font-size: 0.9rem;
@@ -95,6 +80,13 @@ onMounted(async () => {
 .visited-count {
   font-weight: 600;
   color: var(--purple-900);
+}
+.map-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  padding: 28px 24px 22px;
 }
 .map-wrap {
   width: 100%;
