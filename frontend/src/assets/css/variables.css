@@ -47,5 +47,39 @@
   --radius-md:  6px;
   --radius-lg:  8px;
   --radius-xl:  12px;
+  --radius-2xl: 16px;
   --radius-full:20px;
+
+  /* ── 시맨틱 색상 별칭 (브랜드 토큰에 매핑) ── */
+  --color-primary:      var(--purple-900);
+  --color-primary-soft: var(--purple-50);
+  --color-primary-mid:  var(--purple-100);
+  --color-text:         var(--text-primary);
+  --color-text-muted:   var(--gray-muted);
+  --color-border:       var(--gray-border);
+  --color-bg:           var(--bg-surface);
+  --color-bg-subtle:    var(--bg-page);
+  --color-danger:       #C0392B;
+  --color-danger-soft:  #FBEDEB;
+  --color-success:      #1E8E5A;
+
+  /* ── 레거시 별칭 (community.css 등 기존 코드의 미정의 변수 보정) ── */
+  --primary:            var(--purple-900);
+  --primary-dark:       #433B9E;
+  --danger:             #C0392B;
+  --text-secondary:     var(--gray-dark);
+  --color-surface-hover:var(--purple-50);
+
+  /* ── 그림자 (깊이감) ── */
+  --shadow-sm: 0 1px 2px rgba(44, 44, 42, .06);
+  --shadow-md: 0 4px 14px rgba(44, 44, 42, .08);
+  --shadow-lg: 0 10px 30px rgba(44, 44, 42, .12);
+
+  /* ── 간격 스케일 ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 }

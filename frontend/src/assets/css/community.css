@@ -227,13 +227,14 @@
   gap: 18px;
   background: var(--bg-surface);
   border: 1px solid var(--gray-border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 18px 22px;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
   transition: box-shadow .18s, border-color .18s, transform .18s;
 }
 .post-card:hover {
-  box-shadow: 0 8px 24px rgba(20,20,30,.08);
+  box-shadow: var(--shadow-lg);
   border-color: var(--purple-100);
   transform: translateY(-2px);
 }
