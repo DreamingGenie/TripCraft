@@ -2,6 +2,7 @@ package com.tripcraft.member.service;
 
 import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.storage.FileStorageService;
+import com.tripcraft.member.domain.Member;
 import com.tripcraft.member.mapper.MemberMapper;
 import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
@@ -33,6 +34,7 @@ public class MemberServiceImpl implements MemberService {
     private final TripMapper tripMapper;
     private final AttachMapper attachMapper;
     private final FileStorageService fileStorageService;
+    private final KakaoOAuthService kakaoOAuthService;
 
     /**
      * 회원 탈퇴.
@@ -50,9 +52,19 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public void withdraw(Long memberId, String password) {
-        memberMapper.findById(memberId)
-                .filter(m -> passwordEncoder.matches(password, m.getPassword()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호가 올바르지 않습니다."));
+        Member member = memberMapper.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원을 찾을 수 없습니다."));
+
+        // 일반 계정은 비밀번호 확인. 소셜 전용 계정(password=null)은 JWT 인증으로 신원 확인되므로 생략.
+        if (member.getPassword() != null
+                && (password == null || !passwordEncoder.matches(password, member.getPassword()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "비밀번호가 올바르지 않습니다.");
+        }
+
+        // 카카오 연결 해제 (best-effort — 실패해도 탈퇴는 진행)
+        if ("kakao".equals(member.getSocialProvider()) && member.getSocialId() != null) {
+            kakaoOAuthService.unlink(member.getSocialId());
+        }
 
         // 커밋 후 삭제할 파일 경로 수집 (트랜잭션 안에서 조회, 삭제는 커밋 이후)
         List<String> pathsToDelete = FILE_TARGETS.stream()

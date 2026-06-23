@@ -107,8 +107,13 @@
           </template>
           <template v-else>
             <div class="edit-form vertical">
-              <p class="danger-warn">계속하려면 현재 비밀번호를 입력하세요.</p>
+              <p class="danger-warn">
+                {{ isSocial
+                  ? '소셜 계정은 비밀번호 확인 없이 즉시 탈퇴됩니다. 계속하시겠어요?'
+                  : '계속하려면 현재 비밀번호를 입력하세요.' }}
+              </p>
               <input
+                v-if="!isSocial"
                 v-model="withdrawForm.password"
                 type="password"
                 class="edit-input"
@@ -124,7 +129,7 @@
                 </button>
                 <button
                   class="edit-btn withdraw-btn"
-                  :disabled="withdrawForm.loading || !withdrawForm.password"
+                  :disabled="withdrawForm.loading || (!isSocial && !withdrawForm.password)"
                   @click="submitWithdraw"
                 >
                   {{ withdrawForm.loading ? '처리 중...' : '탈퇴 확인' }}
@@ -139,13 +144,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { memberApi } from '@/api/member'
 
 const auth   = useAuthStore()
 const router = useRouter()
+
+// 소셜 전용 계정(카카오 등)은 비밀번호가 없어 탈퇴 시 비번 확인을 생략한다.
+const isSocial = computed(() => !!auth.user?.socialProvider)
 
 const profileImageUrl = ref(null)
 const imageLoading    = ref(false)
@@ -214,11 +222,11 @@ async function submitNickname() {
 }
 
 async function submitWithdraw() {
-  if (!withdrawForm.password) return
+  if (!isSocial.value && !withdrawForm.password) return
   withdrawForm.loading = true
   withdrawForm.message = ''
   try {
-    await memberApi.withdraw(withdrawForm.password)
+    await memberApi.withdraw(isSocial.value ? undefined : withdrawForm.password)
     await auth.logout()
     router.push('/')
   } catch (e) {
