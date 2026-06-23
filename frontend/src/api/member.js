@@ -12,6 +12,6 @@ export const memberApi = {
     return http.postForm('/api/members/me/profile-image', form)
   },
   deleteProfileImage: () => http.del('/api/members/me/profile-image'),
-  withdraw: (password) => http.del('/api/members/me', { password }),
+  withdraw: (password) => http.del('/api/members/me', password ? { password } : {}),
   getVisitedRegions: () => http.get('/api/members/me/visited-regions'),
 }

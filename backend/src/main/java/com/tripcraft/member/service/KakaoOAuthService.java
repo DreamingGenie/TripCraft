@@ -45,6 +45,9 @@ public class KakaoOAuthService {
     @Value("${kakao.user-info-url}")
     private String userInfoUrl;
 
+    @Value("${kakao.admin-key:}")
+    private String adminKey;
+
     /** 인가 코드 → 카카오 access_token */
     public String getKakaoAccessToken(String code) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
@@ -110,6 +113,30 @@ public class KakaoOAuthService {
         } catch (Exception e) {
             log.warn("카카오 사용자 정보 조회 실패: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "카카오 사용자 정보 조회에 실패했습니다.");
+        }
+    }
+
+    /** 카카오 앱 연결 해제(unlink) — Admin 키로 social_id 대상 호출. best-effort(실패해도 탈퇴는 진행). */
+    public void unlink(String socialId) {
+        if (socialId == null || socialId.isBlank()) return;
+        if (adminKey == null || adminKey.isBlank()) {
+            log.warn("카카오 unlink 생략 — KAKAO_ADMIN_KEY 미설정 (탈퇴는 진행, 카카오 연결은 유지됨)");
+            return;
+        }
+        try {
+            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+            form.add("target_id_type", "user_id");
+            form.add("target_id", socialId);
+            restClient.post()
+                    .uri(URI.create("https://kapi.kakao.com/v1/user/unlink"))
+                    .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + adminKey)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("카카오 연결 해제 완료 socialId={}", socialId);
+        } catch (Exception e) {
+            log.warn("카카오 연결 해제 실패 socialId={}: {}", socialId, e.getMessage());
         }
     }
 
