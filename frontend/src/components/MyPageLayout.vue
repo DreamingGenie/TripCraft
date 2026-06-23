@@ -41,6 +41,7 @@ const profileImageUrl = ref(null)
 
 // 라인 SVG path 데이터(단일 아이콘 세트, design_system §2·§6)
 const tabs = [
+  { to: '/mypage/trips',     label: '내 여행',   icon: 'M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7ZM9 4v13M15 7v13' },
   { to: '/mypage/profile',   label: '내 정보',   icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0' },
   { to: '/mypage/map',       label: '방문 지도', icon: 'm9 4-6 2.4v13.6L9 18l6 2 6-2.4V4l-6 2.4-6-2.4ZM9 4v14M15 6v14' },
   { to: '/mypage/posts',     label: '내가 쓴 글', icon: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z' },

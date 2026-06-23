@@ -2,17 +2,13 @@
   <header id="gnb">
     <RouterLink class="logo" to="/">TripCraft</RouterLink>
 
-    <!-- 1차 탭 3개: 탐색 / 내 여행 / 커뮤니티 (§2.2/§2.4) -->
-    <!-- 탐색: 맥락 라우팅 (로그인 + 현재여행 → /plan/:id, 아니면 /discover) -->
-    <button class="nav-link" :class="{ active: isExploreActive }" @click="goExplore">탐색</button>
-    <RouterLink class="nav-link" to="/trips" active-class="active">내 여행</RouterLink>
+    <!-- 1차 탭 2개: 여행 작업실 / 커뮤니티 (+ 관리자: ADMIN만) -->
+    <!-- 여행 작업실: 맥락 라우팅 (로그인 + 현재여행 → /plan/:id, 아니면 /discover) -->
+    <button class="nav-link" :class="{ active: isExploreActive }" @click="goExplore">여행 작업실</button>
     <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
     <RouterLink v-if="auth.user?.role === 'ADMIN'" class="nav-link nav-admin" to="/admin" active-class="active">관리자</RouterLink>
 
     <span class="gnb-spacer"></span>
-
-    <!-- 현재여행 칩 (로그인 + 여행 보유 시 노출) -->
-    <TripChip v-if="auth.isLoggedIn" />
 
     <template v-if="auth.isLoggedIn">
       <!-- 닉네임 드롭다운 트리거 -->
@@ -22,15 +18,10 @@
         </button>
 
         <div v-show="menuOpen" class="gnb-dropdown" @click="menuOpen = false">
-          <RouterLink class="dropdown-item" to="/mypage/profile">내 정보 수정</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/posts">내가 쓴 글</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/bookmarks">북마크</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/likes">좋아요한 글</RouterLink>
+          <RouterLink class="dropdown-item" to="/mypage">마이페이지</RouterLink>
+          <button class="dropdown-item" @click="handleLogout">로그아웃</button>
         </div>
       </div>
-
-      <button class="btn-ghost" @click="handleLogout">로그아웃</button>
     </template>
 
     <template v-else>
@@ -46,7 +37,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useActiveTripStore } from '@/stores/activeTrip'
 import { useRouter, useRoute } from 'vue-router'
-import TripChip from '@/components/TripChip.vue'
 
 const auth  = useAuthStore()
 const toast = useToastStore()
@@ -132,6 +122,13 @@ button.nav-link {
 
 .dropdown-item {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
   padding: 12px 20px;
   font-size: var(--text-sm);
   color: var(--text-primary);

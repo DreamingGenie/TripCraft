@@ -4,42 +4,22 @@
    ux_replan_v2 §10
    ============================================================ */
 
-#trips-page {
-  flex: 1;
-  overflow-y: auto;
-  background: var(--bg-page);
+/* 마이페이지 탭 패널로 임베드 — 스크롤/여백/max-width 는 MyPageLayout .mypage-shell 이 담당 */
+.trips-embed {
+  width: 100%;
 }
 
 .trips-shell {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-5) 80px;
+  width: 100%;
 }
 
-/* ── 헤더 (타이틀 · 토글 · 새 여행) ── */
+/* ── 헤더 (토글 · 새 여행) ── */
 .trips-header {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   margin-bottom: var(--space-5);
   flex-wrap: wrap;
-}
-.trips-title {
-  font-size: var(--text-3xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.03em;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.trips-title::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 24px;
-  background: var(--purple-900);
-  border-radius: 2px;
 }
 .trips-header-spacer { flex: 1; }
 
@@ -271,7 +251,5 @@
 }
 
 @media (max-width: 640px) {
-  .trips-shell { padding: var(--space-5) var(--space-4) 80px; }
-  .trips-title { font-size: var(--text-2xl); }
   .trips-grid { grid-template-columns: 1fr; }
 }

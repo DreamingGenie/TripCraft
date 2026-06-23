@@ -18,16 +18,8 @@ const routes = [
     component: () => import('@/views/ScheduleView.vue'),
     meta: { requiresAuth: true },
   },
-  {
-    path: '/trips',
-    component: () => import('@/views/TripsView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/calendar',
-    component: () => import('@/views/CalendarView.vue'),
-    meta: { requiresAuth: true },
-  },
+  { path: '/trips', redirect: '/mypage/trips' },
+  { path: '/calendar', redirect: '/mypage/trips' },
   { path: '/community', component: () => import('@/views/CommunityView.vue') },
   { path: '/community/:id(\\d+)', component: () => import('@/views/CommunityPostView.vue') },
   {
@@ -40,7 +32,8 @@ const routes = [
     component: () => import('@/components/MyPageLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', redirect: '/mypage/profile' },
+      { path: '', redirect: '/mypage/trips' },
+      { path: 'trips',     component: () => import('@/views/TripsView.vue') },
       { path: 'profile',   component: () => import('@/views/MyProfileView.vue') },
       { path: 'map',       component: () => import('@/views/MyMapView.vue') },
       { path: 'posts',     component: () => import('@/views/MyPostsView.vue') },

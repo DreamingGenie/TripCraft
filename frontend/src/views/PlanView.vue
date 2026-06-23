@@ -62,7 +62,7 @@
             <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
             <path d="M2.5 6h11M6 6v7.5" stroke="currentColor" stroke-width="1.4"/>
           </svg>
-          정리
+          일정
         </button>
       </div>
 

@@ -1,11 +1,8 @@
 <template>
-  <div id="trips-page">
+  <div class="trips-embed">
     <div class="trips-shell">
-      <!-- 헤더: 타이틀 · 카드/달력 토글 · 새 여행 -->
+      <!-- 헤더: 카드/달력 토글 · 새 여행 (제목은 마이페이지 탭이 담당) -->
       <div class="trips-header">
-        <h1 class="trips-title">내 여행</h1>
-        <span class="trips-header-spacer"></span>
-
         <div class="trips-toggle" role="tablist" aria-label="보기 전환">
           <button
             class="trips-toggle-btn"
@@ -36,6 +33,8 @@
             달력
           </button>
         </div>
+
+        <span class="trips-header-spacer"></span>
 
         <button class="trips-new-btn" @click="openScheduleModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
