@@ -8,6 +8,11 @@ const routes = [
   { path: '/auth/kakao/callback', component: () => import('@/views/KakaoCallbackView.vue') },
   { path: '/explore', component: () => import('@/views/ExploreView.vue') },
   {
+    path: '/plan/:tripId(\\d+)?',
+    component: () => import('@/views/PlanView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/schedule',
     component: () => import('@/views/ScheduleView.vue'),
     meta: { requiresAuth: true },
@@ -25,29 +30,17 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
-    path: '/mypage/bookmarks',
-    component: () => import('@/views/MyBookmarksView.vue'),
+    path: '/mypage',
+    component: () => import('@/components/MyPageLayout.vue'),
     meta: { requiresAuth: true },
-  },
-  {
-    path: '/mypage/likes',
-    component: () => import('@/views/MyLikesView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/mypage/posts',
-    component: () => import('@/views/MyPostsView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/mypage/profile',
-    component: () => import('@/views/MyProfileView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/mypage/map',
-    component: () => import('@/views/MyMapView.vue'),
-    meta: { requiresAuth: true },
+    children: [
+      { path: '', redirect: '/mypage/profile' },
+      { path: 'profile',   component: () => import('@/views/MyProfileView.vue') },
+      { path: 'map',       component: () => import('@/views/MyMapView.vue') },
+      { path: 'posts',     component: () => import('@/views/MyPostsView.vue') },
+      { path: 'bookmarks', component: () => import('@/views/MyBookmarksView.vue') },
+      { path: 'likes',     component: () => import('@/views/MyLikesView.vue') },
+    ],
   },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/NotFoundView.vue') },
 ]
