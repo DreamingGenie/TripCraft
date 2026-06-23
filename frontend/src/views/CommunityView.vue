@@ -10,7 +10,13 @@
                     class="sort-btn" :class="{ active: sort === s.value }"
                     @click="changeSort(s.value)">{{ s.label }}</button>
           </div>
-          <button class="btn-primary" @click="openWriteModal">✏ 글쓰기</button>
+          <button class="btn-primary" @click="openWriteModal">
+            <svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            글쓰기
+          </button>
         </div>
 
         <!-- 공지 배너 -->
@@ -24,11 +30,19 @@
             @keydown.enter="doSearch"
           />
           <button class="search-btn" @click="doSearch">검색</button>
-          <button v-if="keyword" class="search-clear" @click="clearSearch">✕</button>
+          <button v-if="keyword" class="search-clear" @click="clearSearch" aria-label="검색어 지우기">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div v-if="notices.length" class="notice-banner" @click="router.push(`/community/${notices[0].id}`)">
-          <span class="notice-icon">📢</span>
+          <svg class="notice-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+          </svg>
           <span class="notice-text">{{ notices[0].title }}</span>
           <button class="notice-more" @click.stop>더보기 ›</button>
         </div>
@@ -51,9 +65,27 @@
             </div>
             <div class="post-card-right">
               <div class="post-stats">
-                <span class="stat"><span class="stat-icon">♥</span> {{ post.likeCount }}</span>
-                <span class="stat"><span class="stat-icon">💬</span> {{ post.commentCount ?? 0 }}</span>
-                <span class="stat"><span class="stat-icon">👁</span> {{ post.viewCount }}</span>
+                <span class="stat">
+                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
+                  </svg>
+                  {{ post.likeCount }}
+                </span>
+                <span class="stat">
+                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-1L3 20l1.1-4A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z" />
+                  </svg>
+                  {{ post.commentCount ?? 0 }}
+                </span>
+                <span class="stat">
+                  <svg class="stat-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" /><circle cx="12" cy="12" r="3" />
+                  </svg>
+                  {{ post.viewCount }}
+                </span>
               </div>
             </div>
           </div>
@@ -79,12 +111,23 @@
     <div class="write-modal-box">
       <div class="modal-header">
         <span class="modal-title">새 글 작성</span>
-        <button class="modal-close" @click="writeModal = false">✕</button>
+        <button class="modal-close" @click="writeModal = false" aria-label="닫기">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       <!-- 일정 공유 경고 (모달 내부 인라인) -->
       <div v-if="tripShareWarning" class="trip-share-warning">
-        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-icon confirm-icon--warn">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+            <path d="M12 9v4M12 17h.01" />
+          </svg>
+        </div>
         <p class="confirm-msg">
           이 일정을 공유하면 <strong>다른 사람들이 일정 내용(장소, 날짜 등)을 확인</strong>할 수 있습니다.<br>
           계속 진행하시겠습니까?

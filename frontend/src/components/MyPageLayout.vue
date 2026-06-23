@@ -17,7 +17,10 @@
           v-for="t in tabs" :key="t.to" :to="t.to"
           class="mypage-tab" active-class="active"
         >
-          <span class="mypage-tab-ico">{{ t.icon }}</span>{{ t.label }}
+          <svg class="mypage-tab-ico" viewBox="0 0 24 24" width="15" height="15" fill="none"
+               stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path :d="t.icon" />
+          </svg>{{ t.label }}
         </RouterLink>
       </nav>
 
@@ -36,12 +39,13 @@ import { memberApi } from '@/api/member'
 const auth = useAuthStore()
 const profileImageUrl = ref(null)
 
+// 라인 SVG path 데이터(단일 아이콘 세트, design_system §2·§6)
 const tabs = [
-  { to: '/mypage/profile',   label: '내 정보',   icon: '👤' },
-  { to: '/mypage/map',       label: '방문 지도', icon: '🗺' },
-  { to: '/mypage/posts',     label: '내가 쓴 글', icon: '✍' },
-  { to: '/mypage/bookmarks', label: '북마크',    icon: '🔖' },
-  { to: '/mypage/likes',     label: '좋아요',    icon: '♥' },
+  { to: '/mypage/profile',   label: '내 정보',   icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0' },
+  { to: '/mypage/map',       label: '방문 지도', icon: 'm9 4-6 2.4v13.6L9 18l6 2 6-2.4V4l-6 2.4-6-2.4ZM9 4v14M15 6v14' },
+  { to: '/mypage/posts',     label: '내가 쓴 글', icon: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z' },
+  { to: '/mypage/bookmarks', label: '북마크',    icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' },
+  { to: '/mypage/likes',     label: '좋아요',    icon: 'M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' },
 ]
 
 onMounted(async () => {
@@ -69,13 +73,13 @@ onMounted(async () => {
 .mypage-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 22px 24px;
-  background: linear-gradient(135deg, var(--purple-900) 0%, #6b62cf 100%);
+  background: var(--purple-900);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-md);
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 .mypage-avatar {
   width: 56px;
@@ -94,9 +98,9 @@ onMounted(async () => {
 }
 .mypage-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .mypage-top-info { min-width: 0; }
-.mypage-greeting { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.mypage-greeting { font-size: var(--text-xl); font-weight: 700; letter-spacing: -0.02em; }
 .mypage-email {
-  font-size: 13px;
+  font-size: var(--text-sm);
   opacity: .82;
   margin-top: 2px;
   overflow: hidden;
@@ -121,7 +125,7 @@ onMounted(async () => {
   flex-shrink: 0;
   padding: 9px 16px;
   border-radius: var(--radius-full);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--gray-dark);
   background: var(--bg-surface);
@@ -141,7 +145,7 @@ onMounted(async () => {
   border-color: var(--purple-900);
   box-shadow: 0 2px 8px rgba(83, 74, 183, .22);
 }
-.mypage-tab-ico { font-size: 13px; line-height: 1; }
+.mypage-tab-ico { flex-shrink: 0; }
 
 .mypage-content { min-height: 200px; }
 

@@ -5,9 +5,18 @@
     <!-- 헤더 / 토글 -->
     <button class="ac-header" @click="open = !open">
       <span class="ac-header-title">
-        <span class="ac-spark">✨</span> AI에게 이 관광지 물어보기
+        <svg class="ac-spark" viewBox="0 0 24 24" width="16" height="16" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+          <path d="m6.3 6.3 2.4 2.4M15.3 15.3l2.4 2.4M17.7 6.3l-2.4 2.4M8.7 15.3l-2.4 2.4" />
+        </svg>
+        AI에게 이 관광지 물어보기
       </span>
-      <span class="ac-chevron" :class="{ 'ac-chevron--open': open }">⌄</span>
+      <svg class="ac-chevron" :class="{ 'ac-chevron--open': open }" viewBox="0 0 24 24"
+           width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
     </button>
 
     <Transition name="ac-collapse">
@@ -88,11 +97,12 @@ const messages = computed(() => session.value.messages)
 
 const suggestions = ['어떤 곳이야?', '가볼 만해?', '운영 시간은?', '주변에 뭐가 있어?']
 
+// 분류 색은 디자인 시스템 --cat-*-ink 토큰과 일치(전 화면 공통)
 const CAT_COLORS = {
-  '관광지': '#8B85E0', '문화시설': '#48B89A', '레포츠': '#55B36E',
-  '숙박': '#6B9FD4', '쇼핑': '#D4844A', '음식점': '#D46070',
+  '관광지': '#6357C9', '문화시설': '#0F6E56', '레포츠': '#2E8B57',
+  '숙박': '#185FA5', '쇼핑': '#A8650E', '음식점': '#993556',
 }
-function catColor(c) { return CAT_COLORS[c] || '#9ca3af' }
+function catColor(c) { return CAT_COLORS[c] || 'var(--gray-muted)' }
 function fmtDist(m) {
   if (m == null) return ''
   return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`
@@ -145,29 +155,34 @@ async function send(preset) {
 </script>
 
 <style scoped>
-.ac-wrap { margin-top: 4px; }
+.ac-wrap { margin-top: var(--space-1); }
 
 .ac-header {
   display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 10px 12px; cursor: pointer;
-  background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px;
-  color: #5b21b6; font-size: 13px; font-weight: 600;
+  width: 100%; padding: 10px 14px; cursor: pointer;
+  background: var(--purple-50); border: 1px solid var(--purple-100);
+  border-radius: var(--radius-lg);
+  color: var(--purple-900); font-size: var(--text-sm); font-weight: 600;
+  transition: background .14s, border-color .14s;
 }
-.ac-header-title { display: flex; align-items: center; gap: 6px; }
-.ac-spark { font-size: 14px; }
-.ac-chevron { transition: transform .2s; font-size: 16px; line-height: 1; }
+.ac-header:hover { background: var(--purple-100); }
+.ac-header-title { display: flex; align-items: center; gap: var(--space-2); }
+.ac-spark { flex-shrink: 0; }
+.ac-chevron { transition: transform .2s; flex-shrink: 0; }
 .ac-chevron--open { transform: rotate(180deg); }
 
 .ac-body {
-  margin-top: 8px; border: 1px solid #e5e7eb; border-radius: 10px;
-  background: #fff; overflow: hidden;
+  margin-top: var(--space-2);
+  border: 1px solid var(--gray-border); border-radius: var(--radius-lg);
+  background: var(--bg-surface); overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .ac-messages {
-  max-height: 260px; overflow-y: auto; padding: 12px;
-  display: flex; flex-direction: column; gap: 8px;
+  max-height: 260px; overflow-y: auto; padding: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-2);
 }
-.ac-empty { color: #9ca3af; font-size: 12.5px; text-align: center; margin: 16px 0; }
+.ac-empty { color: var(--gray-muted); font-size: var(--text-sm); text-align: center; margin: var(--space-4) 0; }
 
 .ac-row { display: flex; flex-direction: column; gap: 6px; }
 .ac-row--user { align-items: flex-end; }
@@ -177,50 +192,58 @@ async function send(preset) {
 .ac-msg--assistant { justify-content: flex-start; }
 .ac-msg-places { width: 100%; }
 .ac-bubble {
-  max-width: 80%; padding: 8px 11px; border-radius: 12px;
-  font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  max-width: 80%; padding: 9px 12px; border-radius: var(--radius-xl);
+  font-size: var(--text-sm); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
-.ac-msg--user .ac-bubble { background: #7c3aed; color: #fff; border-bottom-right-radius: 4px; }
-.ac-msg--assistant .ac-bubble { background: #f3f4f6; color: #1f2937; border-bottom-left-radius: 4px; }
+.ac-msg--user .ac-bubble { background: var(--purple-900); color: #fff; border-bottom-right-radius: var(--radius-sm); }
+.ac-msg--assistant .ac-bubble { background: var(--bg-page); color: var(--text-primary); border-bottom-left-radius: var(--radius-sm); }
 
 .ac-typing { display: flex; gap: 4px; align-items: center; }
 .ac-typing span {
-  width: 6px; height: 6px; border-radius: 50%; background: #9ca3af;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--gray-muted);
   animation: ac-blink 1.2s infinite both;
 }
 .ac-typing span:nth-child(2) { animation-delay: .2s; }
 .ac-typing span:nth-child(3) { animation-delay: .4s; }
 @keyframes ac-blink { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
 
-.ac-suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
+.ac-suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 var(--space-3) var(--space-3); }
 .ac-chip {
-  padding: 6px 10px; border: 1px solid #ddd6fe; border-radius: 16px;
-  background: #faf5ff; color: #6d28d9; font-size: 12px; cursor: pointer;
+  padding: 6px 12px; border: 1px solid var(--purple-100); border-radius: var(--radius-full);
+  background: var(--purple-50); color: var(--purple-900); font-size: var(--text-xs);
+  font-weight: 500; cursor: pointer; transition: background .14s;
 }
-.ac-chip:hover { background: #f3e8ff; }
+.ac-chip:hover { background: var(--purple-100); }
 
 .ac-nearby-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ac-nearby-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 16px;
-  background: #fff; font-size: 12px; color: #374151; cursor: pointer; max-width: 100%;
+  padding: 6px 12px; border: 1px solid var(--gray-border); border-radius: var(--radius-full);
+  background: var(--bg-surface); font-size: var(--text-xs); color: var(--gray-dark);
+  cursor: pointer; max-width: 100%; transition: background .14s, border-color .14s;
 }
-.ac-nearby-chip:hover { background: #f9fafb; border-color: #d1d5db; }
+.ac-nearby-chip:hover { background: var(--bg-page); border-color: var(--purple-100); }
 .ac-nearby-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .ac-nearby-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
-.ac-nearby-dist { color: #9ca3af; font-size: 11px; flex: 0 0 auto; }
+.ac-nearby-dist { color: var(--gray-muted); font-size: var(--text-2xs); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 
-.ac-input-row { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #f1f1f3; }
+.ac-input-row { display: flex; gap: var(--space-2); padding: 10px 12px; border-top: 1px solid var(--gray-border); }
 .ac-input {
-  flex: 1; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-  font-size: 13px; outline: none;
+  flex: 1; padding: 9px 12px; border: 1px solid var(--gray-border); border-radius: var(--radius-md);
+  font-size: var(--text-sm); color: var(--text-primary); background: var(--bg-page);
+  outline: none; transition: border-color .14s, background .14s, box-shadow .14s;
 }
-.ac-input:focus { border-color: #c4b5fd; }
+.ac-input:focus {
+  border-color: var(--purple-900); background: var(--bg-surface);
+  box-shadow: 0 0 0 3px rgba(83,74,183,.08);
+}
 .ac-send {
-  padding: 0 14px; border: none; border-radius: 8px;
-  background: #7c3aed; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 0 16px; border: none; border-radius: var(--radius-md);
+  background: var(--purple-900); color: #fff; font-size: var(--text-sm); font-weight: 600;
+  cursor: pointer; transition: opacity .14s;
 }
-.ac-send:disabled { background: #c4b5fd; cursor: not-allowed; }
+.ac-send:hover:not(:disabled) { opacity: .92; }
+.ac-send:disabled { background: var(--purple-100); cursor: not-allowed; }
 
 .ac-collapse-enter-active, .ac-collapse-leave-active { transition: opacity .2s ease; }
 .ac-collapse-enter-from, .ac-collapse-leave-to { opacity: 0; }

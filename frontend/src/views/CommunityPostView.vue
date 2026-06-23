@@ -34,7 +34,12 @@
           <div v-if="postDetail.tripId" class="trip-card">
             <div class="trip-card-header" @click="toggleTripSummary">
               <div class="trip-card-left">
-                <div class="trip-card-icon">🗓</div>
+                <div class="trip-card-icon">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                       stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v3M16 3v3" />
+                  </svg>
+                </div>
                 <div class="trip-card-info">
                   <span class="trip-card-title">{{ postDetail.tripTitle }}</span>
                   <span class="trip-card-meta">
@@ -48,7 +53,11 @@
                   v-if="auth.isLoggedIn"
                   class="btn-sm btn-copy-trip"
                   @click.stop="openCopyModal">
-                  📥 가져오기
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  가져오기
                 </button>
                 <span class="trip-card-toggle">{{ tripSummaryOpen ? '▲' : '▼' }} 일정 보기</span>
               </div>
@@ -58,7 +67,13 @@
               <div v-if="tripSummaryLoading" class="trip-summary-loading">로딩 중...</div>
               <template v-else-if="tripSummary">
                 <div v-for="day in tripSummary.days" :key="day.date" class="trip-day">
-                  <div class="trip-day-label">📅 {{ formatTripDate(day.date) }}</div>
+                  <div class="trip-day-label">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v3M16 3v3" />
+                    </svg>
+                    {{ formatTripDate(day.date) }}
+                  </div>
                   <div v-if="day.blocks.length" class="trip-day-blocks">
                     <div v-for="(block, i) in day.blocks" :key="i" class="trip-block-item">
                       <span class="trip-block-time">{{ block.startTime ? block.startTime.slice(0,5) : '--:--' }}</span>
@@ -75,10 +90,20 @@
 
           <div class="like-section">
             <button class="like-btn" :class="{ liked: postDetail.liked }" @click="toggleLike">
-              <span class="like-icon">♥</span> {{ postDetail.likeCount }}
+              <svg class="like-icon" viewBox="0 0 24 24" width="16" height="16"
+                   :fill="postDetail.liked ? 'currentColor' : 'none'" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
+              </svg>
+              {{ postDetail.likeCount }}
             </button>
             <button class="bookmark-btn" :class="{ bookmarked: postDetail.bookmarked }" @click="toggleBookmark">
-              {{ postDetail.bookmarked ? '🔖 북마크됨' : '🔖 북마크' }}
+              <svg class="bookmark-icon" viewBox="0 0 24 24" width="15" height="15"
+                   :fill="postDetail.bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              {{ postDetail.bookmarked ? '북마크됨' : '북마크' }}
             </button>
           </div>
         </article>
@@ -109,7 +134,10 @@
               <div v-if="c.replies && c.replies.length" class="reply-list">
                 <div v-for="r in c.replies" :key="r.id" class="comment-item reply-item">
                   <div class="comment-header">
-                    <span class="reply-arrow">↳</span>
+                    <svg class="reply-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 5 5v6" />
+                    </svg>
                     <div class="avatar avatar-sm">
                       <img v-if="r.authorProfileImageUrl" :src="r.authorProfileImageUrl" class="avatar-img" alt="" />
                       <span v-else>{{ (r.authorNickname || '?')[0] }}</span>
@@ -169,7 +197,12 @@
     <div class="write-modal-box">
       <div class="modal-header">
         <span class="modal-title">게시글 수정</span>
-        <button class="modal-close" @click="editModal = false">✕</button>
+        <button class="modal-close" @click="editModal = false" aria-label="닫기">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <div class="modal-body">
         <label class="field-label"><span class="required">*</span> 제목</label>
@@ -187,7 +220,12 @@
   <!-- 일정 가져오기 모달 -->
   <div v-if="copyModal" class="modal-overlay" @click.self="copyModal = false">
     <div class="confirm-modal-box copy-modal-box">
-      <div class="copy-modal-icon">📥</div>
+      <div class="copy-modal-icon">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
+      </div>
       <p class="copy-modal-title">일정 가져오기</p>
       <p class="copy-modal-desc">
         내 여행 시작일을 선택하면<br>
@@ -217,7 +255,12 @@
   <!-- 게시글 삭제 확인 팝업 -->
   <div v-if="deleteConfirm" class="modal-overlay" @click.self="deleteConfirm = false">
     <div class="confirm-modal-box">
-      <div class="confirm-icon">🗑</div>
+      <div class="confirm-icon confirm-icon--danger">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />
+        </svg>
+      </div>
       <p class="confirm-msg">
         게시글을 삭제하면 <strong>공유된 일정도 더 이상 확인할 수 없게 됩니다.</strong><br>
         정말 삭제하시겠습니까?
