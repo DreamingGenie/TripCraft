@@ -13,6 +13,8 @@ public interface TripBlockMapper {
 
     Optional<TripBlock> findById(Long id);
 
+    Optional<Long> findTripIdByBlockId(Long blockId);
+
     List<TripBlock> findByCandidateId(Long candidateId);
 
     List<TripBlock> findByTripId(Long tripId);

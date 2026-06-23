@@ -11,10 +11,15 @@
         </span>
       </button>
 
-      <template v-if="trips.length">
+      <template v-if="trips.length || collaboratingTrips.length">
         <div class="toolbar-select-wrap">
           <select class="toolbar-select" v-model="activeTripId" @change="loadTrip">
-            <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            <optgroup v-if="trips.length" label="내 일정">
+              <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            </optgroup>
+            <optgroup v-if="collaboratingTrips.length" label="초대받은 일정">
+              <option v-for="t in collaboratingTrips" :key="t.id" :value="t.id">{{ t.title }}</option>
+            </optgroup>
           </select>
           <span class="toolbar-select-caret">▼</span>
         </div>
@@ -29,13 +34,43 @@
 
       <span class="toolbar-spacer"></span>
 
+      <div v-if="otherParticipants.length" class="toolbar-collab-avatars">
+        <div v-for="p in otherParticipants" :key="p.memberId"
+             class="toolbar-avatar-wrap"
+             :title="p.nickname"
+             :style="{ '--avatar-border': collab.colorMap[p.memberId] }">
+          <img v-if="collaboratorImageMap[p.memberId]"
+               :src="collaboratorImageMap[p.memberId]" class="toolbar-avatar-img" />
+          <span v-else class="toolbar-avatar-initial">{{ p.nickname?.charAt(0)?.toUpperCase() }}</span>
+        </div>
+      </div>
+
       <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
       <button v-if="activeTrip" class="btn-share-trip" @click="shareToComm">📢 공유하기</button>
+      <button v-if="activeTrip" ref="collabBtnRef" class="btn-collab" :class="{ active: collabPanelOpen }"
+              @click="collabPanelOpen = !collabPanelOpen">
+        <span class="collab-status-dot" :class="{ connected: collab.connected }"></span>
+        👥 협업자
+      </button>
       <button class="btn-new-trip" @click="openScheduleModal()">+ 새 일정</button>
     </div>
 
+    <!-- 협업자 패널 (툴바 아래 슬라이드) -->
+    <Transition name="collab-slide">
+      <div v-if="collabPanelOpen && activeTrip" ref="collabPanelRef" class="collab-panel-overlay">
+        <CollaboratorPanel
+          :trip-id="activeTrip.id"
+          :is-owner="activeTripIsOwner"
+          :owner-label="activeTripOwnerLabel"
+          :participants="collab.participants"
+          :color-map="collab.colorMap"
+          @close="collabPanelOpen = false"
+        />
+      </div>
+    </Transition>
+
     <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
-    <div class="schedule-body">
+    <div class="schedule-body" @mousemove="onPointerMove">
       <!-- 후보군 사이드바 -->
       <aside class="candidate-sidebar"
              :class="{ collapsed: !sidebarOpen, 'drop-delete-zone': sidebarDropActive }"
@@ -189,7 +224,7 @@
         </div>
         <div v-else class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
-        <div class="timetable-wrapper" ref="wrapperEl" @scroll="openPillKey = null">
+        <div class="timetable-wrapper" ref="wrapperEl" @scroll="e => { openPillKey = null; timetableScrollTop.value = e.currentTarget.scrollTop }">
           <div class="timetable-header">
             <div class="th-gutter"></div>
             <div v-for="d in days" :key="d.label" class="th-day">
@@ -233,9 +268,14 @@
 
                 <div v-for="ev in d.events" :key="ev.id"
                      class="event-block" :data-color="ev.color"
-                     :class="{ 'event-dragging': ev.dragging, 'event-processing': isProcessing && ev.id === processingEvId, 'event-block--cat': embedded }"
+                     :class="{
+                       'event-dragging': ev.dragging,
+                       'event-processing': isProcessing && ev.id === processingEvId,
+                       'event-block--cat': embedded,
+                       'grabbed-by-other': collab.isGrabbedByOther(ev.id, myMemberId),
+                     }"
                      draggable="true"
-                     :style="{ top: ev.top + 'px', height: ev.height + 'px', '--cat-ink': catInk(ev.category) }"
+                     :style="{ top: ev.top + 'px', height: ev.height + 'px', '--cat-ink': catInk(ev.category), '--grabber-color': grabberColor(ev.id) }"
                      @dragstart="onEventDragStart($event, ev, d)"
                      @dragend="onDragEnd">
                   <span class="event-name">{{ ev.name }}</span>
@@ -460,6 +500,42 @@
     </div>
   </Teleport>
 
+  <!-- 협업자 커서 + 유령 블록 오버레이 -->
+  <Teleport to="body">
+    <template v-for="p in otherParticipants" :key="p.memberId">
+      <div v-if="p.interaction !== 'grab' && p.x > 0"
+           class="collab-cursor"
+           :style="{ left: p.x + 'px', top: p.y + 'px', '--cursor-color': collab.colorMap[p.memberId] }">
+        <svg class="cursor-icon" viewBox="0 0 16 20" width="16" height="20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 0 L0 16 L4 12 L7 18 L9 17 L6 11 L11 11 Z"
+                fill="var(--cursor-color)" stroke="white" stroke-width="1.2"/>
+        </svg>
+        <div class="cursor-avatar" :style="{ borderColor: collab.colorMap[p.memberId] }">
+          <img v-if="collaboratorImageMap[p.memberId]" :src="collaboratorImageMap[p.memberId]" />
+          <span v-else>{{ p.nickname?.charAt(0)?.toUpperCase() }}</span>
+        </div>
+      </div>
+      <div v-if="p.interaction === 'grab' && p.targetBlockId && p.x > 0"
+           class="collab-ghost-block"
+           :data-color="ghostBlockColor(p.targetBlockId)"
+           :style="{
+             left: (p.x - (p.grabOffsetX ?? 0)) + 'px',
+             top: collabGhostTop(p) + 'px',
+             width: collabGhostWidth(p) + 'px',
+             height: ghostBlockHeight(p.targetBlockId) + 'px',
+             '--cursor-color': collab.colorMap[p.memberId],
+           }">
+        <span class="ghost-label">{{ p.nickname }}</span>
+        <span class="ghost-name">{{ ghostBlockName(p.targetBlockId) }}</span>
+      </div>
+      <div v-if="p.interaction === 'grab' && p.snapDayIndex >= 0 && p.snapTop >= 0"
+           class="collab-drop-preview"
+           :style="collabDropPreviewStyle(p)">
+        {{ ghostBlockName(p.targetBlockId) }}
+      </div>
+    </template>
+  </Teleport>
+
   </main>
 </template>
 
@@ -468,8 +544,11 @@ import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick, injec
 import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useActiveTripStore } from '@/stores/activeTrip'
+import { useAuthStore } from '@/stores/auth'
+import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
+import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 
 // embedded=true 이면 PlanView organize 모드 안에서 동작(자체 툴바·트레이 select 숨김,
 // 현재 일정은 tripId prop 으로 제어). false 이면 /schedule 단독 화면.
@@ -481,6 +560,8 @@ const emit = defineEmits(['explore', 'open-map', 'loaded'])
 
 const toast = useToastStore()
 const activeTripStore = useActiveTripStore()
+const auth = useAuthStore()
+const collab = useCollabStore()
 const router = useRouter()
 const openScheduleModal = inject('openScheduleModal', () => {})
 const wrapperEl = ref(null)
@@ -527,11 +608,25 @@ function fmtDuration(min) {
 }
 
 const trips = ref([])
+const collaboratingTrips = ref([])
 const tripsLoading = ref(false)
 const activeTripId = ref(null)
 const activeTrip = ref(null)
 const candidates = ref([])
 const days = ref([])
+
+const collabPanelOpen = ref(false)
+const collabPanelRef = ref(null)
+const collabBtnRef = ref(null)
+const timetableScrollTop = ref(0)
+const collaboratorImageMap = ref({})
+
+const myMemberId = computed(() => auth.user?.id)
+const otherParticipants = computed(() =>
+  collab.participants.filter(p => p.memberId !== myMemberId.value)
+)
+const activeTripIsOwner = computed(() => activeTrip.value?.myRole === 'OWNER')
+const activeTripOwnerLabel = computed(() => activeTrip.value?.ownerNickname ?? '소유자')
 
 // ── 이동수단 모달 ──
 const openPillKey = ref(null)
@@ -1567,9 +1662,26 @@ async function loadTrip() {
       if (updated) mapDay.value = updated
       if (naverMapInstance) await drawDayRoute()
     }
-  } catch {
-    toast.show('일정 로드 실패')
+  } catch (err) {
+    if (err?.status === 403 || err?.response?.status === 403) {
+      collaboratingTrips.value = collaboratingTrips.value.filter(t => t.id !== activeTripId.value)
+      const next = trips.value[0] ?? collaboratingTrips.value[0]
+      activeTripId.value = next?.id ?? null
+      if (activeTripId.value) await loadTrip()
+    } else {
+      toast.show('일정 로드 실패')
+    }
   }
+}
+
+async function loadCollaboratorImages() {
+  if (!activeTripId.value) return
+  try {
+    const list = await tripApi.getCollaborators(activeTripId.value)
+    const map = {}
+    list.forEach(c => { map[c.memberId] = c.profileImageUrl ?? null })
+    collaboratorImageMap.value = map
+  } catch {}
 }
 
 // ── 드래그 앤 드롭 ──
@@ -1583,9 +1695,27 @@ function onCandDragStart(e, candidate) {
 function onEventDragStart(e, ev, day) {
   if (isProcessing.value || resizeState) { e.preventDefault(); return }
   const grabOffsetY = e.clientY - e.currentTarget.getBoundingClientRect().top
-  dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY }
+  const grabOffsetX = e.offsetX
+  dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY, grabOffsetX }
   ev.dragging = true
   e.dataTransfer.effectAllowed = 'move'
+  const el = e.currentTarget
+  const clone = el.cloneNode(true)
+  const cs = getComputedStyle(el)
+  clone.classList.remove('event-dragging')
+  clone.style.position = 'fixed'
+  clone.style.top = '-9999px'
+  clone.style.left = '-9999px'
+  clone.style.opacity = '1'
+  clone.style.pointerEvents = 'none'
+  clone.style.width = el.offsetWidth + 'px'
+  clone.style.height = el.offsetHeight + 'px'
+  clone.style.transform = 'none'
+  clone.style.backgroundColor = cs.backgroundColor
+  clone.style.borderLeftColor = cs.borderLeftColor
+  document.body.appendChild(clone)
+  e.dataTransfer.setDragImage(clone, grabOffsetX, grabOffsetY)
+  requestAnimationFrame(() => document.body.removeChild(clone))
 }
 
 let resizeState = null
@@ -1633,6 +1763,12 @@ function onDragEnd() {
   sidebarDragOver.value = false
   dragPreview.value = null
   dragState = null
+  if (activeTripId.value) {
+    collab.sendPointer(activeTripId.value, {
+      x: 0, y: 0, interaction: '', targetBlockId: null,
+      nickname: auth.user?.nickname ?? '',
+    })
+  }
 }
 
 function onDragOver(e, day) {
@@ -1641,6 +1777,22 @@ function onDragOver(e, day) {
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
+  if (dragState.type === 'event' && activeTripId.value) {
+    const dayIndex = days.value.findIndex(d => d.isoDate === day.isoDate)
+    const wrapperRect = wrapperEl.value?.getBoundingClientRect()
+    const senderScrollTop = wrapperEl.value?.scrollTop ?? 0
+    collab.sendPointer(activeTripId.value, {
+      x: e.clientX, y: e.clientY,
+      interaction: 'grab',
+      targetBlockId: dragState.data.id,
+      nickname: auth.user?.nickname ?? '',
+      snapDayIndex: dayIndex,
+      snapTop: dragPreview.value.top,
+      cursorRelY: senderScrollTop + e.clientY - (wrapperRect?.top ?? 0),
+      grabOffsetX: dragState.grabOffsetX ?? 0,
+      grabOffsetY: dragState.grabOffsetY ?? 0,
+    })
+  }
 }
 
 async function onDrop(e, day) {
@@ -1733,8 +1885,20 @@ async function moveEvent(day, top, startTime) {
   }
 }
 
-function onSidebarDragOver() {
+function onSidebarDragOver(e) {
   sidebarDragOver.value = dragState?.type === 'event'
+  if (dragState?.type === 'event' && activeTripId.value) {
+    collab.sendPointer(activeTripId.value, {
+      x: e.clientX, y: e.clientY,
+      interaction: 'grab',
+      targetBlockId: dragState.data.id,
+      nickname: auth.user?.nickname ?? '',
+      snapDayIndex: -1, snapTop: -1,
+      cursorRelY: e.clientY,
+      grabOffsetX: dragState.grabOffsetX ?? 0,
+      grabOffsetY: dragState.grabOffsetY ?? 0,
+    })
+  }
 }
 
 async function onDropSidebar() {
@@ -1763,9 +1927,154 @@ async function removeEvent(day, ev) {
   await removeEventFrom(day, ev)
 }
 
-function onDocumentClick() {
+// ── 협업자 커서 전송 ──
+let pointerThrottle = null
+function onPointerMove(e) {
+  if (!activeTripId.value) return
+  if (pointerThrottle) return
+  pointerThrottle = setTimeout(() => { pointerThrottle = null }, 50)
+  collab.sendPointer(activeTripId.value, {
+    x: e.clientX, y: e.clientY,
+    interaction: '', targetBlockId: null,
+    nickname: auth.user?.nickname ?? '',
+  })
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible' && activeTripId.value != null) {
+    loadTrip()
+  }
+}
+
+// ── 유령 블록 헬퍼 ──
+function ghostBlockHeight(blockId) {
+  for (const d of days.value) {
+    const ev = d.events.find(e => e.id === blockId)
+    if (ev) return ev.height
+  }
+  return 60
+}
+function ghostBlockName(blockId) {
+  for (const d of days.value) {
+    const ev = d.events.find(e => e.id === blockId)
+    if (ev) return ev.name
+  }
+  return ''
+}
+function ghostBlockColor(blockId) {
+  for (const d of days.value) {
+    const ev = d.events.find(e => e.id === blockId)
+    if (ev) return ev.color ?? 'blue'
+  }
+  return 'blue'
+}
+function grabberColor(blockId) {
+  const grabberId = collab.grabMap[blockId]
+  return grabberId ? collab.colorMap[grabberId] : undefined
+}
+
+function collabGhostTop(p) {
+  if (p.snapDayIndex < 0 || !wrapperEl.value) {
+    return (p.y ?? 0) - (p.grabOffsetY ?? 0)
+  }
+  const wrapperTop = wrapperEl.value.getBoundingClientRect().top
+  const receiverScroll = timetableScrollTop.value
+  return wrapperTop - receiverScroll + (p.cursorRelY ?? p.y) - (p.grabOffsetY ?? 0)
+}
+
+function dayColAt(index) {
+  // 이 컴포넌트의 시간표(wrapperEl) 내부로 범위를 한정 — 한 페이지에 보드가 둘 이상이어도 충돌하지 않게
+  return wrapperEl.value?.querySelectorAll('.day-col')[index] ?? null
+}
+
+function collabGhostWidth(p) {
+  void timetableScrollTop.value
+  if (p.snapDayIndex >= 0) {
+    const col = dayColAt(p.snapDayIndex)
+    if (col) return col.getBoundingClientRect().width - 10
+  }
+  return 160
+}
+
+function collabDropPreviewStyle(p) {
+  void timetableScrollTop.value
+  const col = dayColAt(p.snapDayIndex)
+  if (!col) return { display: 'none' }
+  const rect = col.getBoundingClientRect()
+  const height = ghostBlockHeight(p.targetBlockId)
+  return {
+    left: (rect.left + 5) + 'px',
+    top: (rect.top + p.snapTop) + 'px',
+    width: (rect.width - 10) + 'px',
+    height: height + 'px',
+  }
+}
+
+// ── 실시간 협업 이벤트 핸들러 ──
+function handleTripEvent(event) {
+  const myId = auth.user?.id
+  if (event.actorId != null && event.actorId === myId) return
+  switch (event.type) {
+    case 'BLOCK_ADDED':
+    case 'BLOCK_MOVED':
+    case 'BLOCK_DELETED':
+    case 'CANDIDATE_ADDED':
+    case 'CANDIDATE_REMOVED':
+      loadTrip()
+      break
+    case 'TRANSIT_RECALCULATED':
+      applyTransitUpdate(event.payload)
+      break
+  }
+}
+
+function applyTransitUpdate(payload) {
+  if (!payload?.blocks) return
+  const blockMap = {}
+  payload.blocks.forEach(b => { blockMap[b.blockId] = b })
+  days.value.forEach(day => {
+    day.events?.forEach(ev => {
+      const update = blockMap[ev.id]
+      if (update) {
+        ev.transitDurationMinutes = update.transitDurationMinutes
+        ev.transitMode = update.transitMode
+      }
+    })
+  })
+}
+
+let prevGrabbers = new Set()
+
+function connectCollab(tripId) {
+  prevGrabbers = new Set()
+  loadCollaboratorImages()  // 협업자 명단은 일정 전환 시 1회만 조회 (loadTrip마다 호출하면 드래그·드롭마다 재조회됨)
+  collab.setHandlers({
+    tripEvent: handleTripEvent,
+    presence: (list) => {
+      collab.assignColors(list, myMemberId.value)
+      const currentGrabbers = new Set(
+        list
+          .filter(p => p.interaction === 'grab' && p.memberId !== myMemberId.value)
+          .map(p => p.memberId)
+      )
+      const dropped = [...prevGrabbers].some(id => !currentGrabbers.has(id))
+      if (dropped) loadTrip()
+      prevGrabbers = currentGrabbers
+    },
+    reconnect: loadTrip,
+  })
+  collab.connect(tripId)
+}
+
+function onDocumentClick(e) {
   openPillKey.value = null
   currentPillData.value = null
+  if (collabPanelOpen.value) {
+    const overlay = collabPanelRef.value
+    if (overlay && !overlay.contains(e.target) && !collabBtnRef.value?.contains(e.target)) {
+      collabPanelOpen.value = false
+    }
+  }
 }
 
 onUnmounted(() => {
@@ -1774,17 +2083,29 @@ onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('mousemove', onPanelResizeMove)
   document.removeEventListener('mouseup', onPanelResizeEnd)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
+  collab.disconnect()
+})
+
+// 일정 전환 시 WebSocket 재연결 (standalone 모드)
+watch(activeTripId, (newId, oldId) => {
+  if (props.embedded) return
+  collabPanelOpen.value = false
+  if (oldId != null) collab.disconnect()
+  if (newId != null) connectCollab(newId)
 })
 
 // embedded 모드: 현재 일정은 PlanView 의 tripId prop 으로 제어
-watch(() => props.tripId, async (id) => {
+watch(() => props.tripId, async (id, oldId) => {
   if (!props.embedded) return
   if (id == null) { activeTripId.value = null; activeTrip.value = null; candidates.value = []; days.value = []; return }
   if (id === activeTripId.value) return
+  if (oldId != null) collab.disconnect()
   activeTripId.value = id
   await loadTrip()
+  connectCollab(id)
 })
 
 // PlanView 헤더의 "지도" 토글이 보드 지도 패널을 제어할 수 있도록 노출
@@ -1792,12 +2113,14 @@ defineExpose({ openMapPanel, closeMapPanel, toggleMap: () => (showMapPanel.value
 
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 
   if (props.embedded) {
     // organize 모드: tripId prop 으로 일정 로드 (자체 trips 목록 불필요)
     if (props.tripId != null) {
       activeTripId.value = props.tripId
       await loadTrip()
+      connectCollab(props.tripId)
     }
     if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
     return
@@ -1805,12 +2128,18 @@ onMounted(async () => {
 
   tripsLoading.value = true
   try {
-    trips.value = await tripApi.list()
-    if (trips.value.length) {
-      // 공유 store 의 현재 일정 우선, 없으면 첫 일정으로 폴백
+    const [tripsResult, collabResult] = await Promise.allSettled([
+      tripApi.list(),
+      tripApi.listCollaborating(),
+    ])
+    trips.value = tripsResult.status === 'fulfilled' ? tripsResult.value : []
+    collaboratingTrips.value = collabResult.status === 'fulfilled' ? collabResult.value : []
+    const first = trips.value[0] ?? collaboratingTrips.value[0]
+    if (first) {
       const preferred = activeTripStore.id
-      const exists = preferred != null && trips.value.some(t => t.id === preferred)
-      activeTripId.value = exists ? preferred : trips.value[0].id
+      const allTrips = [...trips.value, ...collaboratingTrips.value]
+      const exists = preferred != null && allTrips.some(t => t.id === preferred)
+      activeTripId.value = exists ? preferred : first.id
       activeTripStore.set(activeTripId.value)
       await loadTrip()
     }
@@ -1822,3 +2151,123 @@ onMounted(async () => {
   if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
 })
 </script>
+
+<style scoped>
+/* ── 협업자 버튼 ── */
+.btn-collab {
+  padding: 6px 14px;
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-size: 12px;
+  color: var(--gray-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color .12s, background .12s, border-color .12s;
+  font-family: inherit;
+}
+.btn-collab:hover {
+  color: var(--purple-900);
+  background: var(--purple-50);
+  border-color: var(--purple-100);
+}
+.btn-collab.active {
+  background: var(--purple-50);
+  border-color: var(--purple-900);
+  color: var(--purple-900);
+  font-weight: 600;
+}
+
+.collab-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #d1d5db; flex-shrink: 0;
+  transition: background 0.3s;
+}
+.collab-status-dot.connected { background: #22c55e; }
+
+.collab-panel-overlay {
+  position: absolute;
+  top: 48px; right: 16px;
+  z-index: 200; width: 320px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+
+.collab-slide-enter-active,
+.collab-slide-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.collab-slide-enter-from,
+.collab-slide-leave-to { opacity: 0; transform: translateY(-8px); }
+
+/* ── 툴바 협업자 아바타 ── */
+.toolbar-collab-avatars { display: flex; align-items: center; margin-right: 8px; }
+.toolbar-avatar-wrap {
+  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--avatar-border, #ccc);
+  display: flex; align-items: center; justify-content: center;
+  background: #e5e7eb; margin-left: -6px; cursor: default;
+}
+.toolbar-avatar-wrap:first-child { margin-left: 0; }
+.toolbar-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.toolbar-avatar-initial { font-size: 11px; font-weight: 700; color: #fff; }
+
+/* ── 협업자 커서 오버레이 ── */
+.collab-cursor {
+  position: fixed; pointer-events: none; z-index: 9999;
+  display: flex; align-items: flex-start; gap: 4px;
+}
+.cursor-icon { flex-shrink: 0; }
+.cursor-avatar {
+  width: 24px; height: 24px; border-radius: 50%; overflow: hidden;
+  border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  background: #e5e7eb; margin-left: 2px; margin-top: 12px; flex-shrink: 0;
+}
+.cursor-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cursor-avatar span { font-size: 11px; font-weight: 700; color: #fff; }
+
+/* ── 드래그 중 유령 블록 ── */
+.collab-ghost-block {
+  position: fixed; pointer-events: none; z-index: 9998;
+  border: none; border-left: 4px solid; border-radius: 10px;
+  padding: 6px 10px; overflow: hidden;
+  opacity: 0.5; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.collab-ghost-block[data-color="purple"] { background: var(--purple-50); border-color: var(--purple-900); }
+.collab-ghost-block[data-color="pink"]   { background: var(--pink-50);   border-color: var(--pink-600); }
+.collab-ghost-block[data-color="teal"]   { background: var(--teal-50);   border-color: var(--teal-600); }
+.collab-ghost-block[data-color="blue"]   { background: var(--blue-50);   border-color: var(--blue-600); }
+.collab-ghost-block[data-color="amber"]  { background: var(--amber-50);  border-color: var(--amber-600); }
+
+.collab-drop-preview {
+  position: fixed; pointer-events: none; z-index: 9997;
+  border-radius: 10px; border: 2px dashed var(--purple-900);
+  background: rgba(83, 74, 183, 0.12);
+  animation: collab-drop-pulse 1.2s ease-in-out infinite;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--purple-900); font-weight: 600;
+  letter-spacing: -0.01em; overflow: hidden;
+}
+/* schedule.css 의 drop-pulse 에 의존하지 않도록 컴포넌트 내부에 자체 정의 (scoped 로 이름 격리) */
+@keyframes collab-drop-pulse {
+  0%, 100% { background: rgba(83, 74, 183, 0.12); }
+  50% { background: rgba(83, 74, 183, 0.20); }
+}
+
+.ghost-label {
+  display: block; font-size: 9px;
+  color: var(--cursor-color); font-weight: 700; margin-bottom: 2px;
+}
+.ghost-name {
+  display: block; font-size: 12px; color: #1a1a2e; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── 다른 협업자가 잡고 있는 블록 ── */
+.event-block.grabbed-by-other {
+  opacity: 0.55; pointer-events: none;
+}
+</style>

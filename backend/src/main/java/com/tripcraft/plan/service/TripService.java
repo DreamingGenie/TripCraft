@@ -2,6 +2,7 @@ package com.tripcraft.plan.service;
 
 import com.tripcraft.plan.dto.BlockCreateRequest;
 import com.tripcraft.plan.dto.BlockUpdateRequest;
+import com.tripcraft.plan.dto.CollaboratorItem;
 import com.tripcraft.plan.dto.TripBlockSummaryResponse;
 import com.tripcraft.plan.dto.TripCopyRequest;
 import com.tripcraft.plan.dto.TripCreateRequest;
@@ -13,6 +14,14 @@ import java.util.List;
 public interface TripService {
 
     List<TripSummary> getMyTrips(Long memberId);
+
+    List<TripSummary> getCollaboratingTrips(Long memberId);
+
+    List<CollaboratorItem> getCollaborators(Long tripId, Long requesterId);
+
+    void inviteCollaborator(Long tripId, Long targetMemberId, String role, Long requesterId);
+
+    void removeCollaborator(Long tripId, Long targetMemberId, Long requesterId);
 
     TripDetailResponse getTripDetail(Long tripId, Long memberId);
 

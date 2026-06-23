@@ -49,6 +49,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**", "/api/notices/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/trips/*/blocks-summary").permitAll()
                 .requestMatchers("/error").permitAll()
+                // WebSocket (SockJS HTTP 핸드셰이크)
+                .requestMatchers("/ws/**").permitAll()
                 // 업로드된 이미지 정적 파일 (누구나 조회 가능)
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 // Swagger UI

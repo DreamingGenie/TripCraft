@@ -657,7 +657,7 @@
   transform: translateY(-1px);
 }
 .event-block.event-dragging {
-  opacity: .42;
+  opacity: .70;
   cursor: grabbing !important;
   transform: scale(.98);
 }
