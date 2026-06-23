@@ -117,7 +117,6 @@ export const useCollabStore = defineStore('collab', () => {
   function disconnect() {
     stopKeepalive()
     clearTimeout(reconnectTimer)
-    activeTripId = null
     isReconnecting = false
     if (stompClient) {
       stompClient.deactivate()
