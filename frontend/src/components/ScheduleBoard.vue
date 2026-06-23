@@ -224,7 +224,7 @@
         </div>
         <div v-else class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
-        <div class="timetable-wrapper" ref="wrapperEl" @scroll="e => { openPillKey = null; timetableScrollTop.value = e.currentTarget.scrollTop }">
+        <div class="timetable-wrapper" ref="wrapperEl" @scroll="e => { openPillKey = null; timetableScrollTop = e.currentTarget.scrollTop }">
           <div class="timetable-header">
             <div class="th-gutter"></div>
             <div v-for="d in days" :key="d.label" class="th-day">

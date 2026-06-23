@@ -21,6 +21,9 @@ const routes = [
   { path: '/trips', redirect: '/mypage/trips' },
   { path: '/calendar', redirect: '/mypage/trips' },
   { path: '/community', component: () => import('@/views/CommunityView.vue') },
+  // 전용 작성/수정 화면(모달 폐지). :id가 \d+라 /write와 충돌 없음. requiresAuth로 보호.
+  { path: '/community/write', component: () => import('@/views/CommunityWriteView.vue'), meta: { requiresAuth: true } },
+  { path: '/community/:id(\\d+)/edit', component: () => import('@/views/CommunityWriteView.vue'), meta: { requiresAuth: true } },
   { path: '/community/:id(\\d+)', component: () => import('@/views/CommunityPostView.vue') },
   {
     path: '/admin',

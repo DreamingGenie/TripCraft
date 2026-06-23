@@ -10,7 +10,7 @@
                     class="sort-btn" :class="{ active: sort === s.value }"
                     @click="changeSort(s.value)">{{ s.label }}</button>
           </div>
-          <button class="btn-primary" @click="openWriteModal">
+          <button class="btn-primary" @click="router.push('/community/write')">
             <svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -20,8 +20,12 @@
         </div>
 
         <!-- 공지 배너 -->
-        <!-- 검색창 -->
+        <!-- 검색창: 전체폭 단일 필드(좌측 아이콘·우측 clear), Enter로 검색 → 형제 요소와 폭 통일 -->
         <div class="search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+          </svg>
           <input
             class="search-input"
             v-model="keyword"
@@ -29,7 +33,6 @@
             maxlength="100"
             @keydown.enter="doSearch"
           />
-          <button class="search-btn" @click="doSearch">검색</button>
           <button v-if="keyword" class="search-clear" @click="clearSearch" aria-label="검색어 지우기">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -66,94 +69,13 @@
     </div>
   </div>
   </main>
-
-  <!-- 글쓰기 모달 -->
-  <div v-if="writeModal" id="modal-write" class="modal-overlay">
-    <div class="write-modal-box">
-      <div class="modal-header">
-        <span class="modal-title">새 글 작성</span>
-        <button class="modal-close" @click="writeModal = false" aria-label="닫기">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- 일정 공유 경고 (모달 내부 인라인) -->
-      <div v-if="tripShareWarning" class="trip-share-warning">
-        <div class="confirm-icon confirm-icon--warn">
-          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
-               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
-            <path d="M12 9v4M12 17h.01" />
-          </svg>
-        </div>
-        <p class="confirm-msg">
-          이 일정을 공유하면 <strong>다른 사람들이 일정 내용(장소, 날짜 등)을 확인</strong>할 수 있습니다.<br>
-          계속 진행하시겠습니까?
-        </p>
-        <div class="confirm-actions">
-          <button class="btn-ghost" @click="tripShareWarning = false">취소</button>
-          <button class="btn-primary" :disabled="submitting" @click="doSubmitPost">확인 후 등록</button>
-        </div>
-      </div>
-
-      <template v-else>
-        <div class="modal-body">
-          <label class="field-label"><span class="required">*</span> 제목</label>
-          <input class="field-input" v-model="newPost.title" placeholder="제목을 입력하세요" style="margin-bottom:16px" />
-
-          <label class="field-label">대표사진 <span class="field-optional">(선택)</span></label>
-          <div class="cover-uploader" style="margin-bottom:16px">
-            <div v-if="newPost.coverImageUrl" class="cover-preview">
-              <img :src="newPost.coverImageUrl" alt="대표사진 미리보기" />
-              <button type="button" class="cover-remove" @click="removeCover" aria-label="대표사진 제거">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <button v-else type="button" class="cover-select" :disabled="coverUploading"
-                    @click="coverInput?.click()">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" />
-                <path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20" />
-              </svg>
-              <span>{{ coverUploading ? '업로드 중…' : '대표사진 추가' }}</span>
-            </button>
-            <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-                   style="display:none" @change="handleCoverUpload" />
-          </div>
-
-          <label class="field-label"><span class="required">*</span> 내용</label>
-          <TiptapEditor v-model="newPost.body" style="margin-bottom:16px" />
-          <label class="field-label">일정 연결 <span class="field-optional">(선택)</span></label>
-          <select class="field-input" v-model="newPost.tripId">
-            <option :value="null">연결 안 함</option>
-            <option v-for="t in myTrips" :key="t.id" :value="t.id">
-              {{ t.title }} ({{ t.startDate }} ~ {{ t.endDate }})
-            </option>
-          </select>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-ghost" @click="writeModal = false">취소</button>
-          <button class="btn-primary" :disabled="submitting" @click="submitPost">등록</button>
-        </div>
-      </template>
-    </div>
-  </div>
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
-import { postApi, imageApi } from '@/api/post'
-import { tripApi } from '@/api/trip'
-import TiptapEditor from '@/components/TiptapEditor.vue'
+import { postApi } from '@/api/post'
 import PostCard from '@/components/PostCard.vue'
 
 const toast   = useToastStore()
@@ -169,15 +91,7 @@ const notices = ref([])
 const total   = ref(0)
 const page    = ref(Number(route.query.page) || 0)
 const loading = ref(false)
-const PAGE_SIZE = 10
-
-const writeModal      = ref(false)
-const submitting      = ref(false)
-const newPost         = reactive({ title: '', body: '', tripId: null, coverImageUrl: '' })
-const myTrips         = ref([])
-const tripShareWarning = ref(false)
-const coverInput      = ref(null)
-const coverUploading  = ref(false)
+const PAGE_SIZE = 12 // 1·2·3열 공배수 → 한 페이지가 완전한 줄로 채워짐
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
@@ -232,81 +146,12 @@ function goPage(p) {
   loadPosts()
 }
 
-async function openWriteModal() {
-  newPost.title = ''
-  newPost.body  = ''
-  newPost.tripId = null
-  newPost.coverImageUrl = ''
-  // 이전에 올렸다가 글을 등록하지 않은 대표사진 draft가 남아있을 수 있어 초기화
-  try { await imageApi.deleteCoverDraft() } catch {}
-  writeModal.value = true
-  try { myTrips.value = await tripApi.list() } catch { myTrips.value = [] }
-}
-
-// ── 대표사진 업로드 (Tiptap 이미지와 동일 엔드포인트 재사용) ──
-async function handleCoverUpload(e) {
-  const file = e.target.files[0]
-  if (!file) return
-  e.target.value = '' // 같은 파일 재선택 허용
-
-  coverUploading.value = true
-  try {
-    // type='cover' → 서버가 post_cover_draft로 저장(회원당 1장, 기존 교체)
-    newPost.coverImageUrl = await imageApi.upload(file, 'cover')
-  } catch (err) {
-    toast.show(err.message || '대표사진 업로드에 실패했습니다.')
-  } finally {
-    coverUploading.value = false
-  }
-}
-
-async function removeCover() {
-  try { await imageApi.deleteCoverDraft() } catch {}
-  newPost.coverImageUrl = ''
-}
-
-/** Tiptap HTML에서 태그를 제거한 순수 텍스트 추출 */
-function extractText(html) {
-  const div = document.createElement('div')
-  div.innerHTML = html
-  return div.textContent?.trim() || ''
-}
-
-async function submitPost() {
-  if (!newPost.title.trim() || !extractText(newPost.body)) {
-    toast.show('제목과 내용을 입력해주세요.')
-    return
-  }
-  if (newPost.tripId) { tripShareWarning.value = true; return }
-  await doSubmitPost()
-}
-
-async function doSubmitPost() {
-  submitting.value = true
-  try {
-    const body = { title: newPost.title, content: newPost.body }
-    if (newPost.tripId) body.tripId = newPost.tripId
-    const newId = await postApi.create(body)
-    tripShareWarning.value = false
-    writeModal.value = false
-    toast.show('게시글이 등록됐어요.')
-    // 등록된 글 상세 페이지로 바로 이동
-    router.push(`/community/${newId}`)
-  } catch (e) {
-    toast.show(e.status === 401 ? '로그인이 필요합니다.' : '오류가 발생했습니다.')
-  } finally {
-    submitting.value = false
-  }
-}
-
-onMounted(async () => {
+onMounted(() => {
   loadPosts()
   loadNotices()
-  // 일정 페이지에서 "공유하기" 버튼으로 진입한 경우 모달 자동 오픈
+  // 일정 페이지에서 "공유하기" 진입 시 전용 작성 화면으로 일정 id 전달(모달 폐지)
   if (route.query.shareTrip) {
-    await openWriteModal()
-    const tripId = Number(route.query.shareTrip)
-    if (myTrips.value.some(t => t.id === tripId)) newPost.tripId = tripId
+    router.replace(`/community/write?shareTrip=${Number(route.query.shareTrip)}`)
   }
 })
 </script>

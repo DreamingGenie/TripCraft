@@ -36,53 +36,53 @@
 /* ================================================================
    검색창
    ================================================================ */
+/* 전체폭 단일 필드: 아이콘은 좌측 내부, clear는 우측 내부에 absolute 배치 */
 .search-bar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
   margin-bottom: 16px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--gray-muted, #94a3b8);
+  pointer-events: none;
 }
 
 .search-input {
   flex: 1;
-  height: 38px;
-  padding: 0 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 40px 0 38px; /* 좌: 아이콘 / 우: clear 버튼 자리 */
   border: 1px solid var(--gray-border);
   border-radius: 8px;
   font-size: 14px;
   color: var(--text-primary);
   background: #fff;
   outline: none;
+  box-sizing: border-box;
   transition: border-color 0.15s;
 }
 .search-input:focus { border-color: var(--primary); }
 
-.search-btn {
-  height: 38px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.search-btn:hover { background: var(--primary-dark, #1d4ed8); }
-
 .search-clear {
-  height: 38px;
-  width: 38px;
+  position: absolute;
+  right: 6px;
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
-  border-radius: 8px;
-  background: #f1f5f9;
+  border-radius: 6px;
+  background: transparent;
   color: #64748b;
-  font-size: 14px;
   cursor: pointer;
   transition: background 0.15s;
 }
-.search-clear:hover { background: #e2e8f0; }
+.search-clear:hover { background: #f1f5f9; }
 
 /* ================================================================
    목록 툴바
@@ -137,9 +137,9 @@
 }
 .sort-btn:hover { color: var(--text-primary); }
 .sort-btn.active {
-  color: #fff;
-  background: var(--purple-900);
-  font-weight: 600;
+  color: var(--purple-900);
+  background: var(--purple-50);
+  font-weight: 700;
 }
 
 .btn-primary {
@@ -260,8 +260,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--purple-900), #6b62cf);
-  color: #fff;
+  background: var(--purple-50);
+  color: var(--purple-900);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -492,13 +492,38 @@
   transform: translateX(-2px);
 }
 
+/* 상세 상단 액션 바: 뒤로 ↔ 수정/삭제 */
+.detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detail-topbar .back-btn { margin-bottom: 0; }
+
 .detail-article {
   background: var(--bg-surface);
   border: 1px solid transparent;
   border-radius: var(--radius-xl);
   padding: 36px 40px;
+  margin-top: 14px;
   margin-bottom: 14px;
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* 표지 히어로: 본문 카드 상단 풀블리드 이미지 */
+.detail-hero {
+  margin: -36px -40px 24px;
+  aspect-ratio: 21 / 9;
+  background: var(--bg-page);
+  overflow: hidden;
+}
+.detail-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .detail-title {
@@ -665,6 +690,28 @@
   font-weight: 400;
 }
 
+/* 댓글 작성기: 아바타 + 자동높이 textarea, 항상 목록 위에 노출 */
+.comment-composer {
+  display: flex;
+  gap: 10px;
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xl);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.comment-composer .composer-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.composer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* 댓글 목록 박스 */
 .comment-list {
   background: var(--bg-surface);
@@ -683,18 +730,28 @@
   border-bottom: none;
 }
 
-/* 댓글 헤더 행: 아바타 + 닉네임 + 시간 + 삭제 */
+/* 아바타 + 본문 컬럼 행 */
+.comment-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 댓글 헤더 행: 닉네임 + 상대시간 */
 .comment-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .comment-author {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
-  flex: 1;
 }
 .comment-date {
   font-size: var(--text-xs);
@@ -721,8 +778,8 @@
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
-  padding-left: 36px; /* 아바타 너비(28px) + gap(8px) */
-  margin: 0;
+  word-break: break-word;
+  margin: 0 0 6px;
 }
 
 /* 댓글 없음 */
@@ -736,22 +793,13 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
 }
-
-/* 댓글 작성 폼 박스 */
-.comment-form {
-  background: var(--bg-surface);
-  border: 1px solid transparent;
-  border-radius: var(--radius-xl);
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: var(--shadow-sm);
-}
 .comment-input {
   width: 100%;
   box-sizing: border-box;
-  resize: vertical;
+  resize: none; /* 자동높이(autoGrow)로 제어 */
+  overflow: hidden;
+  min-height: 40px;
+  max-height: 240px;
   border: 1px solid var(--gray-border);
   border-radius: var(--radius-md);
   padding: 10px 12px;
@@ -783,54 +831,37 @@
 /* 답글 버튼 */
 .reply-btn {
   font-size: 12px;
-  color: var(--primary);
-  background: none;
-  border: 1px solid var(--primary);
-  border-radius: 4px;
-  padding: 2px 8px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.reply-btn:hover {
-  background: var(--primary);
-  color: #fff;
-}
-
-/* 대댓글 목록 */
-.reply-list {
-  margin-top: 8px;
-  padding-left: 20px;
-  border-left: 2px solid var(--gray-border);
-}
-.reply-item {
-  padding: 10px 12px;
-  background: var(--bg-page);
-  border-radius: var(--radius-md);
-  margin-bottom: 6px;
-}
-.reply-item:last-child { margin-bottom: 0; }
-
-.reply-arrow {
   color: var(--gray-muted);
-  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.15s;
 }
+.reply-btn:hover { color: var(--purple-900); }
 
-/* 대댓글 본문은 들여쓰기 줄임 (↳ 아이콘이 이미 구분) */
-.reply-body {
-  padding-left: 20px;
+/* 대댓글 목록 — 들여쓰기로 부모-자식 관계 표현 */
+.reply-list {
+  margin-top: 12px;
+  padding-left: 14px;
+  border-left: 2px solid var(--gray-border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
+.reply-row { align-items: flex-start; }
 
-/* 대댓글 입력 폼 */
+/* 대댓글 입력 폼 (인라인 토글) */
 .reply-form {
   margin-top: 10px;
-  padding-left: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .reply-input {
   background: var(--bg-page);
-  border-color: var(--primary);
+  border-color: var(--purple-900);
 }
 
 /* ================================================================
