@@ -82,4 +82,25 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
+
+  /* ── 타이포 스케일 (디자인 시스템 v1 — design_system.md) ──
+     신규 화면은 이 스케일만 사용. 레거시 --font-size-* 는 마이그레이션 후 폐기. */
+  --text-2xs:  11px;
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   16px;
+  --text-xl:   18px;
+  --text-2xl:  22px;
+  --text-3xl:  28px;
+
+  /* ── 분류 색 (콘텐츠타입 = 전 화면 공통) ──
+     tint = 카드 배경, ink = 핀·뱃지·일정블록. ExploreView JS COLORS 와 tint 일치. */
+  --cat-sights-tint:  #C8C5F5;  --cat-sights-ink:  #6357C9;  /* 관광지 12 */
+  --cat-culture-tint: #9BD4C0;  --cat-culture-ink: #0F6E56;  /* 문화시설 14 */
+  --cat-leisure-tint: #AFE8C0;  --cat-leisure-ink: #2E8B57;  /* 레포츠 28 */
+  --cat-stay-tint:    #AFC9E8;  --cat-stay-ink:    #185FA5;  /* 숙박 32 */
+  --cat-shop-tint:    #F5D0A9;  --cat-shop-ink:    #A8650E;  /* 쇼핑 38 */
+  --cat-food-tint:    #F5C0D2;  --cat-food-ink:    #993556;  /* 음식점 39 */
 }
