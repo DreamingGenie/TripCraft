@@ -47,7 +47,7 @@
 
       <button class="btn-map-view" @click="openMapPanel()">🗺 지도로 보기</button>
       <button v-if="activeTrip" class="btn-share-trip" @click="shareToComm">📢 공유하기</button>
-      <button v-if="activeTrip" class="btn-collab" :class="{ active: collabPanelOpen }"
+      <button v-if="activeTrip" ref="collabBtnRef" class="btn-collab" :class="{ active: collabPanelOpen }"
               @click="collabPanelOpen = !collabPanelOpen">
         <span class="collab-status-dot" :class="{ connected: collab.connected }"></span>
         👥 협업자
@@ -57,7 +57,7 @@
 
     <!-- 협업자 패널 (툴바 아래 슬라이드) -->
     <Transition name="collab-slide">
-      <div v-if="collabPanelOpen && activeTrip" class="collab-panel-overlay">
+      <div v-if="collabPanelOpen && activeTrip" ref="collabPanelRef" class="collab-panel-overlay">
         <CollaboratorPanel
           :trip-id="activeTrip.id"
           :is-owner="activeTripIsOwner"
@@ -616,6 +616,8 @@ const candidates = ref([])
 const days = ref([])
 
 const collabPanelOpen = ref(false)
+const collabPanelRef = ref(null)
+const collabBtnRef = ref(null)
 const timetableScrollTop = ref(0)
 const collaboratorImageMap = ref({})
 
@@ -1655,7 +1657,6 @@ async function loadTrip() {
       dragging: false,
     }))
     days.value = buildDays(trip)
-    loadCollaboratorImages()
     if (showMapPanel.value && mapDay.value) {
       const updated = days.value.find(d => d.isoDate === mapDay.value.isoDate)
       if (updated) mapDay.value = updated
@@ -1981,11 +1982,15 @@ function collabGhostTop(p) {
   return wrapperTop - receiverScroll + (p.cursorRelY ?? p.y) - (p.grabOffsetY ?? 0)
 }
 
+function dayColAt(index) {
+  // 이 컴포넌트의 시간표(wrapperEl) 내부로 범위를 한정 — 한 페이지에 보드가 둘 이상이어도 충돌하지 않게
+  return wrapperEl.value?.querySelectorAll('.day-col')[index] ?? null
+}
+
 function collabGhostWidth(p) {
   void timetableScrollTop.value
   if (p.snapDayIndex >= 0) {
-    const cols = document.querySelectorAll('.day-col')
-    const col = cols[p.snapDayIndex]
+    const col = dayColAt(p.snapDayIndex)
     if (col) return col.getBoundingClientRect().width - 10
   }
   return 160
@@ -1993,8 +1998,7 @@ function collabGhostWidth(p) {
 
 function collabDropPreviewStyle(p) {
   void timetableScrollTop.value
-  const cols = document.querySelectorAll('.day-col')
-  const col = cols[p.snapDayIndex]
+  const col = dayColAt(p.snapDayIndex)
   if (!col) return { display: 'none' }
   const rect = col.getBoundingClientRect()
   const height = ghostBlockHeight(p.targetBlockId)
@@ -2043,6 +2047,7 @@ let prevGrabbers = new Set()
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
+  loadCollaboratorImages()  // 협업자 명단은 일정 전환 시 1회만 조회 (loadTrip마다 호출하면 드래그·드롭마다 재조회됨)
   collab.setHandlers({
     tripEvent: handleTripEvent,
     presence: (list) => {
@@ -2065,9 +2070,8 @@ function onDocumentClick(e) {
   openPillKey.value = null
   currentPillData.value = null
   if (collabPanelOpen.value) {
-    const overlay = document.querySelector('.collab-panel-overlay')
-    const collabBtn = document.querySelector('.btn-collab')
-    if (overlay && !overlay.contains(e.target) && !collabBtn?.contains(e.target)) {
+    const overlay = collabPanelRef.value
+    if (overlay && !overlay.contains(e.target) && !collabBtnRef.value?.contains(e.target)) {
       collabPanelOpen.value = false
     }
   }
@@ -2242,10 +2246,15 @@ onMounted(async () => {
   position: fixed; pointer-events: none; z-index: 9997;
   border-radius: 10px; border: 2px dashed var(--purple-900);
   background: rgba(83, 74, 183, 0.12);
-  animation: drop-pulse 1.2s ease-in-out infinite;
+  animation: collab-drop-pulse 1.2s ease-in-out infinite;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--purple-900); font-weight: 600;
   letter-spacing: -0.01em; overflow: hidden;
+}
+/* schedule.css 의 drop-pulse 에 의존하지 않도록 컴포넌트 내부에 자체 정의 (scoped 로 이름 격리) */
+@keyframes collab-drop-pulse {
+  0%, 100% { background: rgba(83, 74, 183, 0.12); }
+  50% { background: rgba(83, 74, 183, 0.20); }
 }
 
 .ghost-label {

@@ -13,7 +13,6 @@ export const useCollabStore = defineStore('collab', () => {
   const connected = ref(false)
 
   let stompClient = null
-  let activeTripId = null
   let reconnectTimer = null
   let isReconnecting = false
   let keepaliveTimer = null
@@ -30,7 +29,14 @@ export const useCollabStore = defineStore('collab', () => {
   }
 
   async function connect(tripId) {
-    activeTripId = tripId
+    // 재호출 방어: 이전 연결이 살아 있으면 정리 후 새로 연결 (클라이언트 누수·중복 구독 방지)
+    if (stompClient) {
+      stopKeepalive()
+      clearTimeout(reconnectTimer)
+      stompClient.deactivate()
+      stompClient = null
+    }
+    isReconnecting = false
     await _doConnect(tripId)
   }
 
@@ -62,7 +68,11 @@ export const useCollabStore = defineStore('collab', () => {
           const list = payload.participants || []
           participants.value = list
           const map = {}
-          list.forEach(p => { if (p.targetBlockId) map[p.targetBlockId] = p.memberId })
+          // 백엔드 grab 정의와 일치: interaction === 'grab' 인 경우만 잠금으로 본다
+          // (커서 이동 시 잔존 targetBlockId 가 잠금으로 오인되는 것을 방지)
+          list.forEach(p => {
+            if (p.interaction === 'grab' && p.targetBlockId) map[p.targetBlockId] = p.memberId
+          })
           grabMap.value = map
           if (onPresence) onPresence(list)
         })
@@ -141,10 +151,6 @@ export const useCollabStore = defineStore('collab', () => {
     })
   }
 
-  function resetColors() {
-    colorMap.value = {}
-  }
-
   return {
     participants,
     grabMap,
@@ -156,6 +162,5 @@ export const useCollabStore = defineStore('collab', () => {
     setHandlers,
     isGrabbedByOther,
     assignColors,
-    resetColors,
   }
 })
