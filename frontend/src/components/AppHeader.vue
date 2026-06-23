@@ -5,7 +5,8 @@
     <!-- 1차 탭 2개: 여행 작업실 / 커뮤니티 (+ 관리자: ADMIN만) -->
     <!-- 여행 작업실: 맥락 라우팅 (로그인 + 현재여행 → /plan/:id, 아니면 /discover) -->
     <button class="nav-link" :class="{ active: isExploreActive }" @click="goExplore">여행 작업실</button>
-    <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
+    <!-- 게시판 제목(여행 이야기)과 라벨 통일 -->
+    <RouterLink class="nav-link" to="/community" active-class="active">여행 이야기</RouterLink>
     <RouterLink v-if="auth.user?.role === 'ADMIN'" class="nav-link nav-admin" to="/admin" active-class="active">관리자</RouterLink>
 
     <span class="gnb-spacer"></span>
