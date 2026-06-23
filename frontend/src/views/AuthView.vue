@@ -70,7 +70,17 @@
           <div class="divider-line"></div>
         </div>
 
-        <button class="kakao-btn" disabled>💬 카카오로 로그인</button>
+        <button class="kakao-btn" @click="kakaoChoice = true">💬 카카오로 로그인</button>
+
+        <!-- 카카오 계정 선택 팝업 -->
+        <div v-if="kakaoChoice" class="kakao-modal-overlay" @click.self="kakaoChoice = false">
+          <div class="kakao-modal">
+            <p class="kakao-modal-title">카카오 로그인</p>
+            <button class="kakao-modal-btn" @click="chooseKakao(false)">빠른 로그인 <small>(최근 계정)</small></button>
+            <button class="kakao-modal-btn secondary" @click="chooseKakao(true)">다른 계정으로 로그인</button>
+            <button class="kakao-modal-cancel" @click="kakaoChoice = false">취소</button>
+          </div>
+        </div>
 
         <p class="switch-link">
           <template v-if="tab === 'login'">
@@ -103,6 +113,7 @@ const toast = useToastStore()
 
 const tab = ref('login')
 const loading = ref(false)
+const kakaoChoice = ref(false)   // 카카오 계정 선택 팝업 표시 여부
 
 const login = reactive({ email: '', password: '' })
 const signup = reactive({ nickname: '', email: '', password: '', confirm: '' })
@@ -134,6 +145,28 @@ async function doLogin() {
   }
 }
 
+function chooseKakao(differentAccount) {
+  kakaoChoice.value = false
+  startKakaoLogin(differentAccount)
+}
+
+function startKakaoLogin(differentAccount = false) {
+  const restKey = import.meta.env.VITE_KAKAO_REST_KEY
+  const redirect = import.meta.env.VITE_KAKAO_REDIRECT_URI
+  if (!restKey || !redirect) {
+    toast.show('카카오 로그인이 아직 설정되지 않았습니다.')
+    return
+  }
+  let url = `https://kauth.kakao.com/oauth/authorize?client_id=${restKey}`
+    + `&redirect_uri=${encodeURIComponent(redirect)}&response_type=code`
+    + `&scope=profile_nickname,profile_image`   // 닉네임·프로필사진 동의 명시 요청
+  // 기본: 카카오 세션 있으면 원클릭(기존 계정). '다른 계정'은 로그인 화면 강제.
+  if (differentAccount) {
+    url += `&prompt=login`
+  }
+  window.location.href = url
+}
+
 async function doSignup() {
   if (!signup.nickname || !signup.email || !signup.password) {
     toast.show('모든 항목을 입력해주세요.')
@@ -157,3 +190,56 @@ async function doSignup() {
   }
 }
 </script>
+
+<style scoped>
+.kakao-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.kakao-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 280px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+.kakao-modal-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  text-align: center;
+}
+.kakao-modal-btn {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #fee500;
+  color: #191600;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kakao-modal-btn.secondary {
+  background: #f2f2f2;
+  color: #333;
+}
+.kakao-modal-btn small {
+  font-weight: 400;
+  opacity: 0.7;
+}
+.kakao-modal-cancel {
+  padding: 8px;
+  border: none;
+  background: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+</style>
