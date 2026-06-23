@@ -27,9 +27,11 @@
                COALESCE(m.nickname, '탈퇴한 사용자')          AS authorNickname,
                c.content,
                c.created_at                                  AS createdAt,
-               (c.member_id IS NOT NULL AND c.member_id = #{memberId}) AS mine
+               (c.member_id IS NOT NULL AND c.member_id = #{memberId}) AS mine,
+               <include refid="com.tripcraft.community.mapper.PostMapper.profileImageCol"/>
         FROM post_comment c
         LEFT JOIN member m ON m.id = c.member_id
+        <include refid="com.tripcraft.community.mapper.PostMapper.profileImageJoin"/>
         WHERE c.post_id = #{postId}
         ORDER BY COALESCE(c.parent_id, c.id) ASC, c.created_at ASC
     </select>

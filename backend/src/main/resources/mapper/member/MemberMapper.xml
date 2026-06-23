@@ -10,32 +10,46 @@
         <result column="password" property="password"/>
         <result column="nickname" property="nickname"/>
         <result column="role" property="role"/>
+        <result column="social_provider" property="socialProvider"/>
+        <result column="social_id" property="socialId"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
     <select id="findById" parameterType="long" resultMap="memberMap">
-        SELECT id, email, password, nickname, role, created_at, updated_at
+        SELECT id, email, password, nickname, role, social_provider, social_id, created_at, updated_at
         FROM member
         WHERE id = #{id}
     </select>
 
     <select id="findByNickname" parameterType="string" resultMap="memberMap">
-        SELECT id, email, password, nickname, role, created_at, updated_at
+        SELECT id, email, password, nickname, role, social_provider, social_id, created_at, updated_at
         FROM member
         WHERE nickname = #{nickname}
     </select>
 
     <select id="findByEmail" parameterType="string" resultMap="memberMap">
-        SELECT id, email, password, nickname, role, created_at, updated_at
+        SELECT id, email, password, nickname, role, social_provider, social_id, created_at, updated_at
         FROM member
         WHERE email = #{email}
     </select>
 
     <insert id="insert" parameterType="com.tripcraft.member.domain.Member" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO member (email, password, nickname, role)
-        VALUES (#{email}, #{password}, #{nickname}, #{role})
+        INSERT INTO member (email, password, nickname, role, social_provider, social_id)
+        VALUES (#{email}, #{password}, #{nickname}, #{role}, #{socialProvider}, #{socialId})
     </insert>
+
+    <select id="findBySocial" resultMap="memberMap">
+        SELECT id, email, password, nickname, role, social_provider, social_id, created_at, updated_at
+        FROM member
+        WHERE social_provider = #{provider} AND social_id = #{socialId}
+    </select>
+
+    <update id="linkSocial">
+        UPDATE member
+        SET social_provider = #{provider}, social_id = #{socialId}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
 
     <delete id="deleteById" parameterType="long">
         DELETE FROM member WHERE id = #{id}
