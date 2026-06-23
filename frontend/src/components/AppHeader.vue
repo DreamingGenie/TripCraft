@@ -3,6 +3,7 @@
     <RouterLink class="logo" to="/">TripCraft</RouterLink>
     <RouterLink class="nav-link" to="/explore" active-class="active">관광지 탐색</RouterLink>
     <RouterLink class="nav-link" to="/schedule" active-class="active">내 일정</RouterLink>
+    <RouterLink class="nav-link nav-beta" to="/plan" active-class="active">여행 작업실<sup>beta</sup></RouterLink>
     <RouterLink class="nav-link" to="/calendar" active-class="active">내 여행 일지</RouterLink>
     <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
     <RouterLink v-if="auth.user?.role === 'ADMIN'" class="nav-link nav-admin" to="/admin" active-class="active">관리자</RouterLink>
@@ -73,7 +74,7 @@ async function handleLogout() {
 }
 
 .gnb-user-btn {
-  font-size: 1.1rem;
+  font-size: var(--text-base);
   color: var(--gray-dark);
   background: none;
   border: none;
@@ -102,8 +103,8 @@ async function handleLogout() {
 
 .dropdown-item {
   display: block;
-  padding: 14px 24px;
-  font-size: 1rem;
+  padding: 12px 20px;
+  font-size: var(--text-sm);
   color: var(--text-primary);
   text-decoration: none;
   transition: background 0.1s;

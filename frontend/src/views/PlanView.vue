@@ -1,6 +1,101 @@
 <template>
-  <main id="main">
-  <section id="screen-explore">
+  <main id="main" class="plan-main">
+
+    <!-- 작업실 헤더: 현재 여행 칩 + 모드 토글 + (정리)공유·자동저장·지도토글 -->
+    <header class="plan-header">
+      <div class="plan-trip-menu" ref="tripMenuRef">
+        <button class="plan-trip-chip" :class="{ open: tripMenuOpen }"
+                @click="tripMenuOpen = !tripMenuOpen"
+                :aria-expanded="tripMenuOpen">
+          <span class="plan-trip-icon">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.5C5.5 1.5 3.5 3.4 3.5 5.9 3.5 9.4 8 14.5 8 14.5s4.5-5.1 4.5-8.6C12.5 3.4 10.5 1.5 8 1.5z" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="8" cy="6" r="1.7" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="plan-trip-text">
+            <span class="plan-trip-label">현재 여행</span>
+            <span class="plan-trip-name" :class="{ 'plan-trip-name--empty': !currentTrip }">
+              {{ currentTrip ? currentTrip.title : '여행 선택' }}
+            </span>
+          </span>
+          <svg class="plan-trip-caret" :class="{ open: tripMenuOpen }" width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <Transition name="trip-menu-pop">
+          <div v-if="tripMenuOpen" class="plan-trip-dropdown">
+            <div v-if="tripsLoading" class="plan-trip-dd-loading">로딩 중...</div>
+            <template v-else>
+              <button
+                v-for="t in trips" :key="t.id"
+                class="plan-trip-dd-item" :class="{ active: t.id === activeTrip }"
+                @click="selectTrip(t.id)">
+                <span class="plan-trip-dd-main">
+                  <span class="plan-trip-dd-name">{{ t.title }}</span>
+                  <span class="plan-trip-dd-dates">{{ t.startDate }} ~ {{ t.endDate }}</span>
+                </span>
+                <svg v-if="t.id === activeTrip" class="plan-trip-dd-check" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div v-if="!trips.length" class="plan-trip-dd-empty">등록된 일정이 없습니다</div>
+              <button class="plan-trip-dd-new" @click="tripMenuOpen = false; openScheduleModal()">
+                + 새 일정 만들기
+              </button>
+            </template>
+          </div>
+        </Transition>
+      </div>
+
+      <div class="plan-modes">
+        <button class="plan-mode" :class="{ active: mode === 'explore' }" @click="mode = 'explore'">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M11 11L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          탐색
+        </button>
+        <button class="plan-mode" :class="{ active: mode === 'organize' }" @click="mode = 'organize'">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M2.5 6h11M6 6v7.5" stroke="currentColor" stroke-width="1.4"/>
+          </svg>
+          정리
+        </button>
+      </div>
+
+      <span class="plan-header-spacer"></span>
+
+      <!-- 정리 모드 전용 우측 액션 -->
+      <template v-if="mode === 'organize' && currentTrip">
+        <span class="plan-saved">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          저장됨
+        </span>
+        <button class="plan-action-btn" @click="toggleBoardMap">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4l4-1.5 4 1.5 4-1.5v9.5L10 13l-4-1.5L2 13V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M6 2.5v9M10 4v9.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          지도
+        </button>
+        <button class="plan-action-btn plan-action-btn--share" @click="shareTrip">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="12" cy="3.5" r="2" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="4" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="12" cy="12.5" r="2" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M5.7 7L10.3 4.5M5.7 9L10.3 11.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          공유
+        </button>
+      </template>
+    </header>
+
+  <section v-show="mode === 'explore'" id="screen-explore">
 
     <!-- 지도: 전체 배경 -->
     <div class="map-area">
@@ -73,7 +168,7 @@
       <div ref="scrollEl" class="cards-scroll">
         <div v-for="rg in searchResultGroups" :key="rg.region ?? '__flat__'">
           <button v-if="rg.region" class="group-section-header"
-                  @click="toggleSearchRegion(rg.region)">
+                  @click="toggleSearchRegion(rg.region, $event)">
             <span class="group-chevron" :class="{ open: !collapsedSearchRegions[rg.region] }">▶</span>
             {{ rg.region }}
             <span class="group-count">{{ rg.total }}</span>
@@ -83,7 +178,7 @@
                  :class="{ 'sg-level-indent': !!rg.region }">
               <div v-for="sg in rg.sgGroups" :key="sg.sg ?? '__nosg__'">
                 <button v-if="sg.sg" class="sg-section-header"
-                        @click="toggleSearchSigungu(`${rg.region}__${sg.sg}`)">
+                        @click="toggleSearchSigungu(`${rg.region}__${sg.sg}`, $event)">
                   <span class="group-chevron" :class="{ open: !collapsedSearchSigungus[`${rg.region}__${sg.sg}`] }">▶</span>
                   {{ sg.sg }}
                   <span class="group-count">{{ sg.total }}</span>
@@ -93,7 +188,7 @@
                        class="group-cards-wrap">
                     <div v-for="cg in toRenderGroups(sg)" :key="cg.cat ?? '__all__'" class="cat-section-wrap">
                       <button v-if="cg.cat" class="cat-section-header"
-                              @click="toggleSearchCat(`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`)">
+                              @click="toggleSearchCat(`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`, $event)">
                         <span class="group-chevron" :class="{ open: !collapsedSearchCats[`${rg.region ?? ''}__${sg.sg ?? ''}__${cg.cat}`] }">▶</span>
                         {{ cg.cat }}
                         <span class="group-count">{{ cg.total }}</span>
@@ -114,6 +209,7 @@
                           <template v-else>
                             <div v-for="a in getGroup(rg.region, sg.sg, cg.cat).items" :key="a.id"
                                  class="attr-card" :class="{ candidate: addedIds.has(a.id), selected: selectedAttraction?.id === a.id }"
+                                 :style="{ '--card-cat-ink': catColor(a.category) }"
                                  draggable="true"
                                  @click="selectAttraction(a)"
                                  @dragstart="onCardDragStart($event, a)"
@@ -377,17 +473,10 @@
           </svg>
         </span>
         <div class="tray-switcher">
-          <span class="tray-title">내 일정</span>
-          <template v-if="trips.length">
-            <select class="tray-trip-select" v-model="activeTrip" aria-label="현재 일정 선택">
-              <option v-for="t in trips" :key="t.id" :value="t.id">{{ t.title }}</option>
-            </select>
-            <span class="tray-switcher-caret">▾</span>
-          </template>
-          <span v-else class="tray-trip-name tray-trip-name--empty">일정 선택</span>
+          <span class="tray-title">보관함</span>
         </div>
         <button class="tray-toggle-btn" @click="trayOpen = !trayOpen"
-                :aria-label="trayOpen ? '트레이 접기' : '트레이 펼치기'">
+                :aria-label="trayOpen ? '보관함 접기' : '보관함 펼치기'">
           <span class="tray-count">{{ activeTripCandidates.length }}</span>
           <span class="tray-toggle-chev" :class="{ open: trayOpen }">▼</span>
         </button>
@@ -399,17 +488,11 @@
           <!-- 로딩 / 일정 없음 -->
           <div v-if="tripsLoading" class="tray-loading">로딩 중...</div>
           <div v-else-if="!trips.length" class="tray-empty">
-            <p>등록된 일정이 없습니다</p>
-            <button @click="openScheduleModal()">+ 새 일정 만들기</button>
+            <p>등록된 일정이 없어요.<br>상단 여행 메뉴에서 새 일정을 만들어보세요.</p>
           </div>
 
-          <!-- 현재 일정 후보 목록 (일정 전환은 헤더 select 에서) -->
+          <!-- 현재 일정 후보 목록 (일정 전환은 헤더 드롭다운에서) -->
           <template v-else-if="currentTrip">
-            <div class="tray-trip-bar">
-              <span class="tray-trip-dates">{{ currentTrip.startDate }} ~ {{ currentTrip.endDate }}</span>
-              <span class="tray-trip-members">{{ currentTrip.memberCount }}명</span>
-            </div>
-
             <div v-if="isDraggingCard" class="tray-drag-hint">여기에 놓으면 추가돼요</div>
 
             <div v-if="!activeTripCandidates.length" class="tray-cand-empty">
@@ -445,34 +528,83 @@
                 </div>
               </div>
             </template>
-
-            <div class="tray-new" @click="openScheduleModal()">+ 새 일정 만들기</div>
           </template>
+
+          <!-- activeTrip 이 목록에 없을 때(삭제·동기화 지연) 폴백: 빈 패널 방지 -->
+          <div v-else class="tray-empty">
+            <p>상단 여행 메뉴에서 일정을 선택하세요.</p>
+          </div>
 
         </div>
       </Transition>
     </div>
 
   </section>
+
+    <!-- 정리(organize) 모드 — 24h 격자 타임테이블 (ScheduleBoard 재사용) -->
+    <section v-if="mode === 'organize'" class="plan-organize">
+      <div v-if="!activeTrip" class="plan-organize-empty">
+        <div class="plan-stub-card">
+          <p>아직 작업할 여행이 없어요.<br>먼저 탐색에서 가고 싶은 곳을 담아오세요.</p>
+          <button class="btn-primary" @click="mode = 'explore'">탐색 모드로 →</button>
+        </div>
+      </div>
+      <ScheduleBoard
+        v-else
+        ref="boardRef"
+        embedded
+        :trip-id="activeTrip"
+        @explore="mode = 'explore'" />
+    </section>
+
   </main>
 </template>
 
 <script setup>
 import { ref, computed, reactive, inject, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useActiveTripStore } from '@/stores/activeTrip'
 import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
 import AttractionChat from '@/components/AttractionChat.vue'
+import ScheduleBoard from '@/components/ScheduleBoard.vue'
 
 const toast = useToastStore()
 const activeTripStore = useActiveTripStore()
 const openScheduleModal = inject('openScheduleModal')
 
-// ── UI state (트레이 토글 / 드래그 감지) ──
-const trayOpen = ref(false)
+const route = useRoute()
+const router = useRouter()
+
+// organize 모드: 보드 컴포넌트 ref (지도 토글 제어)
+const boardRef = ref(null)
+function toggleBoardMap() { boardRef.value?.toggleMap?.() }
+function shareTrip() {
+  if (!activeTrip.value) return
+  router.push({ path: '/community', query: { shareTrip: activeTrip.value } })
+}
+
+// ── UI state (모드 / 트레이 토글 / 드래그 감지) ──
+const mode = ref('explore') // 'explore' | 'organize'
+const trayOpen = ref(false) // 평소 지도를 넓게: 담기/드래그 시 자동으로 열림
 const isDraggingCard = ref(false)
 const currentTrip = computed(() => trips.value.find(t => t.id === activeTrip.value))
+
+// ── 헤더 현재 여행 드롭다운 ──
+const tripMenuOpen = ref(false)
+const tripMenuRef = ref(null)
+function selectTrip(id) {
+  activeTrip.value = id
+  activeTripStore.set(id)
+  tripMenuOpen.value = false
+}
+function onTripMenuOutside(e) {
+  if (tripMenuRef.value && !tripMenuRef.value.contains(e.target)) tripMenuOpen.value = false
+}
+function onTripMenuKey(e) {
+  if (e.key === 'Escape') tripMenuOpen.value = false
+}
 
 const trips = ref([])
 const tripsLoading = ref(false)
@@ -632,7 +764,7 @@ async function loadGroup(region, sg, cat) {
   try {
     const sigunguKey = getSigunguKey(region, sg)
     const data = await searchAttractions({
-      keyword: searchQuery.value || undefined,
+      keyword: resolveSearch().keyword,
       region: region && region !== '기타' ? region : undefined,
       sigungu: sigunguKey ? [sigunguKey] : undefined,
       category: cat && cat !== '기타' ? cat : undefined,
@@ -683,16 +815,19 @@ const groupedCandidates = computed(() => {
     catGroups: Object.entries(catMap).map(([cat, items]) => ({ cat, items }))
   }))
 })
-function toggleSearchRegion(region) {
+function toggleSearchRegion(region, e) {
   collapsedSearchRegions[region] = !collapsedSearchRegions[region]
+  if (collapsedSearchRegions[region]) scrollGroupToTop(e?.currentTarget)
   nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
-function toggleSearchSigungu(key) {
+function toggleSearchSigungu(key, e) {
   collapsedSearchSigungus[key] = !collapsedSearchSigungus[key]
+  if (collapsedSearchSigungus[key]) scrollGroupToTop(e?.currentTarget)
   nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
-function toggleSearchCat(key) {
+function toggleSearchCat(key, e) {
   collapsedSearchCats[key] = !collapsedSearchCats[key]
+  if (collapsedSearchCats[key]) scrollGroupToTop(e?.currentTarget)
   nextTick(() => requestAnimationFrame(() => checkVisible()))
 }
 
@@ -1163,6 +1298,10 @@ watch(activeTripCandidates, updateMarkers)
 
 watch(activeTrip, async (id) => {
   activeTripStore.set(id ?? null)
+  // URL 동기화: 현재 일정과 /plan/:tripId 를 일치시킴(새로고침·공유 링크 정합)
+  if (id && String(route.params.tripId ?? '') !== String(id)) {
+    router.replace({ path: `/plan/${id}` })
+  }
   if (!id) {
     activeTripCandidates.value = []
     addedIds.value = new Set()
@@ -1176,6 +1315,21 @@ watch(activeTrip, async (id) => {
     candidateIdMap.value = new Map(detail.candidates.map(c => [c.attractionId, c.id]))
   } catch {
     activeTripCandidates.value = []
+  }
+})
+
+// 라우트 tripId 변경(딥링크/뒤로가기) → 현재 일정 전환 (컴포넌트 재사용 시 onMounted 미실행 대응)
+watch(() => route.params.tripId, (val) => {
+  const n = val ? Number(val) : null
+  if (n && n !== activeTrip.value && trips.value.some(t => t.id === n)) {
+    activeTrip.value = n
+  }
+})
+
+// 정리→탐색 복귀 시 숨겨졌던 지도 리사이즈(타일 공백 방지). 지도는 v-show 라 인스턴스는 유지됨.
+watch(mode, (m) => {
+  if (m === 'explore' && naverMap) {
+    nextTick(() => { try { window.naver?.maps?.Event?.trigger(naverMap, 'resize') } catch {} })
   }
 })
 
@@ -1270,10 +1424,11 @@ async function loadTrips() {
   try {
     trips.value = await tripApi.list()
     if (trips.value.length) {
-      // 공유 store 의 현재 일정이 목록에 있으면 그것, 없으면 첫 일정으로 폴백
-      const preferred = activeTripStore.id
-      const exists = preferred != null && trips.value.some(t => t.id === preferred)
-      activeTrip.value = exists ? preferred : trips.value[0].id
+      // 우선순위: 라우트 tripId > 공유 store > 첫 일정
+      const routeId = route.params.tripId ? Number(route.params.tripId) : null
+      const candidate = [routeId, activeTripStore.id]
+        .find(id => id != null && trips.value.some(t => t.id === id))
+      activeTrip.value = candidate ?? trips.value[0].id
       activeTripStore.set(activeTrip.value)
     }
   } catch {
@@ -1291,6 +1446,17 @@ async function loadRegions() {
   }
 }
 
+// "도시 검색" 지원: 입력이 시도 이름과 매칭되면 keyword 가 아니라 region 필터로 해석한다.
+// (백엔드 keyword 는 장소명만 매칭하므로 "대전" 입력 시 대전의 모든 장소가 안 나오는 문제 보정)
+function resolveSearch() {
+  const q = (searchQuery.value || '').trim()
+  const matched = q ? regions.value.find(r => r === q || r.includes(q)) : null
+  return {
+    keyword: matched ? undefined : (q || undefined),
+    region: matched || (selectedRegions.value.length ? selectedRegions.value.join(',') : undefined),
+  }
+}
+
 async function loadAttractions() {
   loadSeq++
   const mySeq = loadSeq
@@ -1298,9 +1464,10 @@ async function loadAttractions() {
   for (const key in groupItems) delete groupItems[key]
 
   try {
+    const s = resolveSearch()
     const data = await searchAttractions({
-      keyword: searchQuery.value || undefined,
-      region: selectedRegions.value.length ? selectedRegions.value.join(',') : undefined,
+      keyword: s.keyword,
+      region: s.region,
       sigungu: selectedSigungus.value.length ? selectedSigungus.value : undefined,
       category: selectedCats.value.length ? selectedCats.value.join(',') : undefined,
       page: 0,
@@ -1339,6 +1506,29 @@ function checkScroll() {
 
 function applyFilters() {
   loadAttractions()
+}
+
+// 그룹 접기 시 스크롤 처리.
+//  - 상단에 "스티키로 붙어있는" 그룹을 접으면: 접은 헤더 다음(= 다음 그룹 첫 항목)이 스티키 라인에 오게 이동.
+//  - 붙어있지 않은(흐름상 보이는) 그룹을 접으면: 스크롤 변화 없음.
+function scrollGroupToTop(el) {
+  const sc = scrollEl.value
+  if (!sc || !el) return
+  const stickyTop = parseFloat(getComputedStyle(el).top) || 0
+  // 흐름상 누적 위치(offsetParent 무관)
+  let top = 0, node = el
+  while (node && node !== sc && sc.contains(node)) {
+    top += node.offsetTop
+    const op = node.offsetParent
+    if (!op || op === node) break
+    node = op
+  }
+  // 현재 이 헤더가 상단 스티키 위치에 붙어있는가? (흐름상 위치가 스크롤+오프셋보다 위면 붙은 상태)
+  const isStuck = (top - sc.scrollTop) <= stickyTop + 1
+  if (!isStuck) return
+  const target = Math.max(0, top + el.offsetHeight - stickyTop)
+  // 카드 제거(즉시 collapse) 이후 프레임에 적용 → 앵커링/잔상 영향 없이 다음 그룹이 상단에 옴
+  nextTick(() => requestAnimationFrame(() => { if (scrollEl.value) scrollEl.value.scrollTop = target }))
 }
 
 function clearFilters() {
@@ -1462,6 +1652,7 @@ async function addToTrip(attraction) {
     const candidateId = await tripApi.addCandidate(activeTrip.value, attraction.id)
     addedIds.value = new Set([...addedIds.value, attraction.id])
     candidateIdMap.value.set(attraction.id, candidateId)
+    trayOpen.value = true   // 담으면 보관함 자동으로 열어 "이런 기능이 있다" 알림
     activeTripCandidates.value = [
       ...activeTripCandidates.value,
       { id: candidateId, attractionId: attraction.id, attractionName: attraction.title,
@@ -1480,6 +1671,8 @@ async function addToTrip(attraction) {
 onMounted(async () => {
   scrollEl.value?.addEventListener('scroll', checkScroll)
   scrollEl.value?.addEventListener('scroll', onScrollCheck)
+  document.addEventListener('click', onTripMenuOutside, true)
+  document.addEventListener('keydown', onTripMenuKey)
 
   loadTrips()
   loadRegions()
@@ -1497,6 +1690,8 @@ onMounted(async () => {
 onUnmounted(() => {
   scrollEl.value?.removeEventListener('scroll', checkScroll)
   scrollEl.value?.removeEventListener('scroll', onScrollCheck)
+  document.removeEventListener('click', onTripMenuOutside, true)
+  document.removeEventListener('keydown', onTripMenuKey)
   if (scrollRafId) cancelAnimationFrame(scrollRafId)
   clearTimeout(checkTimer)
 })

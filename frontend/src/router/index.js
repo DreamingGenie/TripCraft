@@ -8,6 +8,11 @@ const routes = [
   { path: '/auth/kakao/callback', component: () => import('@/views/KakaoCallbackView.vue') },
   { path: '/explore', component: () => import('@/views/ExploreView.vue') },
   {
+    path: '/plan/:tripId(\\d+)?',
+    component: () => import('@/views/PlanView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/schedule',
     component: () => import('@/views/ScheduleView.vue'),
     meta: { requiresAuth: true },
