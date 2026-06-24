@@ -2,12 +2,12 @@
   <div class="profile-view">
     <div class="profile-content">
       <div class="mypage-header">
-        <h2 class="mypage-title">내 정보 수정</h2>
+        <h2 class="mypage-title">내 정보</h2>
       </div>
 
-        <!-- 프로필 이미지 -->
+        <!-- [프로필 사진] 변경/삭제 컨트롤 유지 -->
         <section class="edit-section">
-          <h3 class="section-title">프로필 이미지</h3>
+          <h3 class="section-title">프로필 사진</h3>
           <div class="avatar-row">
             <div class="avatar-wrap">
               <img v-if="profileImageUrl" :src="profileImageUrl" class="avatar-img" alt="프로필 이미지" />
@@ -26,70 +26,93 @@
           <p v-if="imageMsg" :class="['form-msg', imageError ? 'error' : 'success']">{{ imageMsg }}</p>
         </section>
 
-        <!-- 현재 정보 -->
-        <div class="info-section">
-          <div class="info-row">
-            <span class="info-label">이메일</span>
-            <span class="info-value">{{ auth.user?.email }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">닉네임</span>
-            <span class="info-value">{{ auth.user?.nickname }}</span>
-          </div>
-        </div>
-
-        <!-- 닉네임 변경 -->
+        <!-- [닉네임] 현재값 표시 + 변경 버튼 → 인라인 편집(저장/취소). 항시 폼 금지 -->
         <section class="edit-section">
-          <h3 class="section-title">닉네임 변경</h3>
-          <form @submit.prevent="submitNickname" class="edit-form">
-            <input
-              v-model="nicknameForm.value"
-              type="text"
-              class="edit-input"
-              placeholder="새 닉네임 (2~20자)"
-              minlength="2"
-              maxlength="20"
-              required
-            />
-            <button type="submit" class="edit-btn" :disabled="nicknameForm.loading">
-              {{ nicknameForm.loading ? '변경 중...' : '변경' }}
-            </button>
-          </form>
+          <h3 class="section-title">닉네임</h3>
+          <div v-if="!nicknameForm.open" class="value-row">
+            <span class="info-value">{{ auth.user?.nickname }}</span>
+            <button class="edit-btn ghost-btn" @click="openNickname">변경</button>
+          </div>
+          <template v-else>
+            <form @submit.prevent="submitNickname" class="edit-form">
+              <input
+                v-model="nicknameForm.value"
+                type="text"
+                class="edit-input"
+                placeholder="새 닉네임 (2~20자)"
+                minlength="2"
+                maxlength="20"
+                required
+                autofocus
+              />
+              <button type="submit" class="edit-btn" :disabled="nicknameForm.loading">
+                {{ nicknameForm.loading ? '저장 중...' : '저장' }}
+              </button>
+              <button type="button" class="edit-btn cancel-btn" @click="cancelNickname">취소</button>
+            </form>
+          </template>
           <p v-if="nicknameForm.message" :class="['form-msg', nicknameForm.error ? 'error' : 'success']">
             {{ nicknameForm.message }}
           </p>
         </section>
 
-        <!-- 비밀번호 변경 -->
+        <!-- [계정] 소셜이면 안내, 이메일 계정이면 이메일(읽기전용) + 비밀번호 변경 -->
         <section class="edit-section">
-          <h3 class="section-title">비밀번호 변경</h3>
-          <form @submit.prevent="submitPassword" class="edit-form vertical">
-            <input
-              v-model="passwordForm.current"
-              type="password"
-              class="edit-input"
-              placeholder="현재 비밀번호"
-              required
-            />
-            <input
-              v-model="passwordForm.next"
-              type="password"
-              class="edit-input"
-              placeholder="새 비밀번호 (8자 이상)"
-              minlength="8"
-              required
-            />
-            <input
-              v-model="passwordForm.confirm"
-              type="password"
-              class="edit-input"
-              placeholder="새 비밀번호 확인"
-              required
-            />
-            <button type="submit" class="edit-btn" :disabled="passwordForm.loading">
-              {{ passwordForm.loading ? '변경 중...' : '변경' }}
-            </button>
-          </form>
+          <h3 class="section-title">계정</h3>
+
+          <!-- 소셜 계정: 이메일·비밀번호 폼 숨김, 로그인 수단 안내 -->
+          <template v-if="isSocial">
+            <p class="social-notice">카카오 계정으로 로그인 중입니다.</p>
+          </template>
+
+          <!-- 이메일 계정: 이메일 읽기전용 + 비밀번호 온디맨드 변경 -->
+          <template v-else>
+            <div class="value-row">
+              <span class="info-label">이메일</span>
+              <span class="info-value">{{ auth.user?.email }}</span>
+            </div>
+
+            <div v-if="!passwordForm.open" class="value-row">
+              <span class="info-label">비밀번호</span>
+              <button class="edit-btn ghost-btn" @click="openPassword">변경</button>
+            </div>
+            <template v-else>
+              <form @submit.prevent="submitPassword" class="edit-form vertical">
+                <input
+                  v-model="passwordForm.current"
+                  type="password"
+                  class="edit-input"
+                  placeholder="현재 비밀번호"
+                  autocomplete="current-password"
+                  required
+                />
+                <input
+                  v-model="passwordForm.next"
+                  type="password"
+                  class="edit-input"
+                  placeholder="새 비밀번호 (8자 이상)"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                />
+                <input
+                  v-model="passwordForm.confirm"
+                  type="password"
+                  class="edit-input"
+                  placeholder="새 비밀번호 확인"
+                  autocomplete="new-password"
+                  required
+                />
+                <div class="withdraw-actions">
+                  <button type="button" class="edit-btn cancel-btn" @click="cancelPassword">취소</button>
+                  <button type="submit" class="edit-btn" :disabled="passwordForm.loading">
+                    {{ passwordForm.loading ? '변경 중...' : '변경' }}
+                  </button>
+                </div>
+              </form>
+            </template>
+          </template>
+
           <p v-if="passwordForm.message" :class="['form-msg', passwordForm.error ? 'error' : 'success']">
             {{ passwordForm.message }}
           </p>
@@ -160,9 +183,33 @@ const imageLoading    = ref(false)
 const imageMsg        = ref('')
 const imageError      = ref(false)
 
-const nicknameForm = reactive({ value: '', loading: false, message: '', error: false })
-const passwordForm = reactive({ current: '', next: '', confirm: '', loading: false, message: '', error: false })
+// open: 온디맨드 인라인 편집 토글 (항시 폼 금지)
+const nicknameForm = reactive({ open: false, value: '', loading: false, message: '', error: false })
+const passwordForm = reactive({ open: false, current: '', next: '', confirm: '', loading: false, message: '', error: false })
 const withdrawForm = reactive({ open: false, password: '', loading: false, message: '' })
+
+function openNickname() {
+  // 현재 닉네임을 프리필해 인라인 편집 시작
+  nicknameForm.value = auth.user?.nickname || ''
+  nicknameForm.message = ''
+  nicknameForm.open = true
+}
+function cancelNickname() {
+  nicknameForm.open = false
+  nicknameForm.value = ''
+  nicknameForm.message = ''
+}
+function openPassword() {
+  passwordForm.message = ''
+  passwordForm.open = true
+}
+function cancelPassword() {
+  passwordForm.open = false
+  passwordForm.current = ''
+  passwordForm.next = ''
+  passwordForm.confirm = ''
+  passwordForm.message = ''
+}
 
 onMounted(async () => {
   try {
@@ -211,6 +258,7 @@ async function submitNickname() {
     await memberApi.updateNickname(nicknameForm.value)
     await auth.fetchMe()
     nicknameForm.value = ''
+    nicknameForm.open = false
     nicknameForm.error = false
     nicknameForm.message = '닉네임이 변경되었습니다.'
   } catch (e) {
@@ -249,6 +297,7 @@ async function submitPassword() {
     passwordForm.current = ''
     passwordForm.next = ''
     passwordForm.confirm = ''
+    passwordForm.open = false
     passwordForm.error = false
     passwordForm.message = '비밀번호가 변경되었습니다.'
   } catch (e) {
@@ -323,29 +372,43 @@ async function submitPassword() {
   background: var(--color-danger, #e53e3e) !important;
 }
 
-/* 현재 정보 */
-.info-section {
+/* 값 표시 + 편집 트리거 행 (현재값과 변경 버튼을 한 줄에) */
+.value-row {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px;
-  background: var(--purple-50);
-  border: 1px solid var(--purple-100);
-  border-radius: var(--radius-xl);
-}
-.info-row {
-  display: flex;
+  align-items: center;
   gap: 12px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 .info-label {
-  width: 60px;
+  width: 64px;
   color: var(--color-text-muted);
   flex-shrink: 0;
 }
 .info-value {
   color: var(--color-text);
   font-weight: 500;
+}
+/* 변경 버튼은 행 끝으로 밀어 정렬 */
+.value-row .edit-btn { margin-left: auto; }
+
+/* 소셜 계정 안내 문구 */
+.social-notice {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* 보조 액션(변경/취소) — 톤 다운한 ghost 스타일 */
+.ghost-btn {
+  background: var(--bg-page) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+  padding: 8px 16px;
+}
+.ghost-btn:hover:not(:disabled) {
+  background: var(--purple-50) !important;
+  border-color: var(--purple-100) !important;
 }
 
 /* 폼 공통 — 섹션 카드 */
@@ -360,7 +423,7 @@ async function submitPassword() {
   padding: 22px 24px;
 }
 .section-title {
-  font-size: 1rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--color-text);
   letter-spacing: -0.01em;
@@ -379,7 +442,7 @@ async function submitPassword() {
   padding: 10px 13px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   background: var(--bg-page);
   color: var(--color-text);
   transition: border-color .14s, background .14s, box-shadow .14s;
@@ -396,7 +459,7 @@ async function submitPassword() {
   border-radius: var(--radius-lg);
   background: var(--color-primary);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -414,7 +477,7 @@ async function submitPassword() {
   box-shadow: none;
 }
 .form-msg {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   margin: 0;
 }
 .form-msg.success { color: var(--color-success, #16a34a); }
@@ -431,13 +494,13 @@ async function submitPassword() {
   color: var(--color-danger);
 }
 .danger-desc {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   line-height: 1.6;
   margin: 0;
 }
 .danger-warn {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--color-danger, #e53e3e);
   margin: 0;
 }

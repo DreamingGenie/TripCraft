@@ -4,7 +4,7 @@
    ============================================================ */
 :root {
   /* ── 브랜드 ── */
-  --purple-900: #534AB7;
+  --purple-900: #5C56A0;
   --purple-100: #CECBF6;
   --purple-50:  #EEEDFE;
 
@@ -65,7 +65,7 @@
 
   /* ── 레거시 별칭 (community.css 등 기존 코드의 미정의 변수 보정) ── */
   --primary:            var(--purple-900);
-  --primary-dark:       #433B9E;
+  --primary-dark:       #4B4684;
   --danger:             #C0392B;
   --text-secondary:     var(--gray-dark);
   --color-surface-hover:var(--purple-50);

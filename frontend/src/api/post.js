@@ -14,6 +14,17 @@ export const postApi = {
   notices: () => http.get('/api/notices'),
 }
 
+export const imageApi = {
+  /** type='cover'면 대표사진 draft(post_cover_draft), 아니면 본문 이미지(post_draft) */
+  upload: (file, type) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (type) form.append('type', type)
+    return http.postForm('/api/images/upload', form)
+  },
+  deleteCoverDraft: () => http.del('/api/images/cover-draft'),
+}
+
 export const bookmarkApi = {
   toggle: (postId) => http.post(`/api/posts/${postId}/bookmark`),
   myList: ({ page = 0, size = 10 } = {}) => {

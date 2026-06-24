@@ -23,4 +23,5 @@ public class PostListItem {
     private boolean liked;
     private boolean deleted; // 북마크·좋아요 목록에서 삭제된 글 표시용
     private String authorProfileImageUrl;
+    private String coverImageUrl;
 }

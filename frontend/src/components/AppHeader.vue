@@ -1,12 +1,14 @@
 <template>
   <header id="gnb">
     <RouterLink class="logo" to="/">TripCraft</RouterLink>
-    <RouterLink class="nav-link" to="/explore" active-class="active">관광지 탐색</RouterLink>
-    <RouterLink class="nav-link" to="/schedule" active-class="active">내 일정</RouterLink>
-    <RouterLink class="nav-link nav-beta" to="/plan" active-class="active">여행 작업실<sup>beta</sup></RouterLink>
-    <RouterLink class="nav-link" to="/calendar" active-class="active">내 여행 일지</RouterLink>
-    <RouterLink class="nav-link" to="/community" active-class="active">커뮤니티</RouterLink>
+
+    <!-- 1차 탭 2개: 여행 작업실 / 커뮤니티 (+ 관리자: ADMIN만) -->
+    <!-- 여행 작업실: 맥락 라우팅 (로그인 + 현재여행 → /plan/:id, 아니면 /discover) -->
+    <button class="nav-link" :class="{ active: isExploreActive }" @click="goExplore">여행 작업실</button>
+    <!-- 게시판 제목(여행 이야기)과 라벨 통일 -->
+    <RouterLink class="nav-link" to="/community" active-class="active">여행 이야기</RouterLink>
     <RouterLink v-if="auth.user?.role === 'ADMIN'" class="nav-link nav-admin" to="/admin" active-class="active">관리자</RouterLink>
+
     <span class="gnb-spacer"></span>
 
     <template v-if="auth.isLoggedIn">
@@ -17,15 +19,10 @@
         </button>
 
         <div v-show="menuOpen" class="gnb-dropdown" @click="menuOpen = false">
-          <RouterLink class="dropdown-item" to="/mypage/profile">내 정보 수정</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/map">방문 지도</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/posts">내가 쓴 글</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/bookmarks">북마크</RouterLink>
-          <RouterLink class="dropdown-item" to="/mypage/likes">좋아요한 글</RouterLink>
+          <RouterLink class="dropdown-item" to="/mypage">마이페이지</RouterLink>
+          <button class="dropdown-item" @click="handleLogout">로그아웃</button>
         </div>
       </div>
-
-      <button class="btn-ghost" @click="handleLogout">로그아웃</button>
     </template>
 
     <template v-else>
@@ -36,17 +33,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { useRouter } from 'vue-router'
+import { useActiveTripStore } from '@/stores/activeTrip'
+import { useRouter, useRoute } from 'vue-router'
 
 const auth  = useAuthStore()
 const toast = useToastStore()
+const activeTripStore = useActiveTripStore()
 const router = useRouter()
+const route  = useRoute()
 
 const menuOpen = ref(false)
 const wrapRef  = ref(null)
+
+// 탐색 탭 활성: /discover 또는 /plan(explore) 화면일 때
+const isExploreActive = computed(
+  () => route.path === '/discover' || route.path.startsWith('/plan'),
+)
+
+// §2.4 맥락 라우팅: 로그인 + 현재여행 있으면 작업실(explore), 아니면 공개 탐색
+function goExplore() {
+  if (auth.isLoggedIn && activeTripStore.id != null) {
+    router.push(`/plan/${activeTripStore.id}`)
+  } else {
+    router.push('/discover')
+  }
+}
 
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
@@ -69,6 +83,12 @@ async function handleLogout() {
 </script>
 
 <style scoped>
+/* 탐색 탭은 button — 전역 .nav-link 와 동일 폭/패딩 보정 */
+button.nav-link {
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .gnb-user-wrap {
   position: relative;
 }
@@ -103,6 +123,13 @@ async function handleLogout() {
 
 .dropdown-item {
   display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
   padding: 12px 20px;
   font-size: var(--text-sm);
   color: var(--text-primary);

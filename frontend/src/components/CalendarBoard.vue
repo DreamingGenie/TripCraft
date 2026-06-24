@@ -1,158 +1,166 @@
 <template>
-  <div id="main" @click="closePicker">
-    <div id="calendar-layout">
-      <!-- ── 캘린더 본문 ── -->
-      <div id="calendar-content">
-        <div class="cal-page-title">내 여행 일지</div>
+  <div id="calendar-layout" @click="closePicker">
+    <!-- ── 캘린더 본문 ── -->
+    <div id="calendar-content">
+      <div v-if="!embedded" class="cal-page-title">내 여행 일지</div>
 
-        <!-- 월 네비게이션 -->
-        <div class="cal-nav">
-          <button class="cal-nav-btn" @click="prevMonth">&#8249;</button>
-          <div class="cal-nav-center">
-            <button class="cal-month-btn" @click.stop="togglePicker">
-              {{ currentYear }}년 {{ currentMonth + 1 }}월
-              <span v-if="tripsInMonth.length > 0" class="cal-trip-count">
-                ({{ tripsInMonth.length }})
-              </span>
-            </button>
+      <!-- 월 네비게이션 -->
+      <div class="cal-nav">
+        <button class="cal-nav-btn" @click="prevMonth">&#8249;</button>
+        <div class="cal-nav-center">
+          <button class="cal-month-btn" @click.stop="togglePicker">
+            {{ currentYear }}년 {{ currentMonth + 1 }}월
+            <span v-if="tripsInMonth.length > 0" class="cal-trip-count">
+              ({{ tripsInMonth.length }})
+            </span>
+          </button>
 
-            <!-- 연도/월 선택 피커 -->
-            <div v-if="showPicker" class="cal-picker" @click.stop>
-              <div class="cal-picker-year">
-                <button @click="pickerYear--">&#8249;</button>
-                <span>{{ pickerYear }}년</span>
-                <button @click="pickerYear++">&#8250;</button>
-              </div>
-              <div class="cal-picker-months">
-                <button
-                  v-for="m in 12" :key="m"
-                  class="cal-picker-month-btn"
-                  :class="{ active: m - 1 === currentMonth && pickerYear === currentYear }"
-                  @click="goToMonth(pickerYear, m - 1)"
-                >{{ m }}월</button>
-              </div>
+          <!-- 연도/월 선택 피커 -->
+          <div v-if="showPicker" class="cal-picker" @click.stop>
+            <div class="cal-picker-year">
+              <button @click="pickerYear--">&#8249;</button>
+              <span>{{ pickerYear }}년</span>
+              <button @click="pickerYear++">&#8250;</button>
+            </div>
+            <div class="cal-picker-months">
+              <button
+                v-for="m in 12" :key="m"
+                class="cal-picker-month-btn"
+                :class="{ active: m - 1 === currentMonth && pickerYear === currentYear }"
+                @click="goToMonth(pickerYear, m - 1)"
+              >{{ m }}월</button>
             </div>
           </div>
-          <button class="cal-nav-btn" @click="nextMonth">&#8250;</button>
+        </div>
+        <button class="cal-nav-btn" @click="nextMonth">&#8250;</button>
+      </div>
+
+      <!-- 캘린더 그리드 -->
+      <div class="cal-body">
+        <!-- 요일 헤더 -->
+        <div class="cal-dow-row">
+          <div
+            v-for="(d, i) in ['일','월','화','수','목','금','토']"
+            :key="d"
+            class="cal-dow"
+            :class="{ 'dow-sun': i === 0, 'dow-sat': i === 6 }"
+          >{{ d }}</div>
         </div>
 
-        <!-- 캘린더 그리드 -->
-        <div class="cal-body">
-          <!-- 요일 헤더 -->
-          <div class="cal-dow-row">
+        <!-- 주(週) 반복 -->
+        <div v-for="(week, wi) in weeksWithStrips" :key="wi" class="cal-week">
+          <!-- 날짜 셀 행 -->
+          <div class="cal-dates-row">
             <div
-              v-for="(d, i) in ['일','월','화','수','목','금','토']"
-              :key="d"
-              class="cal-dow"
-              :class="{ 'dow-sun': i === 0, 'dow-sat': i === 6 }"
-            >{{ d }}</div>
+              v-for="(day, di) in week.days"
+              :key="di"
+              class="cal-cell"
+              :class="{
+                'other-month': day.otherMonth,
+                'is-today': isToday(day),
+                'is-selected': selectedDate && isSameDay(day, selectedDate),
+                'is-sun': di === 0,
+                'is-sat': di === 6,
+              }"
+              @click="selectDay(day)"
+            >
+              <span class="cal-date-num">{{ day.date }}</span>
+            </div>
           </div>
 
-          <!-- 주(週) 반복 -->
-          <div v-for="(week, wi) in weeksWithStrips" :key="wi" class="cal-week">
-            <!-- 날짜 셀 행 -->
-            <div class="cal-dates-row">
+          <!-- 일정 띠 (스트립) -->
+          <div v-if="week.strips.length > 0" class="cal-strips-container">
+            <div v-for="(lane, li) in week.strips" :key="li" class="cal-strip-lane">
               <div
-                v-for="(day, di) in week.days"
-                :key="di"
-                class="cal-cell"
-                :class="{
-                  'other-month': day.otherMonth,
-                  'is-today': isToday(day),
-                  'is-selected': selectedDate && isSameDay(day, selectedDate),
-                  'is-sun': di === 0,
-                  'is-sat': di === 6,
-                }"
-                @click="selectDay(day)"
+                v-for="strip in lane"
+                :key="strip.tripId"
+                class="cal-strip"
+                :class="[
+                  `trip-color-${strip.colorIdx}`,
+                  strip.isStart ? 'strip-left' : '',
+                  strip.isEnd   ? 'strip-right' : '',
+                ]"
+                :style="{ gridColumn: `${strip.startCol} / ${strip.endCol + 1}` }"
+                :title="strip.title"
               >
-                <span class="cal-date-num">{{ day.date }}</span>
-              </div>
-            </div>
-
-            <!-- 일정 띠 (스트립) -->
-            <div v-if="week.strips.length > 0" class="cal-strips-container">
-              <div v-for="(lane, li) in week.strips" :key="li" class="cal-strip-lane">
-                <div
-                  v-for="strip in lane"
-                  :key="strip.tripId"
-                  class="cal-strip"
-                  :class="[
-                    `trip-color-${strip.colorIdx}`,
-                    strip.isStart ? 'strip-left' : '',
-                    strip.isEnd   ? 'strip-right' : '',
-                  ]"
-                  :style="{ gridColumn: `${strip.startCol} / ${strip.endCol + 1}` }"
-                  :title="strip.title"
-                >
-                  <span v-if="strip.isStart" class="strip-title">{{ strip.title }}</span>
-                </div>
+                <span v-if="strip.isStart" class="strip-title">{{ strip.title }}</span>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- 로딩 / 빈 상태 -->
-        <div v-if="loading" class="cal-loading">일정을 불러오는 중...</div>
-        <div v-else-if="!loading && trips.length === 0" class="cal-empty">
-          등록된 여행 일정이 없어요.
-          <RouterLink to="/schedule" class="cal-empty-link">일정 만들러 가기 →</RouterLink>
         </div>
       </div>
 
-      <!-- ── 날짜 상세 패널 ── -->
-      <transition name="panel-slide">
-        <div v-if="selectedDate" class="cal-panel">
-          <div class="panel-header">
-            <div class="panel-date-label">
-              {{ selectedDate.year }}년 {{ selectedDate.month + 1 }}월 {{ selectedDate.date }}일
-            </div>
-            <button class="panel-close" @click="selectedDate = null">✕</button>
+      <!-- 로딩 / 빈 상태 -->
+      <div v-if="loading" class="cal-loading">일정을 불러오는 중...</div>
+      <div v-else-if="!loading && trips.length === 0" class="cal-empty">
+        등록된 여행 일정이 없어요.
+        <RouterLink to="/discover" class="cal-empty-link">일정 만들러 가기 →</RouterLink>
+      </div>
+    </div>
+
+    <!-- ── 날짜 상세 패널 ── -->
+    <transition name="panel-slide">
+      <div v-if="selectedDate" class="cal-panel">
+        <div class="panel-header">
+          <div class="panel-date-label">
+            {{ selectedDate.year }}년 {{ selectedDate.month + 1 }}월 {{ selectedDate.date }}일
           </div>
+          <button class="panel-close" @click="selectedDate = null" aria-label="닫기">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-          <div class="panel-body">
-            <div v-if="loadingPanel" class="panel-loading">불러오는 중...</div>
-            <div v-else-if="selectedDayTrips.length === 0" class="panel-empty">
-              이 날의 여행 일정이 없어요.
-            </div>
-            <template v-else>
-              <div
-                v-for="tripDay in selectedDayTrips"
-                :key="tripDay.id"
-                class="panel-trip"
-                :class="`trip-color-${tripDay.colorIdx}`"
-              >
-                <div class="panel-trip-header">
-                  <div class="panel-trip-dot"></div>
-                  <div class="panel-trip-info">
-                    <div class="panel-trip-title">{{ tripDay.title }}</div>
-                    <div class="panel-trip-dates">
-                      {{ tripDay.startDate }} ~ {{ tripDay.endDate }}
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="tripDay.blocks.length === 0" class="panel-trip-empty">
-                  확정된 방문지가 없어요.
-                </div>
-                <div v-else class="panel-blocks">
-                  <div v-for="(block, bi) in tripDay.blocks" :key="bi" class="panel-block">
-                    <span class="panel-block-time">{{ block.startTime }}</span>
-                    <span class="panel-block-name">{{ block.attractionName }}</span>
-                    <span class="panel-block-dur">{{ block.durationMinutes }}분</span>
+        <div class="panel-body">
+          <div v-if="loadingPanel" class="panel-loading">불러오는 중...</div>
+          <div v-else-if="selectedDayTrips.length === 0" class="panel-empty">
+            이 날의 여행 일정이 없어요.
+          </div>
+          <template v-else>
+            <div
+              v-for="tripDay in selectedDayTrips"
+              :key="tripDay.id"
+              class="panel-trip"
+              :class="`trip-color-${tripDay.colorIdx}`"
+            >
+              <div class="panel-trip-header">
+                <div class="panel-trip-dot"></div>
+                <div class="panel-trip-info">
+                  <div class="panel-trip-title">{{ tripDay.title }}</div>
+                  <div class="panel-trip-dates">
+                    {{ tripDay.startDate }} ~ {{ tripDay.endDate }}
                   </div>
                 </div>
               </div>
-            </template>
-          </div>
+
+              <div v-if="tripDay.blocks.length === 0" class="panel-trip-empty">
+                확정된 방문지가 없어요.
+              </div>
+              <div v-else class="panel-blocks">
+                <div v-for="(block, bi) in tripDay.blocks" :key="bi" class="panel-block">
+                  <span class="panel-block-time">{{ block.startTime }}</span>
+                  <span class="panel-block-name">{{ block.attractionName }}</span>
+                  <span class="panel-block-dur">{{ block.durationMinutes }}분</span>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
-      </transition>
-    </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { tripApi } from '@/api/trip'
+
+defineProps({
+  // TripsView 달력 토글에서 재사용 시 페이지 타이틀을 숨긴다.
+  embedded: { type: Boolean, default: false },
+})
 
 const today = new Date()
 
