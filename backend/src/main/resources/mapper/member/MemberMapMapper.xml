@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripcraft.member.mapper.MemberMapMapper">
+
+    <!-- 시도별 방문/예정 + 표지 사진 + crop + 후기 수.
+         표지: member_map_cover 사본(image_url) 우선, 없으면 최신 후기 대표사진(PostMapper.coverImageCol). -->
+    <select id="findRegionStatuses" resultType="com.tripcraft.member.dto.RegionMapItem">
+        WITH my_post_sido AS (
+            SELECT DISTINCT p.id AS post_id, a.sido_code AS sido_code, p.created_at AS created_at
+            FROM post p
+            JOIN trip_candidate tc ON tc.trip_id = p.trip_id
+            JOIN attraction a ON a.id = tc.attraction_id
+            WHERE p.member_id = #{memberId}
+              AND p.deleted_at IS NULL
+              AND a.sido_code IS NOT NULL
+        ),
+        planned_sido AS (
+            SELECT DISTINCT a.sido_code AS sido_code
+            FROM trip t
+            JOIN trip_candidate tc ON tc.trip_id = t.id
+            JOIN attraction a ON a.id = tc.attraction_id
+            WHERE (t.member_id = #{memberId}
+                   OR EXISTS (SELECT 1 FROM trip_collaborator col
+                              WHERE col.trip_id = t.id AND col.member_id = #{memberId}))
+              AND a.sido_code IS NOT NULL
+        ),
+        visited_sido AS (
+            SELECT sido_code, COUNT(DISTINCT post_id) AS story_count
+            FROM my_post_sido
+            GROUP BY sido_code
+        ),
+        all_sido AS (
+            SELECT sido_code FROM visited_sido
+            UNION
+            SELECT sido_code FROM planned_sido
+            UNION
+            SELECT region_code FROM member_map_cover
+            WHERE member_id = #{memberId} AND region_level = 'SIDO'
+        )
+        SELECT
+            s.sido_code AS regionCode,
+            CASE WHEN v.sido_code IS NOT NULL OR mc.member_id IS NOT NULL
+                 THEN 'VISITED' ELSE 'PLANNED' END AS status,
+            COALESCE(v.story_count, 0) AS storyCount,
+            COALESCE(
+                mc.image_url,
+                (
+                    SELECT <include refid="com.tripcraft.community.mapper.PostMapper.coverImageCol"/>
+                    FROM post p
+                    WHERE p.id = (SELECT mps.post_id FROM my_post_sido mps
+                                  WHERE mps.sido_code = s.sido_code
+                                  ORDER BY mps.created_at DESC, mps.post_id DESC LIMIT 1)
+                )
+            ) AS imageUrl,
+            COALESCE(
+                mc.source_post_id,
+                (SELECT mps.post_id FROM my_post_sido mps
+                   WHERE mps.sido_code = s.sido_code
+                   ORDER BY mps.created_at DESC, mps.post_id DESC LIMIT 1)
+            ) AS sourcePostId,
+            (mc.member_id IS NOT NULL) AS pinned,
+            COALESCE(mc.focus_x, 50) AS focusX,
+            COALESCE(mc.focus_y, 50) AS focusY,
+            COALESCE(mc.zoom, 1)     AS zoom
+        FROM all_sido s
+        LEFT JOIN visited_sido v ON v.sido_code = s.sido_code
+        LEFT JOIN member_map_cover mc
+               ON mc.member_id = #{memberId} AND mc.region_level = 'SIDO'
+              AND mc.region_code = s.sido_code
+        ORDER BY s.sido_code
+    </select>
+
+    <!-- 표지 후보 여행이야기(글) 목록: 날짜 + 사진 수 + 썸네일. -->
+    <select id="findRegionStories" resultType="com.tripcraft.member.dto.RegionStoryItem">
+        SELECT
+            p.id          AS postId,
+            p.title       AS title,
+            p.created_at  AS createdAt,
+            <include refid="com.tripcraft.community.mapper.PostMapper.coverImageCol"/>,
+            (
+              (SELECT COUNT(*) FROM attach a
+                 WHERE a.target_id = p.id AND a.target = 'post_cover')
+              + (CHAR_LENGTH(COALESCE(p.content, '')) -
+                 CHAR_LENGTH(REPLACE(COALESCE(p.content, ''), '&lt;img', ''))) / 4
+            ) AS imageCount
+        FROM post p
+        JOIN trip_candidate tc ON tc.trip_id = p.trip_id
+        JOIN attraction a2 ON a2.id = tc.attraction_id
+        WHERE p.member_id = #{memberId}
+          AND p.deleted_at IS NULL
+          AND a2.sido_code = #{sidoCode}
+        GROUP BY p.id, p.title, p.created_at, p.trip_id, p.content
+        ORDER BY p.created_at DESC
+    </select>
+
+    <!-- 한 글의 content (본문 이미지 추출용). 내 글·해당 시도 검증. -->
+    <select id="findPostContent" resultType="string">
+        SELECT COALESCE(p.content, '')
+        FROM post p
+        WHERE p.id = #{postId}
+          AND p.member_id = #{memberId}
+          AND p.deleted_at IS NULL
+          AND EXISTS (
+              SELECT 1 FROM trip_candidate tc
+              JOIN attraction at2 ON at2.id = tc.attraction_id
+              WHERE tc.trip_id = p.trip_id AND at2.sido_code = #{sidoCode}
+          )
+    </select>
+
+    <!-- 이미지 파일명이 내 글(해당 시도)의 커버 또는 본문에 속하는지 검증 → 출처 postId. -->
+    <select id="findPostIdByImage" resultType="java.lang.Long">
+        SELECT p.id
+        FROM post p
+        WHERE p.member_id = #{memberId}
+          AND p.deleted_at IS NULL
+          AND EXISTS (
+              SELECT 1 FROM trip_candidate tc
+              JOIN attraction at2 ON at2.id = tc.attraction_id
+              WHERE tc.trip_id = p.trip_id AND at2.sido_code = #{sidoCode}
+          )
+          AND (
+              p.content LIKE CONCAT('%', #{imageName}, '%')
+              OR EXISTS (SELECT 1 FROM attach a
+                         WHERE a.target = 'post_cover' AND a.target_id = p.id AND a.name = #{imageName})
+          )
+        LIMIT 1
+    </select>
+
+    <select id="findCoverHostPath" resultType="string">
+        SELECT host_path FROM member_map_cover
+        WHERE member_id = #{memberId} AND region_level = #{regionLevel} AND region_code = #{regionCode}
+    </select>
+
+    <insert id="upsertCover">
+        INSERT INTO member_map_cover
+            (member_id, region_level, region_code, image_url, host_path, source_post_id, focus_x, focus_y, zoom)
+        VALUES
+            (#{memberId}, #{regionLevel}, #{regionCode}, #{imageUrl},
+             #{hostPath, jdbcType=VARCHAR}, #{sourcePostId, jdbcType=BIGINT},
+             #{focusX}, #{focusY}, #{zoom})
+        ON DUPLICATE KEY UPDATE
+            image_url      = #{imageUrl},
+            host_path      = #{hostPath, jdbcType=VARCHAR},
+            source_post_id = #{sourcePostId, jdbcType=BIGINT},
+            focus_x        = #{focusX},
+            focus_y        = #{focusY},
+            zoom           = #{zoom}
+    </insert>
+
+    <update id="updateCrop">
+        UPDATE member_map_cover
+        SET focus_x = #{focusX}, focus_y = #{focusY}, zoom = #{zoom}
+        WHERE member_id = #{memberId} AND region_level = #{regionLevel} AND region_code = #{regionCode}
+    </update>
+
+    <delete id="deleteCover">
+        DELETE FROM member_map_cover
+        WHERE member_id = #{memberId} AND region_level = #{regionLevel} AND region_code = #{regionCode}
+    </delete>
+
+</mapper>

@@ -5,10 +5,16 @@ import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.global.storage.FileStorageService;
 import com.tripcraft.member.domain.Member;
+import com.tripcraft.member.dto.CoverCropRequest;
+import com.tripcraft.member.dto.CoverImageRequest;
+import com.tripcraft.member.dto.RegionImageItem;
+import com.tripcraft.member.dto.RegionMapItem;
+import com.tripcraft.member.dto.RegionStoryItem;
 import com.tripcraft.member.dto.UpdateNicknameRequest;
 import com.tripcraft.member.dto.UpdatePasswordRequest;
 import com.tripcraft.member.dto.WithdrawRequest;
 import com.tripcraft.member.mapper.MemberMapper;
+import com.tripcraft.member.service.MemberMapService;
 import com.tripcraft.member.service.MemberService;
 import com.tripcraft.plan.mapper.TripMapper;
 import jakarta.validation.Valid;
@@ -20,7 +26,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -46,6 +54,7 @@ public class MemberController {
     private final AttachMapper attachMapper;
     private final FileStorageService fileStorageService;
     private final MemberService memberService;
+    private final MemberMapService memberMapService;
 
     @PatchMapping("/me/nickname")
     public ResponseEntity<ApiResponse<Void>> updateNickname(
@@ -123,6 +132,69 @@ public class MemberController {
     public ResponseEntity<ApiResponse<List<Integer>>> getVisitedRegions(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripMapper.findVisitedSidoCodes(memberId)));
+    }
+
+    // === 방문 지도 (후기 사진 기반) ===
+
+    /** 시도별 방문/예정 상태 + 표지 사진 + crop + 후기 수 (지도 1회 로드). */
+    @GetMapping("/me/map")
+    public ResponseEntity<ApiResponse<List<RegionMapItem>>> getMap(
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(memberMapService.getMap(memberId)));
+    }
+
+    /** 한 시도에서 표지로 고를 수 있는 여행이야기(글) 목록(날짜·사진 수 포함). */
+    @GetMapping("/me/map/regions/{sidoCode}/stories")
+    public ResponseEntity<ApiResponse<List<RegionStoryItem>>> getRegionStories(
+            @PathVariable("sidoCode") int sidoCode,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(memberMapService.getRegionStories(memberId, sidoCode)));
+    }
+
+    /** 한 글의 사진(커버·본문) 목록. */
+    @GetMapping("/me/map/regions/{sidoCode}/posts/{postId}/images")
+    public ResponseEntity<ApiResponse<List<RegionImageItem>>> getPostImages(
+            @PathVariable("sidoCode") int sidoCode,
+            @PathVariable("postId") long postId,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(memberMapService.getPostImages(memberId, sidoCode, postId)));
+    }
+
+    /** 후보 사진을 지도 전용으로 복사해 표지로 지정. */
+    @PutMapping("/me/map/cover")
+    public ResponseEntity<ApiResponse<Void>> setRegionCover(
+            @Valid @RequestBody CoverImageRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        memberMapService.setCoverFromImage(memberId, request);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    /** 새 사진을 업로드해 표지로 지정(직접 업로드). */
+    @PostMapping("/me/map/cover/upload")
+    public ResponseEntity<ApiResponse<Void>> uploadRegionCover(
+            @RequestParam("regionCode") int regionCode,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal Long memberId) {
+        memberMapService.uploadCover(memberId, regionCode, file);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    /** 표지 crop(초점/확대)만 갱신. */
+    @PatchMapping("/me/map/cover/crop")
+    public ResponseEntity<ApiResponse<Void>> updateRegionCrop(
+            @Valid @RequestBody CoverCropRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        memberMapService.updateCrop(memberId, request);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    /** 지역 표지 해제 → 기본값(최신 후기)으로 복귀. */
+    @DeleteMapping("/me/map/cover/{sidoCode}")
+    public ResponseEntity<ApiResponse<Void>> resetRegionCover(
+            @PathVariable("sidoCode") int sidoCode,
+            @AuthenticationPrincipal Long memberId) {
+        memberMapService.resetCover(memberId, sidoCode);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @GetMapping("/search")
