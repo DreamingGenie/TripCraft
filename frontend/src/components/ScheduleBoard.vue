@@ -1980,7 +1980,8 @@ let prevGrabbers = new Set()
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
-  loadCollaboratorImages()  // 협업자 명단은 일정 전환 시 1회만 조회 (loadTrip마다 호출하면 드래그·드롭마다 재조회됨)
+  const observer = !auth.user?.id   // 비로그인 = 관전 모드(구독만 수신, 전송 X)
+  if (!observer) loadCollaboratorImages()  // 협업자 명단(인증 필요)은 로그인 시에만 조회
   collab.setHandlers({
     tripEvent: handleTripEvent,
     presence: (list) => {
@@ -1996,7 +1997,7 @@ function connectCollab(tripId) {
     },
     reconnect: loadTrip,
   })
-  collab.connect(tripId)
+  collab.connect(tripId, { observer })
 }
 
 function onDocumentClick(e) {
@@ -2038,8 +2039,8 @@ watch(() => props.tripId, async (id, oldId) => {
   if (oldId != null) collab.disconnect()
   activeTripId.value = id
   await loadTrip()
-  // 로그인 사용자는 read-only(링크 조회)여도 실시간 협업 연결(커서·블록 추적). 익명만 미연결(WS는 신원 필수)
-  if (auth.user?.id) connectCollab(id)
+  // 로그인=실시간 협업, 비로그인 공유링크=관전(observer) 연결. 둘 다 실시간 편집상태 수신
+  if (auth.user?.id || props.shareToken) connectCollab(id)
 })
 
 // PlanView 헤더의 "지도" 토글이 보드 지도 패널을 제어할 수 있도록 노출
@@ -2054,8 +2055,8 @@ onMounted(async () => {
     if (props.tripId != null) {
       activeTripId.value = props.tripId
       await loadTrip()
-      // 로그인 사용자는 read-only(링크 조회)여도 실시간 협업 연결. 익명만 미연결(WS는 신원 필수)
-      if (auth.user?.id) connectCollab(props.tripId)
+      // 로그인=실시간 협업, 비로그인 공유링크=관전(observer) 연결. 둘 다 실시간 편집상태 수신
+      if (auth.user?.id || props.shareToken) connectCollab(props.tripId)
     }
     if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
     return
