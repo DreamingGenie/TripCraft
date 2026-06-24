@@ -122,6 +122,8 @@
                   </svg>
                   배치
                 </button>
+                <button v-if="!readOnly" class="cand-flat-del" title="보관함에서 삭제"
+                        aria-label="보관함에서 삭제" @click.stop="removeCandidate(c)">✕</button>
               </div>
             </template>
           </div>
@@ -543,7 +545,7 @@ import { useActiveTripStore } from '@/stores/activeTrip'
 import { useAuthStore } from '@/stores/auth'
 import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitByCoords, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
+import { getTransitByMode, getTransitByCoords, getTransitDetail, getTransitDetailByCoords, selectTransitPath, getDrivingOption, getDrivingOptionByCoords, applyDrivingOption, getLaneSegments, getRouteSegments, getRouteSegmentsByCoords, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
@@ -576,6 +578,17 @@ const SNAP = 30
 const sidebarOpen = ref(true)
 const addPlaceOpen = ref(false)
 function onPlaceAdded() { loadTrip() }
+async function removeCandidate(c) {
+  if (!activeTripId.value) return
+  try {
+    await tripApi.removeCandidate(activeTripId.value, c.id)
+    toast.show(`${c.attractionName} 삭제됨`)
+    await loadTrip()
+  } catch (e) {
+    // 타임라인에 배치된 블록이 있으면 백엔드가 409 + 안내 메시지를 준다
+    toast.show(e?.message || '삭제에 실패했어요')
+  }
+}
 
 // ── 분류 6색 ink (전 화면 공통 신호) ──
 const CAT_INK = {
@@ -659,6 +672,11 @@ const currentWalkingSegments = computed(() => {
   try { return JSON.parse(json) } catch { return [] }
 })
 
+// 커스텀 장소(attraction id 없음) 핀 — 패치 함수만 좌표 버전으로 분기, UI 는 어트랙션과 동일
+function isCustom(pill) {
+  return !pill?.fromAttractionId || !pill?.toAttractionId
+}
+
 const footerVisible = computed(() => {
   if (!openPillKey.value) return false
   if (selectedModalMode.value === 'PUBLIC_TRANSIT') return !!currentPublicPath.value
@@ -720,6 +738,12 @@ const mapDay = ref(null)
 let naverMapInstance = null
 let routePolylines = []
 let routeMarkers = []
+let arrowMarkers = []        // 진행방향 화살표 (축척 따라 재계산)
+let routeArrowPaths = []     // 화살표를 깔 폴리라인 경로들 (naver LatLng[])
+let stationMarkers = []      // 승차역 라벨 (겹침 회피 재배치)
+let leaderLines = []         // 라벨 유도선
+let routeStations = []       // 승차역 데이터 { lng, lat, name, line, color, c }
+let routePlaces = []         // 장소(번호) 라벨 — 고정 장애물(역 라벨이 피해야 함) { lat, lng, label }
 let routeMarkerGroups = new Map()  // routeKey → { expand, collapse, polyline, style }
 let pinnedRouteKey = null
 let polylineClicked = false        // 폴리라인 click이 지도 click으로 전파되는 것을 막기 위한 플래그
@@ -933,7 +957,6 @@ function togglePillDropdown(pill, event) {
   selectedModalMode.value = (cur === 'DRIVING' || cur === 'WALKING') ? cur : 'PUBLIC_TRANSIT'
   selectedPublicPathIndex.value = pill.transitOptionIndex ?? 0
   selectedDrivingOptionIndex.value = pill.transitOptionIndex ?? 0
-  if (!pill.fromAttractionId || !pill.toAttractionId) return
   loadTabData(pill, selectedModalMode.value)
 }
 
@@ -1046,6 +1069,22 @@ function parseStep(sub) {
   return { icon, stepClass, title, route, detail, time: sub.sectionTime }
 }
 
+// 도시간(KTX·고속버스 등) 경로의 출발지→역 / 역→목적지 접근 구간을 스텝으로 변환.
+// 실제 ODsay 로컬 경로(subPath)가 있으면 그대로, 추정(estimated)만 있으면 요약 1스텝.
+function localAccessSteps(node, dir) {
+  if (!node) return []
+  const subs = Array.isArray(node.subPath) ? node.subPath : []
+  if (subs.length) return subs.map(parseStep)
+  if ((node.minutes || 0) > 0) {
+    return [{
+      icon: '🚶', stepClass: 'transit-step--walk',
+      title: dir === 'from' ? '출발지 → 역 이동' : '역 → 목적지 이동',
+      route: node.estimated ? '예상' : '', detail: '', time: node.minutes,
+    }]
+  }
+  return []
+}
+
 function parseTransitPaths(detail) {
   const paths = []
   for (const path of detail?.intercityPaths || []) {
@@ -1059,7 +1098,11 @@ function parseTransitPaths(detail) {
     const totalWalkM = info.totalWalk || 0
     const transferCount = Math.max(0, (info.transitCount ?? 0) - 1) || ((info.busTransitCount ?? 0) + (info.subwayTransitCount ?? 0))
     const label = PATH_TYPE_LABEL[pathType] || '기타'
-    const steps = (path.subPath || []).map(parseStep)
+    let steps = (path.subPath || []).map(parseStep)
+    // 도시간 경로: 역까지/역에서 접근 구간을 앞뒤로 붙여 표시(시간은 이미 totalMinutes에 포함)
+    if (pathType >= 11) {
+      steps = [...localAccessSteps(path.localFrom, 'from'), ...steps, ...localAccessSteps(path.localTo, 'to')]
+    }
     const segments = []
     for (const sub of path.subPath || []) {
       if (sub.trafficType === 3) continue
@@ -1086,7 +1129,16 @@ function parseTransitPaths(detail) {
 async function fetchPublicTransitPaths(pill) {
   const key = pillKey(pill)
   if (pillPublicTransitPaths[key] !== undefined) return
-  if (!pill.fromAttractionId || !pill.toAttractionId) return
+  // 커스텀 장소: 좌표 기반 detail (어트랙션과 동일 구조)
+  if (isCustom(pill)) {
+    try {
+      const detail = await getTransitDetailByCoords(pill.fromLat, pill.fromLng, pill.toLat, pill.toLng, pill.departureHour)
+      pillPublicTransitPaths[key] = parseTransitPaths(detail)
+    } catch {
+      pillPublicTransitPaths[key] = []
+    }
+    return
+  }
   // fetchPillMode는 이미 병렬로 실행 중일 수 있어 즉시 리턴됨 → 직접 await로 캐시 완료 보장
   try { await getTransitByMode(pill.fromAttractionId, pill.toAttractionId, 'PUBLIC_TRANSIT', pill.departureHour) } catch {}
   try {
@@ -1098,10 +1150,24 @@ async function fetchPublicTransitPaths(pill) {
 }
 
 async function selectPublicTransitPath(pill, pathIndex) {
-  if (!pill?.fromAttractionId || !pill?.toAttractionId) return
+  if (!pill?.toBlockId) return
+  const key = pillKey(pill)
   try {
-    await selectTransitPath(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, pathIndex)
-    const key = pillKey(pill)
+    if (isCustom(pill)) {
+      // 커스텀 장소: 백엔드 캐시 select 없이 선택 경로의 소요시간으로 블록 직접 갱신
+      const path = pillPublicTransitPaths[key]?.[pathIndex]
+      await tripApi.updateBlock(activeTripId.value, pill.toBlockId, {
+        tripDate: pill.toBlockDate,
+        startTime: pill.toBlockStartTime,
+        durationMinutes: pill.toBlockDuration,
+        displayOrder: pill.toBlockOrder,
+        transitMode: 'PUBLIC_TRANSIT',
+        transitDurationMinutes: path?.minutes ?? null,
+        transitOptionIndex: pathIndex,
+      })
+    } else {
+      await selectTransitPath(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, pathIndex)
+    }
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
@@ -1114,14 +1180,15 @@ async function selectPublicTransitPath(pill, pathIndex) {
 
 async function fetchDrivingOption(pill, optionIndex) {
   const key = pillKey(pill)
-  if (!pill.fromAttractionId || !pill.toAttractionId) return
   if (!pillDrivingOptions[key]) pillDrivingOptions[key] = new Array(4).fill(undefined)
   if (pillDrivingOptions[key][optionIndex] !== undefined) return
   const loadKey = `${key}-driving-${optionIndex}`
   if (pillLoadingModes[loadKey]) return
   pillLoadingModes[loadKey] = true
   try {
-    const result = await getDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex)
+    const result = isCustom(pill)
+      ? await getDrivingOptionByCoords(pill.fromLat, pill.fromLng, pill.toLat, pill.toLng, pill.departureHour, optionIndex)
+      : await getDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex)
     pillDrivingOptions[key][optionIndex] = result
   } catch {
     pillDrivingOptions[key][optionIndex] = null
@@ -1135,7 +1202,7 @@ async function selectDrivingOption(pill, optionIndex) {
   const key = pillKey(pill)
   const opt = pillDrivingOptions[key]?.[optionIndex]
   try {
-    await Promise.all([
+    const tasks = [
       tripApi.updateBlock(activeTripId.value, pill.toBlockId, {
         tripDate: pill.toBlockDate,
         startTime: pill.toBlockStartTime,
@@ -1146,8 +1213,12 @@ async function selectDrivingOption(pill, optionIndex) {
         taxiFare: opt?.taxiFare ?? null,
         transitOptionIndex: optionIndex,
       }),
-      applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex),
-    ])
+    ]
+    // 커스텀 장소는 attraction 캐시가 없으므로 applyDrivingOption(캐시 route_coords 갱신) 생략
+    if (!isCustom(pill)) {
+      tasks.push(applyDrivingOption(pill.fromAttractionId, pill.toAttractionId, pill.departureHour, optionIndex))
+    }
+    await Promise.all(tasks)
     delete pillResults[key]
     openPillKey.value = null
     currentPillData.value = null
@@ -1248,6 +1319,8 @@ async function initNaverMap() {
     if (polylineClicked) { polylineClicked = false; return }
     if (pinnedRouteKey) unpinRoute(pinnedRouteKey)
   })
+  // 축척·이동(idle) 시 화살표 밀도/위치 재계산 (선·역마커는 유지)
+  naver.maps.Event.addListener(naverMapInstance, 'idle', () => renderOverlays())
   await drawDayRoute()
 }
 
@@ -1278,8 +1351,17 @@ async function drawDayRoute() {
   const { naver } = window
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
+  arrowMarkers.forEach(m => m.setMap(null))
+  stationMarkers.forEach(m => m.setMap(null))
+  leaderLines.forEach(l => l.setMap(null))
   routePolylines = []
   routeMarkers = []
+  arrowMarkers = []
+  routeArrowPaths = []
+  stationMarkers = []
+  leaderLines = []
+  routeStations = []
+  routePlaces = []
   routeMarkerGroups = new Map()
   pinnedRouteKey = null
 
@@ -1309,6 +1391,7 @@ async function drawDayRoute() {
       },
     })
     routeMarkers.push(marker)
+    routePlaces.push({ lat, lng, label: `${i + 1}. ${ev.name}` })
   }
 
   for (let i = 1; i < sorted.length; i++) {
@@ -1344,50 +1427,263 @@ async function drawDayRoute() {
     if (gen !== drawGeneration) return
 
     const style = getRouteStyle(curr.transitMode)
+    const drawStraightFallback = () => {
+      const pLat = prevCand?.latitude ? parseFloat(prevCand.latitude) : 0
+      const pLng = prevCand?.longitude ? parseFloat(prevCand.longitude) : 0
+      const cLat = currCand?.latitude ? parseFloat(currCand.latitude) : 0
+      const cLng = currCand?.longitude ? parseFloat(currCand.longitude) : 0
+      if (!pLat || !pLng || !cLat || !cLng) return
+      const polyline = new naver.maps.Polyline({
+        path: [new naver.maps.LatLng(pLat, pLng), new naver.maps.LatLng(cLat, cLng)],
+        clickable: true, strokeColor: style.color, strokeWeight: 3, strokeOpacity: 0.4,
+        strokeStyle: 'shortdot', map: naverMapInstance,
+      })
+      addPolylineHover(polyline, { ...style, weight: 3, opacity: 0.4 }, key)
+      routePolylines.push(polyline)
+    }
 
-    if (requestMode === 'PUBLIC_TRANSIT' && prevCand?.attractionId && currCand?.attractionId) {
-      // PUBLIC_TRANSIT: lane별 구간 폴리라인 (구간별 hover 강조)
-      drawPublicTransitPolylines(prevCand.attractionId, currCand.attractionId, hour, key, gen, style, result)
-      const legOrigin = { lat: parseFloat(prevCand.latitude), lng: parseFloat(prevCand.longitude) }
-      const legDest = { lat: parseFloat(currCand.latitude), lng: parseFloat(currCand.longitude) }
-      drawTransferMarkers(prevCand.attractionId, currCand.attractionId, hour, key, gen, legOrigin, legDest)
+    if (requestMode === 'PUBLIC_TRANSIT') {
+      // 구간별 색 + 도보 파랑점선 + 방향 화살표 + 승차역 마커 (어트랙션·커스텀 공통)
+      const ok = await drawPublicSegments(prevCand, currCand, hour, gen)
+      if (gen !== drawGeneration) return
+      if (!ok) {
+        if (result?.routeCoords) {
+          try {
+            const path = JSON.parse(result.routeCoords).map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
+            const polyline = new naver.maps.Polyline({
+              path, clickable: true, strokeColor: style.color, strokeWeight: style.weight,
+              strokeOpacity: style.opacity, strokeStyle: style.strokeStyle, map: naverMapInstance,
+            })
+            addPolylineHover(polyline, style, key)
+            routePolylines.push(polyline)
+          } catch { drawStraightFallback() }
+        } else drawStraightFallback()
+      }
     } else if (result?.routeCoords) {
+      // DRIVING / WALKING 단일 폴리라인. 도보는 대중교통 도보와 통일된 파랑점선.
       try {
-        const coords = JSON.parse(result.routeCoords)
-        const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
+        const isWalk = requestMode === 'WALKING'
+        const path = JSON.parse(result.routeCoords).map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
+        if (!isWalk) {
+          routePolylines.push(new naver.maps.Polyline({
+            path, clickable: false, strokeColor: '#111111', strokeWeight: style.weight + 3,
+            strokeOpacity: 0.5, strokeLineCap: 'round', strokeLineJoin: 'round', zIndex: 5, map: naverMapInstance,
+          }))
+        }
         const polyline = new naver.maps.Polyline({
           path, clickable: true,
-          strokeColor: style.color, strokeWeight: style.weight,
-          strokeOpacity: style.opacity, strokeStyle: style.strokeStyle,
-          map: naverMapInstance,
+          strokeColor: isWalk ? WALK_COLOR : style.color,
+          strokeWeight: isWalk ? 5 : style.weight,
+          strokeOpacity: isWalk ? 0.95 : style.opacity,
+          strokeStyle: isWalk ? 'dotted' : style.strokeStyle,
+          strokeLineCap: 'round', strokeLineJoin: 'round',
+          zIndex: 10, map: naverMapInstance,
         })
-        addPolylineHover(polyline, style, key)
+        addPolylineHover(polyline, isWalk ? { color: WALK_COLOR, weight: 5, opacity: 0.95 } : style, key)
         routePolylines.push(polyline)
-      } catch {}
+        routeArrowPaths.push(path)
+      } catch { drawStraightFallback() }
     } else {
-      const prevLat = prevCand?.latitude ? parseFloat(prevCand.latitude) : 0
-      const prevLng = prevCand?.longitude ? parseFloat(prevCand.longitude) : 0
-      const currLat = currCand?.latitude ? parseFloat(currCand.latitude) : 0
-      const currLng = currCand?.longitude ? parseFloat(currCand.longitude) : 0
-      if (prevLat && prevLng && currLat && currLng) {
-        const fallbackStyle = { ...style, weight: 3, opacity: 0.4 }
-        const polyline = new naver.maps.Polyline({
-          path: [new naver.maps.LatLng(prevLat, prevLng), new naver.maps.LatLng(currLat, currLng)],
-          clickable: true,
-          strokeColor: fallbackStyle.color, strokeWeight: 3, strokeOpacity: 0.4,
-          strokeStyle: 'shortdot', map: naverMapInstance,
-        })
-        addPolylineHover(polyline, fallbackStyle, key)
-        routePolylines.push(polyline)
-      }
+      drawStraightFallback()
     }
   }
 
   if (hasCoords) naverMapInstance.fitBounds(bounds, { top: 50, right: 30, bottom: 30, left: 30 })
+  renderOverlays()
 }
 
 // lane.class → 색상 매핑 (ODsay: 1=지하철, 2=버스)
 const LANE_CLASS_COLOR = { 1: '#7c3aed', 2: '#2563eb' }
+
+// ── 구간(segment) 색: 지하철 호선색 / 버스 종류색 / 도보 파랑점선 ──
+const WALK_COLOR = '#2D8CFF'
+const RAIL_COLOR = '#003478'
+// 노선명 키워드 기반(코드 추측보다 안정적) — 공식 노선색
+function subwayColorByName(ln) {
+  if (!ln) return null
+  const n = ln.replace(/\s/g, '')
+  if (n.includes('신분당')) return '#D4003B'
+  if (n.includes('수인') || n.includes('분당')) return '#FABE00'   // 수인·분당 노랑
+  if (n.includes('경의') || n.includes('중앙')) return '#77C4A3'
+  if (n.includes('공항')) return '#0090D2'
+  if (n.includes('경춘')) return '#0C8E72'
+  if (n.includes('우이') || n.includes('신설')) return '#B0CE18'
+  if (n.includes('서해')) return '#8FC740'
+  if (n.includes('경강')) return '#0054A6'
+  if (n.includes('신림')) return '#6789CA'
+  if (n.includes('인천1')) return '#7CA8D5'
+  if (n.includes('인천2')) return '#ED8B00'
+  if (n.includes('1호선')) return '#0052A4'
+  if (n.includes('2호선')) return '#00A84D'
+  if (n.includes('3호선')) return '#EF7C1C'
+  if (n.includes('4호선')) return '#00A5DE'
+  if (n.includes('5호선')) return '#996CAC'
+  if (n.includes('6호선')) return '#CD7C2F'
+  if (n.includes('7호선')) return '#747F00'
+  if (n.includes('8호선')) return '#E6186C'
+  if (n.includes('9호선')) return '#BDB092'
+  return null
+}
+const BUS_TYPE_COLORS = {
+  1: '#3D5BDC', 2: '#1D5BA6', 3: '#5BB025', 4: '#E60012', 5: '#2EA5DE', 6: '#E60012',
+  11: '#3D5BDC', 12: '#5BB025', 13: '#F5A623', 14: '#E60012', 26: '#5BB025',
+}
+function segColor(seg) {
+  const c = seg.c
+  if (c === 1) return subwayColorByName(seg.ln) || '#7A869A'   // 지하철(미상→중립 회청)
+  if (c === 2) return BUS_TYPE_COLORS[seg.t] || '#3D5BDC'      // 버스(종류 미상→파랑)
+  if (c === 4) return RAIL_COLOR                                // 열차(KTX)
+  if (c === 3) return WALK_COLOR                                // 도보
+  return '#534ab7'
+}
+
+const ARROW_SPACING_PX = 30
+
+// 노선/번호 라벨 텍스트
+function lineLabel(seg) {
+  if (seg.c === 1) {
+    const n = (seg.ln || '').replace(/수도권\s*/, '')
+    const m = n.match(/(\d+호선)/)
+    return m ? m[1] : n
+  }
+  if (seg.c === 2) return seg.ln || ''   // 버스 번호
+  if (seg.c === 4) return seg.ln || 'KTX'
+  return ''
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w + 4 && a.x + a.w + 4 > b.x && a.y < b.y + b.h + 4 && a.y + a.h + 4 > b.y
+}
+
+// 화살표 + 승차역 라벨을 화면 픽셀 기준으로 렌더(겹침 회피·유도선). 축척/이동마다 재계산.
+function renderOverlays() {
+  const { naver } = window
+  arrowMarkers.forEach(m => m.setMap(null));   arrowMarkers = []
+  stationMarkers.forEach(m => m.setMap(null)); stationMarkers = []
+  leaderLines.forEach(l => l.setMap(null));    leaderLines = []
+  if (!naverMapInstance) return
+  const proj = naverMapInstance.getProjection?.()
+  if (!proj) return
+  const bounds = naverMapInstance.getBounds?.()
+
+  // ── 진행방향 화살표 (화면 밖 생략) ──
+  for (const path of routeArrowPaths) {
+    if (!Array.isArray(path) || path.length < 2) continue
+    const px = path.map(ll => proj.fromCoordToOffset(ll))
+    let carry = ARROW_SPACING_PX / 2
+    for (let i = 1; i < path.length; i++) {
+      const ax = px[i - 1].x, ay = px[i - 1].y, bx = px[i].x, by = px[i].y
+      const len = Math.hypot(bx - ax, by - ay)
+      if (len < 0.5) continue
+      const deg = Math.atan2(by - ay, bx - ax) * 180 / Math.PI
+      let d = carry
+      while (d <= len) {
+        const r = d / len
+        const lat = path[i - 1].lat() + (path[i].lat() - path[i - 1].lat()) * r
+        const lng = path[i - 1].lng() + (path[i].lng() - path[i - 1].lng()) * r
+        const pos = new naver.maps.LatLng(lat, lng)
+        if (!bounds || bounds.hasLatLng(pos)) {
+          arrowMarkers.push(new naver.maps.Marker({
+            position: pos, map: naverMapInstance, clickable: false, zIndex: 55,
+            icon: { content: `<div class="route-arrow" style="transform:rotate(${deg}deg)">➤</div>`,
+                    anchor: new naver.maps.Point(4, 5) },
+          }))
+        }
+        d += ARROW_SPACING_PX
+      }
+      carry = d - len
+    }
+  }
+
+  // ── 승차역 라벨 (겹치면 위치 조정 + 유도선) ──
+  // 장소(번호) 라벨은 고정 — 먼저 장애물로 등록해 역 라벨이 이를 피하게 한다.
+  const placed = []
+  for (const pl of routePlaces) {
+    const b = proj.fromCoordToOffset(new naver.maps.LatLng(pl.lat, pl.lng))
+    const pw = 24 + (pl.label?.length || 0) * 9
+    placed.push({ x: b.x, y: b.y - 20, w: pw, h: 20 })   // anchor(0,20) 기준 박스
+  }
+  const H = 22, DX = 16
+  for (const st of routeStations) {
+    const pos = new naver.maps.LatLng(st.lat, st.lng)
+    if (bounds && !bounds.hasLatLng(pos)) continue
+    const base = proj.fromCoordToOffset(pos)
+    const text = (st.line ? st.line + ' ' : '') + st.name
+    const w = 26 + text.length * 11   // 충돌 검사용 추정 폭(유도선은 정확한 좌측변에 연결)
+    // 라벨은 항상 점의 '오른쪽'에 두고 세로 위치만 바꿔 회피 → 유도선을 너비와 무관한 '좌측변'에 정확히 연결.
+    const ys = [-H/2, -H-12, 12, -2*H-24, H+24, -3*H-36, 2*H+36]
+    let oy = ys.find(y => !placed.some(r => rectsOverlap({ x: base.x+DX, y: base.y+y, w, h: H }, r)))
+    if (oy === undefined) oy = ys[0]
+    placed.push({ x: base.x+DX, y: base.y+oy, w, h: H })
+    // 역 지점 점
+    stationMarkers.push(new naver.maps.Marker({
+      position: pos, map: naverMapInstance, clickable: false, zIndex: 58,
+      icon: { content: `<div class="route-stop-dot" style="border-color:${st.color}"></div>`, anchor: new naver.maps.Point(5, 5) },
+    }))
+    // 라벨 (anchor로 픽셀 오프셋: content 좌상단을 base+(DX,oy)에)
+    stationMarkers.push(new naver.maps.Marker({
+      position: pos, map: naverMapInstance, clickable: false, zIndex: 60,
+      icon: { content: `<div class="route-station"><span class="rs-badge" style="background:${st.color}">${st.line || (st.c===1?'역':'정류장')}</span>${st.name}</div>`,
+              anchor: new naver.maps.Point(-DX, -oy) },
+    }))
+    // 유도선 끝점 = 라벨 좌측변에서 점 높이에 가장 가까운 지점 + 안쪽으로 8px(불투명 라벨이 초과분을 덮어 빈틈 제거)
+    const connY = Math.max(oy, Math.min(0, oy + H))
+    const labelCoord = proj.fromOffsetToCoord(new naver.maps.Point(base.x + DX + 8, base.y + connY))
+    // 흰 테두리(casing) + 진한 선으로 가시성 확보
+    leaderLines.push(new naver.maps.Polyline({
+      path: [pos, labelCoord], clickable: false, strokeColor: '#ffffff',
+      strokeWeight: 4.5, strokeOpacity: 0.9, strokeLineCap: 'round', zIndex: 56, map: naverMapInstance,
+    }))
+    leaderLines.push(new naver.maps.Polyline({
+      path: [pos, labelCoord], clickable: false, strokeColor: '#222831',
+      strokeWeight: 2, strokeOpacity: 0.95, strokeLineCap: 'round', zIndex: 57, map: naverMapInstance,
+    }))
+  }
+}
+
+// 통합 구간 렌더: 구간별 색 + 도보 파랑점선 + 화살표 + 승차역 마커. 성공 시 true.
+async function drawPublicSegments(prevCand, currCand, hour, gen) {
+  const { naver } = window
+  let segs
+  try {
+    segs = (prevCand?.attractionId && currCand?.attractionId)
+      ? await getRouteSegments(prevCand.attractionId, currCand.attractionId, hour)
+      : await getRouteSegmentsByCoords(prevCand.latitude, prevCand.longitude, currCand.latitude, currCand.longitude, hour)
+  } catch { segs = null }
+  if (gen !== drawGeneration) return true
+  if (!Array.isArray(segs) || !segs.length) return false
+  for (const seg of segs) {
+    if (!Array.isArray(seg.p) || seg.p.length < 2) continue
+    const path = seg.p.map(([x, y]) => new naver.maps.LatLng(y, x))
+    const isWalk = seg.c === 3
+    if (!isWalk) {
+      // 검정 외곽선(casing) — 색선 아래 깔기
+      routePolylines.push(new naver.maps.Polyline({
+        path, clickable: false, strokeColor: '#111111', strokeWeight: 9,
+        strokeOpacity: 0.5, strokeLineCap: 'round', strokeLineJoin: 'round',
+        zIndex: 5, map: naverMapInstance,
+      }))
+    }
+    const polyline = new naver.maps.Polyline({
+      path, clickable: true,
+      strokeColor: segColor(seg),
+      strokeWeight: isWalk ? 5 : 6,
+      strokeOpacity: 0.95,
+      strokeStyle: isWalk ? 'dotted' : 'solid',
+      strokeLineCap: 'round', strokeLineJoin: 'round',
+      zIndex: 10, map: naverMapInstance,
+    })
+    routePolylines.push(polyline)
+    routeArrowPaths.push(path)
+    if (!isWalk && seg.name) {
+      routeStations.push({
+        lng: seg.p[0][0], lat: seg.p[0][1], name: seg.name,
+        line: lineLabel(seg), color: segColor(seg), c: seg.c,
+      })
+    }
+  }
+  return true
+}
 
 async function drawPublicTransitPolylines(fromAttrId, toAttrId, hour, routeKey, gen, fallbackStyle, fallbackResult) {
   const { naver } = window
@@ -2095,6 +2391,9 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
+  arrowMarkers.forEach(m => m.setMap(null))
+  stationMarkers.forEach(m => m.setMap(null))
+  leaderLines.forEach(l => l.setMap(null))
   collab.disconnect()
 })
 
