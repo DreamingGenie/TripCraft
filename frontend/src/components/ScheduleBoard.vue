@@ -754,7 +754,22 @@ let panelResizeStartWidth = 0
 
 let dragState = null
 let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 grab 잠금을 명시 해제하기 위해 보관
-let grabThrottle = null    // 드래그 중 ghost 포인터 전송 throttle 타이머
+
+// 적응형 전송 게이트(AIMD): 활동이 전송보다 빠르면(혼잡) 간격을 늘려 백로그를 막고,
+// 한가하면 줄여 더 부드럽게. 커서·ghost 전송 공통으로 사용.
+let sendInterval = collabConfig.cursorThrottleMs
+let lastGateTs = 0
+let gateSkips = 0
+function gateSend() {
+  const now = performance.now()
+  if (now - lastGateTs < sendInterval) { gateSkips++; return false }
+  // 직전 구간에 스킵이 많았다 = 움직임이 전송보다 빠름(혼잡) → 간격↑. 적으면 회복.
+  if (gateSkips >= 2) sendInterval = Math.min(collabConfig.cursorThrottleMaxMs, sendInterval + 12)
+  else sendInterval = Math.max(collabConfig.cursorThrottleMs, sendInterval - 8)
+  gateSkips = 0
+  lastGateTs = now
+  return true
+}
 const dragPreview = ref(null)
 const isProcessing = ref(false)
 const processingEvId = ref(null)
@@ -2111,11 +2126,9 @@ function onDragOver(e, day) {
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
-  // ghost 전송은 throttle (드래그 중 dragover가 초당 수십 회 발생 → 백로그·랙 방지).
+  // ghost 전송은 적응형 게이트로 제한 (드래그 중 dragover가 초당 수십 회 → 백로그·랙 방지).
   // 로컬 dragPreview는 위에서 매 이벤트 갱신하므로 본인 화면은 그대로 부드럽다.
-  if (dragState.type === 'event' && activeTripId.value) {
-    if (grabThrottle) return
-    grabThrottle = setTimeout(() => { grabThrottle = null }, collabConfig.cursorThrottleMs)
+  if (dragState.type === 'event' && activeTripId.value && gateSend()) {
     collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
       interaction: 'grab', dragState, nickname: auth.user?.nickname ?? '',
     }))
@@ -2277,11 +2290,9 @@ async function removeEvent(day, ev) {
 }
 
 // ── 협업자 커서 전송 ──
-let pointerThrottle = null
 function onPointerMove(e) {
   if (!activeTripId.value) return
-  if (pointerThrottle) return
-  pointerThrottle = setTimeout(() => { pointerThrottle = null }, collabConfig.cursorThrottleMs)
+  if (!gateSend()) return
   collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
     interaction: '', nickname: auth.user?.nickname ?? '',
   }))
@@ -2360,15 +2371,29 @@ function applyTransitUpdate(payload) {
 
 let prevGrabbers = new Set()
 let lastEventSeq = -1  // 마지막으로 처리한 편집 이벤트 seq(중복·순서 역전 무시용). 일정 연결마다 리셋
+let lastPresenceTs = 0 // 직전 presence 수신 시각 — 수신 보간(smooth)을 갱신 간격에 맞추기 위함
+
+// 수신 보간 transition을 최근 갱신 간격(dt)에 맞춤 → 한가하면 부드럽게(상한까지), 촘촘하면 스냅(랙 0).
+function applyAdaptiveSmooth() {
+  const now = performance.now()
+  const dt = now - lastPresenceTs
+  lastPresenceTs = now
+  // transition은 항상 dt 이하 → 다음 갱신 전에 끝나 백로그가 쌓이지 않음. 하한=전송 하한, 상한=설정값.
+  const smooth = Math.max(collabConfig.cursorThrottleMs, Math.min(collabConfig.cursorSmoothMs, dt))
+  document.documentElement.style.setProperty('--collab-smooth', Math.round(smooth) + 'ms')
+}
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
   lastEventSeq = -1
+  lastPresenceTs = 0
+  sendInterval = collabConfig.cursorThrottleMs
   const observer = !auth.user?.id   // 비로그인 = 관전 모드(구독만 수신, 전송 X)
   if (!observer) loadCollaboratorImages()  // 협업자 명단(인증 필요)은 로그인 시에만 조회
   collab.setHandlers({
     tripEvent: handleTripEvent,
     presence: (list) => {
+      applyAdaptiveSmooth()
       collab.assignColors(list, myMemberId.value)
       const currentGrabbers = new Set(
         list
