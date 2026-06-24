@@ -88,16 +88,18 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  // 로그인 사용자는 공개 탐색(/discover) 대신 작업실(/plan)로 — /discover 는 비로그인 전용 진입점
+  if (to.path === '/discover' && auth.isLoggedIn) return { path: '/plan' }
   if (to.meta.requiresAuth) {
     // 공유 링크(?s=token): /plan 비로그인 조회 허용 — PlanView 가 getShared 로 로드
     if (to.path.startsWith('/plan/') && to.query.s) return true
-    const auth = useAuthStore()
     if (!auth.isLoggedIn) {
       await auth.fetchMe()
       if (!auth.isLoggedIn) return { path: '/auth' }
     }
     if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
-      return { path: '/discover' }
+      return { path: '/plan' }
     }
   }
 })

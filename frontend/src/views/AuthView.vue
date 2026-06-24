@@ -157,7 +157,7 @@ async function doLogin() {
   }
   const result = await auth.login(login.email, login.password)
   if (result.ok) {
-    router.push(route.query.redirect || '/explore')  // 공유 편집 링크 등에서 복귀
+    router.push(route.query.redirect || '/plan')  // 로그인 후 작업실로(공유 편집 링크 등은 redirect 우선)
   } else {
     toast.show(result.status === 401 ? '이메일 또는 비밀번호가 올바르지 않습니다.' : (result.message || '오류가 발생했습니다.'))
   }
