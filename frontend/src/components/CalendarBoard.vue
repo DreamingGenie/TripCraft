@@ -94,7 +94,7 @@
       <div v-if="loading" class="cal-loading">일정을 불러오는 중...</div>
       <div v-else-if="!loading && trips.length === 0" class="cal-empty">
         등록된 여행 일정이 없어요.
-        <RouterLink to="/schedule" class="cal-empty-link">일정 만들러 가기 →</RouterLink>
+        <RouterLink to="/discover" class="cal-empty-link">일정 만들러 가기 →</RouterLink>
       </div>
     </div>
 
