@@ -83,6 +83,10 @@
           <div class="cand-sidebar-header">
             <span class="cand-sidebar-title">{{ embedded ? '보관함' : '후보군' }}</span>
             <span v-if="candidates.length" class="cand-sidebar-count">{{ candidates.length }}</span>
+            <!-- embedded(organize) 전용: 보관함 접기 -->
+            <button v-if="embedded" class="cand-collapse-btn" @click="sidebarOpen = false" title="보관함 접기" aria-label="보관함 접기">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
 
           <!-- embedded(organize): 플랫 리스트 + 분류색 (§5-5). 같은 장소 여러 번 배치 가능 -->
@@ -211,18 +215,13 @@
 
       <!-- 시간표 -->
       <div class="timetable-main">
-        <!-- embedded(organize): Day 요약 바 (§5-6). standalone: 드래그 힌트 -->
-        <div v-if="embedded" class="board-day-summary">
-          <div v-for="s in daySummaries" :key="s.label" class="board-day-chip"
-               :class="{ tight: s.tight }">
-            <span class="board-day-chip-label">{{ s.label }}</span>
-            <span class="board-day-chip-meta">활동 {{ s.activityLabel }}</span>
-            <span v-if="s.transitMin > 0" class="board-day-chip-sep">·</span>
-            <span v-if="s.transitMin > 0" class="board-day-chip-meta">이동 {{ s.transitLabel }}</span>
-            <span v-if="s.tight" class="board-day-chip-warn">다소 빡빡해요</span>
-          </div>
-        </div>
-        <div v-else class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
+        <!-- 접힌 보관함 펼치기 (embedded 전용) -->
+        <button v-if="embedded && !sidebarOpen" class="cand-expand-btn" @click="sidebarOpen = true" title="보관함 펼치기">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          보관함
+        </button>
+        <!-- standalone: 드래그 힌트 -->
+        <div v-if="!embedded" class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
         <div class="timetable-wrapper" ref="wrapperEl" @scroll="e => { openPillKey = null; timetableScrollTop = e.currentTarget.scrollTop }">
           <div class="timetable-header">
@@ -578,29 +577,6 @@ function catInk(cat) { return CAT_INK[cat] || 'var(--purple-900)' }
 
 // 보관함: 한 후보가 격자에 배치된 블록 개수 (같은 장소 여러 번 배치 허용 → "배치됨 ×N")
 function blockCount(c) { return c.blocks?.length ?? 0 }
-
-// ── Day 요약 (활동·이동 합) ──
-const daySummaries = computed(() => days.value.map(d => {
-  const activityMin = d.events.reduce((s, ev) => s + (ev.height || 0), 0)
-  const transitMin = d.events.reduce((s, ev) => s + (ev.transitDurationMinutes || 0), 0)
-  const tight = activityMin + transitMin > 12 * 60
-  return {
-    label: d.label,
-    activityLabel: fmtDuration(activityMin),
-    transitMin,
-    transitLabel: fmtDuration(transitMin),
-    tight,
-  }
-}))
-
-function fmtDuration(min) {
-  if (!min) return '0분'
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  if (h && m) return `${h}시간 ${m}분`
-  if (h) return `${h}시간`
-  return `${m}분`
-}
 
 const trips = ref([])
 const collaboratingTrips = ref([])
