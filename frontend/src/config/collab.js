@@ -8,11 +8,13 @@ const num = (v, fallback) => {
 }
 
 export const collabConfig = {
-  // 커서 전송 throttle(ms). 작을수록 부드럽지만 트래픽↑. 시연 33(≈30fps) / 실서비스 80~100 권장
-  cursorThrottleMs: num(import.meta.env.VITE_COLLAB_CURSOR_THROTTLE_MS, 50),
-  // 수신 커서/ghost가 갱신 사이를 미끄러지듯 보간하는 CSS transition(ms). 0이면 즉시(점프)
-  // throttle보다 크게 잡으면 전환이 누적돼 드래그 후 한참 따라오는 랙이 생기므로 throttle 이하 권장.
-  cursorSmoothMs: num(import.meta.env.VITE_COLLAB_CURSOR_SMOOTH_MS, 45),
+  // 적응형 전송 간격 하한(ms) — 한가할 때(부드러움). 송신측이 혼잡 감지 시 이 값에서 max까지 늘림.
+  cursorThrottleMs: num(import.meta.env.VITE_COLLAB_CURSOR_THROTTLE_MS, 40),
+  // 적응형 전송 간격 상한(ms) — 움직임이 전송보다 빠를 때(혼잡) back off 한계.
+  cursorThrottleMaxMs: num(import.meta.env.VITE_COLLAB_CURSOR_THROTTLE_MAX_MS, 90),
+  // 수신 보간 transition 상한(ms) — 한가할 때 최대 글라이드. 실제 transition은 갱신 간격(dt)에
+  // 맞춰 동적으로 정해지며 항상 dt 이하라 백로그가 생기지 않음(드래그로 촘촘하면 자동 스냅).
+  cursorSmoothMs: num(import.meta.env.VITE_COLLAB_CURSOR_SMOOTH_MS, 110),
   // presence keepalive 주기(ms). 길수록 트래픽↓·stale 위험↑
   keepaliveMs: num(import.meta.env.VITE_COLLAB_KEEPALIVE_MS, 4000),
   // 끊김 후 재연결 시도 지연(ms)
