@@ -319,6 +319,9 @@ CREATE TABLE trip (
     default_transit_mode  VARCHAR(20) NOT NULL DEFAULT 'PUBLIC_TRANSIT'
                                                COMMENT '신규 블록 배치 시 기본 이동수단 (PUBLIC_TRANSIT·DRIVING·WALKING)',
     is_public             TINYINT(1)  NOT NULL DEFAULT 0  COMMENT '커뮤니티 공유 여부 (0:비공개 1:공개)',
+    share_access          ENUM('PRIVATE','VIEW','EDIT') NOT NULL DEFAULT 'PRIVATE'
+                                               COMMENT '공유 링크 접근 레벨 (migration_trip_share_link_v1)',
+    share_token           CHAR(22)    NULL UNIQUE COMMENT '공유 링크 랜덤 토큰(URL-safe). NULL=미생성',
     created_at            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at            TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -333,16 +336,57 @@ CREATE TABLE trip (
 CREATE TABLE trip_candidate (
     id            BIGINT                       NOT NULL AUTO_INCREMENT,
     trip_id       BIGINT                       NOT NULL COMMENT '일정 FK',
-    attraction_id BIGINT                       NOT NULL COMMENT '관광지 FK',
-    city_code     TINYINT                      NOT NULL COMMENT '도시 분류 기준 (attraction.sigungu_code)',
-    source        ENUM('MANUAL', 'FAVORITE')   NOT NULL DEFAULT 'MANUAL'
-                                               COMMENT '추가 경로: MANUAL=직접추가 FAVORITE=즐겨찾기 자동연동',
+    attraction_id BIGINT                       NULL COMMENT '관광지 FK (커스텀 장소면 NULL)',
+    city_code     TINYINT                      NULL COMMENT '도시 분류 기준 (커스텀이면 NULL)',
+    source        ENUM('MANUAL', 'FAVORITE', 'CUSTOM') NOT NULL DEFAULT 'MANUAL'
+                                               COMMENT '추가 경로: MANUAL/FAVORITE/CUSTOM(커스텀 장소)',
+    -- 커스텀 장소(attraction_id NULL)용 필드 (migration_my_place_v1)
+    place_name     VARCHAR(100)  NULL COMMENT '커스텀 장소명',
+    place_category VARCHAR(20)   NULL COMMENT '커스텀 분류',
+    place_address  VARCHAR(255)  NULL COMMENT '커스텀 주소',
+    place_lat      DECIMAL(10,7) NULL COMMENT '커스텀 위도',
+    place_lng      DECIMAL(10,7) NULL COMMENT '커스텀 경도',
     added_at      TIMESTAMP                    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_candidate (trip_id, attraction_id),
+    -- 커스텀 장소 좌표 기반 중복 방지(attraction 행은 lat/lng NULL → 다중 NULL 허용으로 미충돌). migration_candidate_place_unique_v1
+    UNIQUE KEY uq_candidate_place (trip_id, place_lat, place_lng),
     FOREIGN KEY fk_candidate_trip       (trip_id)       REFERENCES trip(id)       ON DELETE CASCADE,
     FOREIGN KEY fk_candidate_attraction (attraction_id) REFERENCES attraction(id) ON DELETE CASCADE
-) COMMENT='일정 후보군. 탐색 화면에서 장소 추가 시 생성. trip_block 존재 시 삭제 불가 (RESTRICT)'
+) COMMENT='일정 후보군. 탐색/커스텀 장소 추가 시 생성. trip_block 존재 시 삭제 불가 (RESTRICT)'
+  DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 6-1. 개인 장소 (member_place) — migration_my_place_v1
+-- ---------------------------------------------
+CREATE TABLE member_place (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    member_id  BIGINT       NOT NULL COMMENT '소유 회원 FK',
+    name       VARCHAR(100) NOT NULL COMMENT '장소명',
+    category   VARCHAR(20)  NOT NULL COMMENT '분류(관광지·문화시설·레포츠·숙박·쇼핑·음식점)',
+    address    VARCHAR(255) NULL     COMMENT '주소',
+    latitude   DECIMAL(10,7) NULL,
+    longitude  DECIMAL(10,7) NULL,
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_member_place_member (member_id),
+    FOREIGN KEY fk_member_place_member (member_id) REFERENCES member(id) ON DELETE CASCADE
+) COMMENT='회원 개인 커스텀 장소(재사용)' DEFAULT CHARSET = utf8mb4;
+
+-- ---------------------------------------------
+-- 6-2. 일정 협업자 (trip_collaborator) — migration_collab_v1
+-- ---------------------------------------------
+CREATE TABLE trip_collaborator (
+    id         BIGINT                   NOT NULL AUTO_INCREMENT,
+    trip_id    BIGINT                   NOT NULL,
+    member_id  BIGINT                   NOT NULL,
+    role       ENUM('EDITOR','VIEWER')  NOT NULL DEFAULT 'EDITOR',
+    invited_at TIMESTAMP                NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_collaborator (trip_id, member_id),
+    FOREIGN KEY fk_collab_trip   (trip_id)   REFERENCES trip(id)   ON DELETE CASCADE,
+    FOREIGN KEY fk_collab_member (member_id) REFERENCES member(id) ON DELETE CASCADE
+) COMMENT='일정 협업자. 소유자(trip.member_id)와 별도. 역할: EDITOR(조회+편집)/VIEWER(조회만)'
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
@@ -420,8 +464,9 @@ DELIMITER ;
 -- ---------------------------------------------
 CREATE TABLE transit_cache (
     id                 BIGINT       NOT NULL AUTO_INCREMENT,
-    from_attraction_id BIGINT       NOT NULL COMMENT '출발지 FK',
-    to_attraction_id   BIGINT       NOT NULL COMMENT '도착지 FK',
+    route_key          VARCHAR(160) NULL COMMENT '좌표 기반 캐시 키 (migration_transit_coord_key_v1)',
+    from_attraction_id BIGINT       NULL COMMENT '(미사용, 좌표키로 전환)',
+    to_attraction_id   BIGINT       NULL COMMENT '(미사용, 좌표키로 전환)',
     departure_hour     TINYINT      NOT NULL COMMENT '출발 시(0~23)',
     request_mode       VARCHAR(20)  NOT NULL DEFAULT 'PUBLIC_TRANSIT'
                                             COMMENT '요청 이동수단 모드 (PUBLIC_TRANSIT·DRIVING·WALKING)',
@@ -436,10 +481,8 @@ CREATE TABLE transit_cache (
     route_coords       MEDIUMTEXT   NULL      COMMENT '경로 좌표 JSON ([lng,lat] 배열) — T Map GeoJSON LineString (DRIVING·WALKING)',
     cached_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_transit (from_attraction_id, to_attraction_id, departure_hour, request_mode),
-    FOREIGN KEY fk_transit_from (from_attraction_id) REFERENCES attraction(id) ON DELETE CASCADE,
-    FOREIGN KEY fk_transit_to   (to_attraction_id)   REFERENCES attraction(id) ON DELETE CASCADE
-) COMMENT='이동 시간 API 응답 캐시 (ODsay 대중교통·T Map 자동차·도보). (from, to, hour, mode) 키'
+    UNIQUE KEY uq_transit_route (route_key)
+) COMMENT='이동 시간 API 응답 캐시 (ODsay 대중교통·T Map 자동차·도보). route_key(좌표) 키 — attraction·커스텀 공통'
   DEFAULT CHARSET = utf8mb4;
 
 -- ---------------------------------------------
