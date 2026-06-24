@@ -3,6 +3,7 @@ package com.tripcraft.plan.controller;
 import com.tripcraft.plan.dto.TripEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -35,7 +36,10 @@ public class TripPresenceController {
     // sessionId → tripId (어느 trip을 구독 중인지)
     private final Map<String, Long> sessionTripMap = new ConcurrentHashMap<>();
 
-    private static final long STALE_MILLIS = 5_000;
+    // 협업 presence 튜닝(시연↔실서비스) — .env COLLAB_PRESENCE_* 로 조절(미설정 시 기본값).
+    // 유령 커서 제거 속도: stale-ms 지나면 evict. evict 스케줄 주기는 fixedDelayString.
+    @Value("${COLLAB_PRESENCE_STALE_MS:5000}")
+    private long staleMillis;
 
     // zone 기반 의미 좌표 (절대 픽셀 X). 좌표 의미는 프런트 useCollabCursor.js 참고.
     record PresenceState(Long memberId, String nickname, String zone,
@@ -96,9 +100,9 @@ public class TripPresenceController {
         return tripGrab != null ? tripGrab.get(blockId) : null;
     }
 
-    @Scheduled(fixedDelay = 2000)
+    @Scheduled(fixedDelayString = "${COLLAB_PRESENCE_EVICT_INTERVAL_MS:2000}")
     public void evictStale() {
-        Instant cutoff = Instant.now().minusMillis(STALE_MILLIS);
+        Instant cutoff = Instant.now().minusMillis(staleMillis);
         presenceMap.forEach((tripId, sessions) -> {
             List<String> removed = new ArrayList<>();
             sessions.forEach((sessionId, state) -> {
