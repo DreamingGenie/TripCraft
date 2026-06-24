@@ -27,7 +27,9 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
   }
   function zoneOf(target) {
     if (mapEl.value && mapEl.value.contains(target)) return 'map'
-    if (wrapperEl.value && wrapperEl.value.contains(target)) return 'timetable'
+    // 타임테이블 헤더(day 라벨)·시간축 거터·사이드바 등은 제외하고, 실제 격자(.day-cols)만 협업 영역으로 본다.
+    const grid = dayCols()
+    if (grid && grid.contains(target)) return 'timetable'
     return 'other'
   }
 
