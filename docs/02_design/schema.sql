@@ -349,6 +349,8 @@ CREATE TABLE trip_candidate (
     added_at      TIMESTAMP                    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uq_candidate (trip_id, attraction_id),
+    -- 커스텀 장소 좌표 기반 중복 방지(attraction 행은 lat/lng NULL → 다중 NULL 허용으로 미충돌). migration_candidate_place_unique_v1
+    UNIQUE KEY uq_candidate_place (trip_id, place_lat, place_lng),
     FOREIGN KEY fk_candidate_trip       (trip_id)       REFERENCES trip(id)       ON DELETE CASCADE,
     FOREIGN KEY fk_candidate_attraction (attraction_id) REFERENCES attraction(id) ON DELETE CASCADE
 ) COMMENT='일정 후보군. 탐색/커스텀 장소 추가 시 생성. trip_block 존재 시 삭제 불가 (RESTRICT)'
