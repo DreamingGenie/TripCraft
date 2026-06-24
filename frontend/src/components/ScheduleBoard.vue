@@ -543,7 +543,7 @@ import { useActiveTripStore } from '@/stores/activeTrip'
 import { useAuthStore } from '@/stores/auth'
 import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
+import { getTransitByMode, getTransitByCoords, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
@@ -1316,12 +1316,19 @@ async function drawDayRoute() {
     const PUBLIC_TRANSIT_MODES = new Set(['BUS','SUBWAY','RAIL','EXPRESSBUS','INTERCITYBUS','BUS,SUBWAY'])
     const requestMode = PUBLIC_TRANSIT_MODES.has(curr.transitMode) ? 'PUBLIC_TRANSIT' : curr.transitMode
     let result = pillResults[key]?.[requestMode]
-    if (result === undefined && prevCand?.attractionId && currCand?.attractionId) {
+    if (result === undefined) {
       try {
-        result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, requestMode, hour)
+        if (prevCand?.attractionId && currCand?.attractionId) {
+          result = await getTransitByMode(prevCand.attractionId, currCand.attractionId, requestMode, hour)
+        } else if (prevCand?.latitude && prevCand?.longitude && currCand?.latitude && currCand?.longitude) {
+          // 커스텀 장소 구간: 좌표 기반 경로
+          result = await getTransitByCoords(prevCand.latitude, prevCand.longitude, currCand.latitude, currCand.longitude, requestMode, hour)
+        }
         if (gen !== drawGeneration) return   // 새 draw가 시작됐으면 중단
-        if (!pillResults[key]) pillResults[key] = {}
-        pillResults[key][requestMode] = result
+        if (result !== undefined) {
+          if (!pillResults[key]) pillResults[key] = {}
+          pillResults[key][requestMode] = result
+        }
       } catch { result = null }
     }
 
