@@ -83,6 +83,10 @@ public class PostServiceImpl implements PostService {
         post.setContent(req.getContent());
         postMapper.update(post);
 
+        // 수정 중 추가된 본문 이미지(post_draft, targetId=memberId) → 이 게시글로 연결 (생성과 동일).
+        // 이 전환이 없으면 본문 이미지가 post_draft로 남아 24h 청소 스케줄러에 삭제된다.
+        attachMapper.updateTargetId("post_draft", memberId, "post", id);
+
         // 새 대표사진을 올린 경우에만 기존 커버를 교체 (안 올렸으면 기존 커버 유지)
         if (!attachMapper.findByTarget("post_cover_draft", memberId).isEmpty()) {
             attachMapper.deleteByTarget("post_cover", id);
