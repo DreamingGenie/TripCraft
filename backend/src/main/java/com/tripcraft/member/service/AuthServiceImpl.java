@@ -50,25 +50,33 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
         });
 
-        memberMapper.insert(buildMember(request));
+        Member member = buildMember(request);
+        memberMapper.insert(member);
+        log.info("회원 가입 완료 memberId={}", member.getId());
     }
 
     @Override
     @Transactional
     public void login(LoginRequest request, HttpServletResponse response) {
         Member member = memberMapper.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."));
+                .orElseThrow(() -> {
+                    log.warn("로그인 실패(미존재 이메일) email={}", request.getEmail());
+                    return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
+                });
 
         if (member.getPassword() == null) {
+            log.warn("로그인 실패(소셜 전용 계정) memberId={}", member.getId());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "소셜 계정으로만 로그인 가능합니다.");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+            log.warn("로그인 실패(비밀번호 불일치) memberId={}", member.getId());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
         memberTokenMapper.deleteByMemberId(member.getId());
         issueTokens(member, response);
+        log.info("로그인 성공 memberId={}", member.getId());
     }
 
     @Override
@@ -80,6 +88,7 @@ public class AuthServiceImpl implements AuthService {
         Member member = findOrCreateMember(info);
         memberTokenMapper.deleteByMemberId(member.getId());
         issueTokens(member, response);
+        log.info("카카오 로그인 성공 memberId={}", member.getId());
     }
 
     /** 카카오 사용자 → 회원 매핑: 소셜ID 연결 → 이메일 연결 → 신규 자동가입 */
@@ -111,6 +120,7 @@ public class AuthServiceImpl implements AuthService {
         member.setSocialProvider("kakao");
         member.setSocialId(info.socialId());
         memberMapper.insert(member);
+        log.info("카카오 신규 가입 memberId={}", member.getId());
         saveKakaoProfileImage(member.getId(), info.profileImage());
         return member;
     }
@@ -169,10 +179,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String refreshToken, HttpServletResponse response) {
+        Long memberId = (refreshToken != null && jwtTokenProvider.validate(refreshToken))
+                ? jwtTokenProvider.getMemberId(refreshToken) : null;
         if (refreshToken != null) {
             memberTokenMapper.deleteByToken(refreshToken);
         }
         clearAllCookies(response);
+        log.info("로그아웃 memberId={}", memberId);
     }
 
     private void issueTokens(Member member, HttpServletResponse response) {

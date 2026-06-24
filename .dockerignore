@@ -1,0 +1,15 @@
+# 레포 루트 컨텍스트 빌드(deploy/local/mysql.Dockerfile·web.Dockerfile)용.
+# 무거운/불필요 항목만 제외 — frontend 소스·docs·deploy 는 빌드에 필요하므로 유지.
+.git
+.omc
+**/node_modules
+backend/build
+backend/.gradle
+frontend/dist
+backend/uploads
+**/.env
+**/.env.production
+**/.env.*.local
+deploy/local/tripcraft-images.tar.gz
+notes
+.DS_Store

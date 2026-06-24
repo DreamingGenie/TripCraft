@@ -79,7 +79,8 @@ public class TourApiItemReader implements ItemReader<TourApiItem> {
             }
 
             buffer.addAll(page);
-            log.info("TourAPI 페이지 로드 — areaCode={} contentType={} page={} → {}건",
+            // 페이지별 상세는 DEBUG (TourApiSyncServiceImpl 의 "페이지 저장" INFO 와 중복 → 전국 수집 시 폭주 방지)
+            log.debug("TourAPI 페이지 로드 — areaCode={} contentType={} page={} → {}건",
                     areaCode, contentType, pageNo, page.size());
 
             if (page.size() < PAGE_SIZE) {
