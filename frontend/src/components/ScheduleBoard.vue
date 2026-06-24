@@ -122,8 +122,6 @@
                   </svg>
                   배치
                 </button>
-                <button v-if="!readOnly" class="cand-flat-del" title="보관함에서 삭제"
-                        aria-label="보관함에서 삭제" @click.stop="removeCandidate(c)">✕</button>
               </div>
             </template>
           </div>
@@ -205,15 +203,29 @@
           </div>
 
           <div class="cand-sidebar-footer">
-            <button v-if="embedded && !readOnly" class="btn-add-from-explore" @click="$emit('explore')">
-              + 탐색에서 더 담기
-            </button>
-            <button v-if="embedded && !readOnly" class="btn-add-place" @click="addPlaceOpen = true">
-              + 내 장소 · 직접 추가
-            </button>
-            <RouterLink v-else to="/explore" class="btn-add-from-explore">
-              + 관광지 탐색에서 추가하기
-            </RouterLink>
+            <!-- 후보 드래그 중엔 같은 자리에 제거 드롭존으로 교체(엘리먼트 이동 없음) -->
+            <div v-if="embedded && !readOnly && draggingCand" class="cand-trash-zone"
+                 :class="{ over: candTrashOver }"
+                 @dragenter.prevent="candTrashOver = true"
+                 @dragover.prevent.stop="candTrashOver = true"
+                 @dragleave="candTrashOver = false"
+                 @drop.prevent.stop="onCandTrashDrop">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              여기에 놓으면 보관함에서 제거
+            </div>
+            <template v-else>
+              <button v-if="embedded && !readOnly" class="btn-add-from-explore" @click="$emit('explore')">
+                + 탐색에서 더 담기
+              </button>
+              <button v-if="embedded && !readOnly" class="btn-add-place" @click="addPlaceOpen = true">
+                + 내 장소 · 직접 추가
+              </button>
+              <RouterLink v-else to="/explore" class="btn-add-from-explore">
+                + 관광지 탐색에서 추가하기
+              </RouterLink>
+            </template>
           </div>
         </template>
       </aside>
@@ -545,7 +557,7 @@ import { useActiveTripStore } from '@/stores/activeTrip'
 import { useAuthStore } from '@/stores/auth'
 import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
-import { getTransitByMode, getTransitByCoords, getTransitDetail, getTransitDetailByCoords, selectTransitPath, getDrivingOption, getDrivingOptionByCoords, applyDrivingOption, getLaneSegments, getRouteSegments, getRouteSegmentsByCoords, getWalkingCoords } from '@/api/transit'
+import { getTransitByMode, getTransitByCoords, getTransitDetail, getTransitDetailByCoords, selectTransitPath, getDrivingOption, getDrivingOptionByCoords, applyDrivingOption, getRouteSegments, getRouteSegmentsByCoords, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
@@ -759,6 +771,8 @@ const isProcessing = ref(false)
 const processingEvId = ref(null)
 const sidebarDragOver = ref(false)
 const sidebarDropActive = computed(() => sidebarDragOver.value && dragState?.type === 'event')
+const draggingCand = ref(false)    // 후보 드래그 중 (하단 제거존 표시)
+const candTrashOver = ref(false)   // 제거존 위에 드래그 오버
 
 const TRANSPORT_DISPLAY = {
   BUS: '버스', SUBWAY: '지하철', RAIL: 'KTX/기차', EXPRESSBUS: '고속버스',
@@ -1492,9 +1506,6 @@ async function drawDayRoute() {
   renderOverlays()
 }
 
-// lane.class → 색상 매핑 (ODsay: 1=지하철, 2=버스)
-const LANE_CLASS_COLOR = { 1: '#7c3aed', 2: '#2563eb' }
-
 // ── 구간(segment) 색: 지하철 호선색 / 버스 종류색 / 도보 파랑점선 ──
 const WALK_COLOR = '#2D8CFF'
 const RAIL_COLOR = '#003478'
@@ -1685,49 +1696,6 @@ async function drawPublicSegments(prevCand, currCand, hour, gen) {
   return true
 }
 
-async function drawPublicTransitPolylines(fromAttrId, toAttrId, hour, routeKey, gen, fallbackStyle, fallbackResult) {
-  const { naver } = window
-  try {
-    const segments = await getLaneSegments(fromAttrId, toAttrId, hour)
-    if (gen !== drawGeneration) return
-    if (Array.isArray(segments) && segments.length > 0) {
-      segments.forEach((seg, idx) => {
-        if (!Array.isArray(seg.p) || seg.p.length < 2) return
-        const laneKey = `${routeKey}-${idx}`
-        const color = LANE_CLASS_COLOR[seg.c] || fallbackStyle.color
-        const segStyle = { color, weight: fallbackStyle.weight, opacity: fallbackStyle.opacity, strokeStyle: 'solid' }
-        const path = seg.p.map(([x, y]) => new naver.maps.LatLng(y, x))
-        const polyline = new naver.maps.Polyline({
-          path, clickable: true,
-          strokeColor: color, strokeWeight: segStyle.weight,
-          strokeOpacity: segStyle.opacity, strokeStyle: 'solid',
-          map: naverMapInstance,
-        })
-        addPolylineHoverSegment(polyline, segStyle, laneKey)
-        routePolylines.push(polyline)
-      })
-      return
-    }
-  } catch {}
-
-  // getLaneSegments 실패 시 기존 단일 폴리라인 fallback
-  if (gen !== drawGeneration) return
-  if (fallbackResult?.routeCoords) {
-    try {
-      const coords = JSON.parse(fallbackResult.routeCoords)
-      const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
-      const polyline = new naver.maps.Polyline({
-        path, clickable: true,
-        strokeColor: fallbackStyle.color, strokeWeight: fallbackStyle.weight,
-        strokeOpacity: fallbackStyle.opacity, strokeStyle: fallbackStyle.strokeStyle,
-        map: naverMapInstance,
-      })
-      addPolylineHover(polyline, fallbackStyle, routeKey)
-      routePolylines.push(polyline)
-    } catch {}
-  }
-}
-
 function unpinRoute(key) {
   const group = routeMarkerGroups.get(key)
   group?.collapse?.()
@@ -1736,34 +1704,6 @@ function unpinRoute(key) {
     targets.forEach(p => p.setOptions({ strokeWeight: group.style.weight, strokeOpacity: group.style.opacity }))
   }
   pinnedRouteKey = null
-}
-
-// 구간별 폴리라인용 hover — 해당 폴리라인만 강조, 마커는 routeKey로 expand/collapse
-function addPolylineHoverSegment(polyline, style, routeKey) {
-  const { naver } = window
-  const highlight = () => polyline.setOptions({ strokeWeight: style.weight + 3, strokeOpacity: 1.0 })
-  const restore   = () => polyline.setOptions({ strokeWeight: style.weight,     strokeOpacity: style.opacity })
-
-  naver.maps.Event.addListener(polyline, 'mouseover', () => {
-    if (pinnedRouteKey !== routeKey) highlight()
-  })
-  naver.maps.Event.addListener(polyline, 'mouseout', () => {
-    if (pinnedRouteKey !== routeKey) restore()
-  })
-  naver.maps.Event.addListener(polyline, 'click', () => {
-    polylineClicked = true
-    if (pinnedRouteKey === routeKey) {
-      unpinRoute(routeKey)
-    } else {
-      if (pinnedRouteKey) unpinRoute(pinnedRouteKey)
-      pinnedRouteKey = routeKey
-      highlight(); routeMarkerGroups.get(routeKey)?.expand()
-    }
-  })
-  // 그룹에 polylines 배열 추가 (pin 해제 시 모든 lane 복원용)
-  const existing = routeMarkerGroups.get(routeKey) || {}
-  const polylines = existing.polylines ? [...existing.polylines, polyline] : [polyline]
-  routeMarkerGroups.set(routeKey, { ...existing, polylines, style })
 }
 
 function addPolylineHover(polyline, style, routeKey) {
@@ -1790,158 +1730,6 @@ function addPolylineHover(polyline, style, routeKey) {
   // polyline 참조를 그룹에 저장 (나중에 pin 해제 시 사용)
   const existing = routeMarkerGroups.get(routeKey) || {}
   routeMarkerGroups.set(routeKey, { ...existing, polyline, style })
-}
-
-async function drawTransferMarkers(fromAttrId, toAttrId, hour, routeKey, gen, legOrigin, legDest) {
-  try {
-    const detail = await getTransitDetail(fromAttrId, toAttrId, hour)
-    if (gen !== drawGeneration) return   // 새 draw가 시작됐으면 마커 추가 중단
-    const subPaths = detail?.intercityPaths?.[0]?.subPath || []
-    const { naver } = window
-    const TYPE_COLOR = { 1: '#7c3aed', 2: '#2563eb', 4: '#dc2626', 5: '#d97706', 6: '#d97706' }
-    const nonWalking = subPaths.filter(s => s.trafficType !== 3)
-
-    nonWalking.forEach((sub, idx) => {
-      const laneKey = `${routeKey}-${idx}`
-      const color = TYPE_COLOR[sub.trafficType] || '#534ab7'
-      const label = getTransitSegmentLabel(sub)
-      const detailMarkers = []
-
-      // 기본 라벨 마커 (항상 표시 — 탑승 지점에 버스번호/호선명)
-      let labelMarker = null
-      if (sub.startX && sub.startY) {
-        const labelIcon = {
-          content: `<div class="map-lane-label" style="border-color:${color};color:${color}">${label}</div>`,
-          anchor: new naver.maps.Point(0, 22),
-        }
-        labelMarker = new naver.maps.Marker({ position: new naver.maps.LatLng(sub.startY, sub.startX), map: naverMapInstance, icon: labelIcon, zIndex: 8 })
-        routeMarkers.push(labelMarker)
-      }
-
-      // 탑승 상세 마커 (pin 시에만 표시)
-      if (sub.startX && sub.startY) {
-        const expandedIcon = {
-          content: `<div class="map-stop-label map-stop-label--board" style="border-color:${color}">
-                      <span style="color:${color}">▲</span><span>${label} · ${sub.startName || '탑승'}</span>
-                    </div>`,
-          anchor: new naver.maps.Point(0, 22),
-        }
-        const m = new naver.maps.Marker({ position: new naver.maps.LatLng(sub.startY, sub.startX), map: null, icon: expandedIcon, zIndex: 9 })
-        routeMarkers.push(m)
-        detailMarkers.push(m)
-      }
-
-      // 하차/환승 상세 마커 (마지막 구간 제외, pin 시에만 표시)
-      if (idx < nonWalking.length - 1 && sub.endX && sub.endY) {
-        const expandedIcon = {
-          content: `<div class="map-stop-label map-stop-label--alight" style="border-color:${color};color:${color}">${label} · ${sub.endName || '하차'}</div>`,
-          anchor: new naver.maps.Point(0, 22),
-        }
-        const m = new naver.maps.Marker({ position: new naver.maps.LatLng(sub.endY, sub.endX), map: null, icon: expandedIcon, zIndex: 10 })
-        routeMarkers.push(m)
-        detailMarkers.push(m)
-      }
-
-      // laneKey별로 expand/collapse 등록
-      const existing = routeMarkerGroups.get(laneKey) || {}
-      routeMarkerGroups.set(laneKey, {
-        ...existing,
-        expand: () => {
-          labelMarker?.setMap(null)
-          detailMarkers.forEach(m => m.setMap(naverMapInstance))
-        },
-        collapse: () => {
-          detailMarkers.forEach(m => m.setMap(null))
-          labelMarker?.setMap(naverMapInstance)
-        },
-      })
-    })
-
-    // 도보 구간 폴리라인 (TMAP 실제 경로, 점선)
-    // ODsay 도보 subPath는 좌표(startX/Y, endX/Y)가 0인 경우가 많아, 인접 비-도보 구간의
-    // 끝/시작점과 여행지 원점(legOrigin/legDest)에서 도보 양 끝점을 유도한다.
-    const path0 = detail?.intercityPaths?.[0] || {}
-    const firstStation = firstStationCoord(subPaths)
-    const lastStation = lastStationCoord(subPaths)
-    const localFromSub = Array.isArray(path0.localFrom?.subPath) ? path0.localFrom.subPath : []
-    const localToSub = Array.isArray(path0.localTo?.subPath) ? path0.localTo.subPath : []
-
-    // 도시간 경로: 출발·도착 도보는 localFrom/localTo에 분리되어 있으므로
-    // 메인 subPath의 양 끝 기준점을 첫/마지막 역으로 잡는다.
-    const mainOrigin = localFromSub.length ? (firstStation || legOrigin) : legOrigin
-    const mainDest = localToSub.length ? (lastStation || legDest) : legDest
-
-    let walkPairs = deriveWalkingPairs(subPaths, mainOrigin, mainDest)
-    if (localFromSub.length) walkPairs = walkPairs.concat(deriveWalkingPairs(localFromSub, legOrigin, firstStation || legOrigin))
-    if (localToSub.length) walkPairs = walkPairs.concat(deriveWalkingPairs(localToSub, lastStation || legDest, legDest))
-
-    const walkingStyle = { color: '#16a34a', weight: 5, opacity: 0.9, strokeStyle: 'shortdash' }
-    await Promise.all(walkPairs.map(async ([from, to]) => {
-      if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return
-      try {
-        const coords = await getWalkingCoords(from.lat, from.lng, to.lat, to.lng)
-        if (gen !== drawGeneration) return
-        if (!Array.isArray(coords) || coords.length < 2) return
-        const path = coords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng))
-        const polyline = new naver.maps.Polyline({
-          path, clickable: false,
-          strokeColor: walkingStyle.color, strokeWeight: walkingStyle.weight,
-          strokeOpacity: walkingStyle.opacity, strokeStyle: walkingStyle.strokeStyle,
-          map: naverMapInstance,
-        })
-        routePolylines.push(polyline)
-      } catch {}
-    }))
-  } catch {}
-}
-
-// 비-도보 구간의 시작/끝 좌표 (0이면 null)
-function segStartCoord(s) { return (s.startX && s.startY) ? { lat: s.startY, lng: s.startX } : null }
-function segEndCoord(s) { return (s.endX && s.endY) ? { lat: s.endY, lng: s.endX } : null }
-
-function firstStationCoord(subPaths) {
-  for (const s of subPaths) if (s.trafficType !== 3) return segStartCoord(s)
-  return null
-}
-function lastStationCoord(subPaths) {
-  for (let i = subPaths.length - 1; i >= 0; i--) if (subPaths[i].trafficType !== 3) return segEndCoord(subPaths[i])
-  return null
-}
-
-// subPath 배열에서 도보 구간의 [출발, 도착] 좌표쌍을 인접 비-도보 구간/원점에서 유도
-function deriveWalkingPairs(subPaths, origin, dest) {
-  const pairs = []
-  for (let i = 0; i < subPaths.length; i++) {
-    if (subPaths[i].trafficType !== 3) continue
-    let from = null
-    for (let j = i - 1; j >= 0; j--) {
-      if (subPaths[j].trafficType !== 3) { from = segEndCoord(subPaths[j]); break }
-    }
-    if (!from) from = origin
-    let to = null
-    for (let j = i + 1; j < subPaths.length; j++) {
-      if (subPaths[j].trafficType !== 3) { to = segStartCoord(subPaths[j]); break }
-    }
-    if (!to) to = dest
-    if (from && to) pairs.push([from, to])
-  }
-  return pairs
-}
-
-function getTransitSegmentLabel(sub) {
-  const lane = sub.lane?.[0] || {}
-  switch (sub.trafficType) {
-    case 1: { // 지하철 — "2호선", "경의중앙선" 등
-      const name = lane.name || ''
-      // "수도권 2호선" → "2호선", 앞 지역명 제거
-      return name.replace(/^수도권\s*/, '').replace(/^[가-힣]+\s(?=[가-힣]+선)/, '') || `${lane.subwayCode}호선`
-    }
-    case 2: { const no = lane.busNo || lane.busNoGov || ''; return no ? `${no}번` : '버스' }
-    case 4: return lane.name || 'KTX'
-    case 5:
-    case 6: return lane.busNo ? `${lane.busNo}번` : '고속버스'
-    default: return '환승'
-  }
 }
 
 // ── 일정 로드 ──
@@ -1998,7 +1786,18 @@ function onCandDragStart(e, candidate) {
   if (isProcessing.value) { e.preventDefault(); return }
   dragState = { type: 'candidate', data: candidate, grabOffsetY: 0, grabRatioX: 0, grabOffsetMin: 0 }
   candidate.dragging = true
+  draggingCand.value = true
   e.dataTransfer.effectAllowed = 'move'
+}
+
+async function onCandTrashDrop() {
+  candTrashOver.value = false
+  if (dragState?.type !== 'candidate') return
+  const c = dragState.data
+  c.dragging = false
+  draggingCand.value = false
+  dragState = null
+  await removeCandidate(c)
 }
 
 function onEventDragStart(e, ev, day) {
@@ -2091,6 +1890,8 @@ function onDragEnd() {
   })
   if (dragState?.type === 'candidate') dragState.data.dragging = false
   sidebarDragOver.value = false
+  draggingCand.value = false
+  candTrashOver.value = false
   dragPreview.value = null
   dragState = null
   if (activeTripId.value) {

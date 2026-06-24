@@ -370,6 +370,8 @@ CREATE TABLE member_place (
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     INDEX idx_member_place_member (member_id),
+    -- 같은 회원 동일 좌표 중복 방지(좌표 NULL 행은 다중 허용). migration_member_place_unique_v1
+    UNIQUE KEY uq_member_place (member_id, latitude, longitude),
     FOREIGN KEY fk_member_place_member (member_id) REFERENCES member(id) ON DELETE CASCADE
 ) COMMENT='회원 개인 커스텀 장소(재사용)' DEFAULT CHARSET = utf8mb4;
 

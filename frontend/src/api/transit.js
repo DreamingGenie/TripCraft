@@ -1,9 +1,5 @@
 import { http } from './http'
 
-export async function getTransitTime(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit?fromId=${fromId}&toId=${toId}&hour=${hour}`)
-}
-
 export async function getTransitByMode(fromId, toId, mode, hour = 9) {
   return await http.get(`/api/transit?fromId=${fromId}&toId=${toId}&hour=${hour}&mode=${mode}`)
 }
@@ -32,10 +28,6 @@ export async function selectTransitPath(fromId, toId, hour, pathIndex) {
   return await http.post(`/api/transit/select?fromId=${fromId}&toId=${toId}&hour=${hour}&pathIndex=${pathIndex}`)
 }
 
-export async function getDrivingOptions(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}`)
-}
-
 export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
   const res = await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
   return Array.isArray(res) ? res[0] ?? null : null
@@ -43,10 +35,6 @@ export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
 
 export async function applyDrivingOption(fromId, toId, hour, optionIndex) {
   return await http.post(`/api/transit/select-driving?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
-}
-
-export async function getLaneSegments(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit/segments?fromId=${fromId}&toId=${toId}&hour=${hour}`)
 }
 
 // 통합 경로 구간(구간별 색·도보·역마커용). 어트랙션 / 커스텀 좌표 두 버전.

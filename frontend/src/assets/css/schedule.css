@@ -1045,52 +1045,6 @@
   min-height: 0;
 }
 
-/* 탑승/하차 아이콘 마커 (기본 상태) */
-.map-stop-icon {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,.35);
-}
-.map-stop-icon--board  { clip-path: polygon(50% 0%,100% 100%,0% 100%); border-radius: 2px; }
-.map-stop-icon--alight { clip-path: polygon(0% 0%,100% 0%,50% 100%);   border-radius: 2px; }
-
-/* 탑승/하차 레이블 마커 (hover/click 확장 상태) */
-.map-stop-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px 0 6px;
-  background: #fff;
-  border: 1.5px solid #2563eb;
-  border-radius: 11px;
-  box-shadow: 0 2px 6px rgba(0,0,0,.25);
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
-  color: #1e293b;
-}
-.map-stop-label span:first-child { font-size: 9px; }
-.map-stop-label--alight { font-size: 9px; }
-
-/* 구간 기본 라벨 (버스번호/호선명, 항상 표시) */
-.map-lane-label {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 7px;
-  background: #fff;
-  border: 1.5px solid #2563eb;
-  border-radius: 9px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.2);
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
-  pointer-events: none;
-}
-
 /* 지도 마커 레이블 */
 .map-route-marker {
   background: var(--purple-900);
