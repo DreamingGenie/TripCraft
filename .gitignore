@@ -2,6 +2,13 @@
 
 # Environment variables
 frontend/.env
+frontend/.env.production
+
+# 배포 시크릿 (예시 *.example 만 커밋)
+deploy/.env
+deploy/backend-secrets.env
+deploy/local/backend-secrets.local.env
+deploy/local/tripcraft-images.tar.gz
 
 # Local override configs
 backend/src/main/resources/application-local.yml
