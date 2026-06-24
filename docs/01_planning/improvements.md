@@ -90,6 +90,21 @@
 
 ---
 
+## 9. 협업 동시성 — 견고 범위 적용 후 남은 항목
+
+> **적용 완료(2026-06-24)**: ① `trip_block.version` 낙관적 락(같은 블록 동시 수정 → 409·재조회) ② grab 서버 게이트(드래그 중 블록 선제 차단) ③ transit 전용 업데이트 분리 + 외부 API를 변경 트랜잭션 커밋 후(afterCommit)로 이동. 충돌 기준은 `version`이 "같은 row"에만 작용 → 무관 편집·transit 재계산은 오탐 없음.
+> 아래는 비용·일정상 이번에 미룬 항목. 위 적용을 전제로 후속 보강.
+
+- **9-1. displayOrder 정합성 (우선순위: 높음)** — 서로 다른 블록이 같은 `(trip_date, display_order)`를 가질 수 있음(UNIQUE 없음, "앱 레이어 관리" 주석). 서로 다른 블록을 같은 슬롯에 놓는 충돌은 `version`(다른 row)으로 못 막음. 개선: 서버 권위 정규화(배치/이동 시 서버가 순서 재할당 후 브로드캐스트) 또는 `UNIQUE(trip_date, display_order)` + 재시도. 현재는 커서 인지 + LWW에 의존.
+- **9-2. removeCandidate TOCTOU (중간)** — `existsBlockByCandidateId` 체크와 `deleteById` 사이에 동시 `placeBlock`이 끼면 `ON DELETE RESTRICT`로 FK 예외 발생(사용자에겐 의도와 다른 메시지). 개선: 후보 행 `SELECT … FOR UPDATE` 또는 RESTRICT 예외를 "배치된 블록이 있습니다"로 변환.
+- **9-3. 브로드캐스트 이벤트 순서·유실 (중간)** — `TripEvent`에 시퀀스 번호 없음. 순서 역전·유실 감지 불가, 재연결 시 `loadTrip` 전체 재조회에만 의존. 개선: seq 부여 + 클라이언트 gap 감지 시 재동기화, 재연결 누락분 조회 엔드포인트.
+- **9-4. presence in-memory 경합 (중간, 표시 수준)** — `TripPresenceController`의 `computeIfAbsent` 복합 연산 비원자성, 재연결 시 유령 참가자(중복 sessionId), `broadcastPresence` 스냅샷 TOCTOU, 세션맵 원자성. 데이터 유실은 아니고 커서 깜빡임/유령 커서/잔존 grab 수준. 개선: tripId 단위 동기화 또는 세션 상태 단일 객체화 + 멱등 정리.
+- **9-5. STOMP 권한 캐시 무효화 (중간)** — 협업자 제거/강등 시 세션 캐시(`tripAccess:{id}`)가 즉시 무효화되지 않아, 세션 수명 동안 presence 전송이 통과(§4 연장). 개선: 권한 변경 이벤트로 해당 세션 캐시 무효화 또는 강제 재구독.
+- **9-6. 커서 throttle·broadcast 부하 (낮음)** — keepalive(4초)·mousemove마다 전체 참가자 목록 재직렬화·broadcast. 대규모 동시 접속 시 대역폭. 개선: 좌표 델타 전송 또는 broadcast 합치기(coalescing).
+- **9-7. 블록 이벤트 부분 패치 (낮음)** — `BLOCK_*` 수신 시 전체 `loadTrip` 재조회 → optimistic UI와 겹쳐 깜빡임. 현재 `TRANSIT_RECALCULATED`만 부분 패치. 개선: 블록 이벤트도 부분 반영.
+
+---
+
 ## (검수 결과) 부채가 아니거나 이미 양호한 항목
 
 - **MyBatis `${}` 미사용** — 매퍼 전수 확인 결과 `#{}` 바인딩만 사용. SQL Injection 컨벤션 준수.
