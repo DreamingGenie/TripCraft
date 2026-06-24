@@ -503,9 +503,9 @@
   <!-- 협업자 커서 + 유령 블록 오버레이 -->
   <Teleport to="body">
     <template v-for="p in otherParticipants" :key="p.memberId">
-      <div v-if="p.interaction !== 'grab' && p.x > 0"
+      <div v-if="p.interaction !== 'grab' && p.zone && p.zone !== 'other'"
            class="collab-cursor"
-           :style="{ left: p.x + 'px', top: p.y + 'px', '--cursor-color': collab.colorMap[p.memberId] }">
+           :style="{ ...cursorStyle(p), '--cursor-color': collab.colorMap[p.memberId] }">
         <svg class="cursor-icon" viewBox="0 0 16 20" width="16" height="20" xmlns="http://www.w3.org/2000/svg">
           <path d="M0 0 L0 16 L4 12 L7 18 L9 17 L6 11 L11 11 Z"
                 fill="var(--cursor-color)" stroke="white" stroke-width="1.2"/>
@@ -515,22 +515,16 @@
           <span v-else>{{ p.nickname?.charAt(0)?.toUpperCase() }}</span>
         </div>
       </div>
-      <div v-if="p.interaction === 'grab' && p.targetBlockId && p.x > 0"
+      <div v-if="p.interaction === 'grab' && p.targetBlockId && p.zone === 'timetable'"
            class="collab-ghost-block"
            :data-color="ghostBlockColor(p.targetBlockId)"
-           :style="{
-             left: (p.x - (p.grabOffsetX ?? 0)) + 'px',
-             top: collabGhostTop(p) + 'px',
-             width: collabGhostWidth(p) + 'px',
-             height: ghostBlockHeight(p.targetBlockId) + 'px',
-             '--cursor-color': collab.colorMap[p.memberId],
-           }">
+           :style="{ ...ghostStyle(p), '--cursor-color': collab.colorMap[p.memberId] }">
         <span class="ghost-label">{{ p.nickname }}</span>
         <span class="ghost-name">{{ ghostBlockName(p.targetBlockId) }}</span>
       </div>
-      <div v-if="p.interaction === 'grab' && p.snapDayIndex >= 0 && p.snapTop >= 0"
+      <div v-if="p.interaction === 'grab' && p.zone === 'timetable' && p.dayIndex >= 0"
            class="collab-drop-preview"
-           :style="collabDropPreviewStyle(p)">
+           :style="dropPreviewStyle(p)">
         {{ ghostBlockName(p.targetBlockId) }}
       </div>
     </template>
@@ -549,6 +543,7 @@ import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
+import { useCollabCursor } from '@/composables/useCollabCursor'
 
 // embedded=true 이면 PlanView organize 모드 안에서 동작(자체 툴바·트레이 select 숨김,
 // 현재 일정은 tripId prop 으로 제어). false 이면 /schedule 단독 화면.
@@ -625,6 +620,11 @@ const myMemberId = computed(() => auth.user?.id)
 const otherParticipants = computed(() =>
   collab.participants.filter(p => p.memberId !== myMemberId.value)
 )
+
+// 협업 커서 좌표 송수신 (zone 기반 의미 좌표). ghostBlockHeight는 함수 선언이라 호이스팅됨.
+const { buildPointerPayload, cursorStyle, ghostStyle, dropPreviewStyle } = useCollabCursor({
+  wrapperEl, mapEl, timetableScrollTop, ghostBlockHeight, HOUR_PX, SNAP,
+})
 const activeTripIsOwner = computed(() => activeTrip.value?.myRole === 'OWNER')
 const activeTripOwnerLabel = computed(() => activeTrip.value?.ownerNickname ?? '소유자')
 
@@ -1687,16 +1687,20 @@ async function loadCollaboratorImages() {
 // ── 드래그 앤 드롭 ──
 function onCandDragStart(e, candidate) {
   if (isProcessing.value) { e.preventDefault(); return }
-  dragState = { type: 'candidate', data: candidate, grabOffsetY: 0 }
+  dragState = { type: 'candidate', data: candidate, grabOffsetY: 0, grabRatioX: 0, grabOffsetMin: 0 }
   candidate.dragging = true
   e.dataTransfer.effectAllowed = 'move'
 }
 
 function onEventDragStart(e, ev, day) {
   if (isProcessing.value || resizeState) { e.preventDefault(); return }
-  const grabOffsetY = e.clientY - e.currentTarget.getBoundingClientRect().top
+  const blockRect = e.currentTarget.getBoundingClientRect()
+  const grabOffsetY = e.clientY - blockRect.top
   const grabOffsetX = e.offsetX
-  dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY, grabOffsetX }
+  // 블록 폭·높이 대비 정규화 — 수신측 창 폭이 달라도 잡은 지점 비율을 유지
+  const grabRatioX = blockRect.width > 0 ? grabOffsetX / blockRect.width : 0
+  const grabOffsetMin = grabOffsetY / (HOUR_PX / 60)
+  dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY, grabOffsetX, grabRatioX, grabOffsetMin }
   ev.dragging = true
   e.dataTransfer.effectAllowed = 'move'
   const el = e.currentTarget
@@ -1764,8 +1768,9 @@ function onDragEnd() {
   dragPreview.value = null
   dragState = null
   if (activeTripId.value) {
+    // grab 해제 — zone:'other'로 보내 ghost/잠금을 즉시 내림
     collab.sendPointer(activeTripId.value, {
-      x: 0, y: 0, interaction: '', targetBlockId: null,
+      zone: 'other', interaction: '', targetBlockId: null,
       nickname: auth.user?.nickname ?? '',
     })
   }
@@ -1778,20 +1783,9 @@ function onDragOver(e, day) {
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
   if (dragState.type === 'event' && activeTripId.value) {
-    const dayIndex = days.value.findIndex(d => d.isoDate === day.isoDate)
-    const wrapperRect = wrapperEl.value?.getBoundingClientRect()
-    const senderScrollTop = wrapperEl.value?.scrollTop ?? 0
-    collab.sendPointer(activeTripId.value, {
-      x: e.clientX, y: e.clientY,
-      interaction: 'grab',
-      targetBlockId: dragState.data.id,
-      nickname: auth.user?.nickname ?? '',
-      snapDayIndex: dayIndex,
-      snapTop: dragPreview.value.top,
-      cursorRelY: senderScrollTop + e.clientY - (wrapperRect?.top ?? 0),
-      grabOffsetX: dragState.grabOffsetX ?? 0,
-      grabOffsetY: dragState.grabOffsetY ?? 0,
-    })
+    collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
+      interaction: 'grab', dragState, nickname: auth.user?.nickname ?? '',
+    }))
   }
 }
 
@@ -1888,16 +1882,10 @@ async function moveEvent(day, top, startTime) {
 function onSidebarDragOver(e) {
   sidebarDragOver.value = dragState?.type === 'event'
   if (dragState?.type === 'event' && activeTripId.value) {
-    collab.sendPointer(activeTripId.value, {
-      x: e.clientX, y: e.clientY,
-      interaction: 'grab',
-      targetBlockId: dragState.data.id,
-      nickname: auth.user?.nickname ?? '',
-      snapDayIndex: -1, snapTop: -1,
-      cursorRelY: e.clientY,
-      grabOffsetX: dragState.grabOffsetX ?? 0,
-      grabOffsetY: dragState.grabOffsetY ?? 0,
-    })
+    // 사이드바는 'other' zone — grab 상태만 전파(잠금 유지), ghost는 timetable 복귀 시 다시 표시
+    collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
+      interaction: 'grab', dragState, nickname: auth.user?.nickname ?? '',
+    }))
   }
 }
 
@@ -1933,11 +1921,9 @@ function onPointerMove(e) {
   if (!activeTripId.value) return
   if (pointerThrottle) return
   pointerThrottle = setTimeout(() => { pointerThrottle = null }, 50)
-  collab.sendPointer(activeTripId.value, {
-    x: e.clientX, y: e.clientY,
-    interaction: '', targetBlockId: null,
-    nickname: auth.user?.nickname ?? '',
-  })
+  collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
+    interaction: '', nickname: auth.user?.nickname ?? '',
+  }))
 }
 
 function onVisibilityChange() {
@@ -1971,43 +1957,6 @@ function ghostBlockColor(blockId) {
 function grabberColor(blockId) {
   const grabberId = collab.grabMap[blockId]
   return grabberId ? collab.colorMap[grabberId] : undefined
-}
-
-function collabGhostTop(p) {
-  if (p.snapDayIndex < 0 || !wrapperEl.value) {
-    return (p.y ?? 0) - (p.grabOffsetY ?? 0)
-  }
-  const wrapperTop = wrapperEl.value.getBoundingClientRect().top
-  const receiverScroll = timetableScrollTop.value
-  return wrapperTop - receiverScroll + (p.cursorRelY ?? p.y) - (p.grabOffsetY ?? 0)
-}
-
-function dayColAt(index) {
-  // 이 컴포넌트의 시간표(wrapperEl) 내부로 범위를 한정 — 한 페이지에 보드가 둘 이상이어도 충돌하지 않게
-  return wrapperEl.value?.querySelectorAll('.day-col')[index] ?? null
-}
-
-function collabGhostWidth(p) {
-  void timetableScrollTop.value
-  if (p.snapDayIndex >= 0) {
-    const col = dayColAt(p.snapDayIndex)
-    if (col) return col.getBoundingClientRect().width - 10
-  }
-  return 160
-}
-
-function collabDropPreviewStyle(p) {
-  void timetableScrollTop.value
-  const col = dayColAt(p.snapDayIndex)
-  if (!col) return { display: 'none' }
-  const rect = col.getBoundingClientRect()
-  const height = ghostBlockHeight(p.targetBlockId)
-  return {
-    left: (rect.left + 5) + 'px',
-    top: (rect.top + p.snapTop) + 'px',
-    width: (rect.width - 10) + 'px',
-    height: height + 'px',
-  }
 }
 
 // ── 실시간 협업 이벤트 핸들러 ──

@@ -37,10 +37,12 @@ public class TripPresenceController {
 
     private static final long STALE_MILLIS = 5_000;
 
-    record PresenceState(Long memberId, String nickname, double x, double y,
+    // zone 기반 의미 좌표 (절대 픽셀 X). 좌표 의미는 프런트 useCollabCursor.js 참고.
+    record PresenceState(Long memberId, String nickname, String zone,
                          String interaction, Long targetBlockId, Instant lastSeen,
-                         int snapDayIndex, double snapTop, double cursorRelY,
-                         double grabOffsetX, double grabOffsetY) {}
+                         int dayIndex, double colRatioX, double contentY,
+                         double mapRatioX, double mapRatioY,
+                         double grabRatioX, double grabOffsetMin) {}
 
     @MessageMapping("/trip/{tripId}/pointer")
     public void handlePointer(@DestinationVariable Long tripId,
@@ -57,21 +59,22 @@ public class TripPresenceController {
         sessionMemberMap.put(sessionId, memberId);
         sessionTripMap.put(sessionId, tripId);
 
-        double x = toDouble(payload.get("x"));
-        double y = toDouble(payload.get("y"));
+        String zone = (String) payload.getOrDefault("zone", "other");
         String interaction = (String) payload.getOrDefault("interaction", "");
         Long targetBlockId = payload.get("targetBlockId") instanceof Number n
                 ? n.longValue() : null;
         String nickname = (String) payload.getOrDefault("nickname", "");
-        int snapDayIndex  = payload.get("snapDayIndex")  instanceof Number n ? n.intValue()    : -1;
-        double snapTop    = payload.get("snapTop")       instanceof Number n ? n.doubleValue() : -1;
-        double cursorRelY  = payload.get("cursorRelY")   instanceof Number n ? n.doubleValue() : y;
-        double grabOffsetX = payload.get("grabOffsetX") instanceof Number n ? n.doubleValue() : 0;
-        double grabOffsetY = payload.get("grabOffsetY") instanceof Number n ? n.doubleValue() : 0;
+        int dayIndex       = payload.get("dayIndex")      instanceof Number n ? n.intValue()    : -1;
+        double colRatioX   = payload.get("colRatioX")     instanceof Number n ? n.doubleValue() : 0;
+        double contentY    = payload.get("contentY")      instanceof Number n ? n.doubleValue() : 0;
+        double mapRatioX   = payload.get("mapRatioX")     instanceof Number n ? n.doubleValue() : 0;
+        double mapRatioY   = payload.get("mapRatioY")     instanceof Number n ? n.doubleValue() : 0;
+        double grabRatioX  = payload.get("grabRatioX")    instanceof Number n ? n.doubleValue() : 0;
+        double grabOffsetMin = payload.get("grabOffsetMin") instanceof Number n ? n.doubleValue() : 0;
 
-        PresenceState state = new PresenceState(memberId, nickname, x, y,
-                interaction, targetBlockId, Instant.now(), snapDayIndex, snapTop, cursorRelY,
-                grabOffsetX, grabOffsetY);
+        PresenceState state = new PresenceState(memberId, nickname, zone,
+                interaction, targetBlockId, Instant.now(), dayIndex, colRatioX, contentY,
+                mapRatioX, mapRatioY, grabRatioX, grabOffsetMin);
         presenceMap.computeIfAbsent(tripId, k -> new ConcurrentHashMap<>())
                    .put(sessionId, state);
 
@@ -141,15 +144,16 @@ public class TripPresenceController {
                     Map<String, Object> m = new java.util.HashMap<>();
                     m.put("memberId",     s.memberId());
                     m.put("nickname",     s.nickname());
-                    m.put("x",           s.x());
-                    m.put("y",           s.y());
-                    m.put("interaction", s.interaction());
+                    m.put("zone",         s.zone());
+                    m.put("interaction",  s.interaction());
                     m.put("targetBlockId", s.targetBlockId() != null ? s.targetBlockId() : 0L);
-                    m.put("snapDayIndex", (long) s.snapDayIndex());
-                    m.put("snapTop",      s.snapTop());
-                    m.put("cursorRelY",   s.cursorRelY());
-                    m.put("grabOffsetX",  s.grabOffsetX());
-                    m.put("grabOffsetY",  s.grabOffsetY());
+                    m.put("dayIndex",     (long) s.dayIndex());
+                    m.put("colRatioX",    s.colRatioX());
+                    m.put("contentY",     s.contentY());
+                    m.put("mapRatioX",    s.mapRatioX());
+                    m.put("mapRatioY",    s.mapRatioY());
+                    m.put("grabRatioX",   s.grabRatioX());
+                    m.put("grabOffsetMin", s.grabOffsetMin());
                     return m;
                 })
                 .toList();
@@ -167,10 +171,5 @@ public class TripPresenceController {
             if (id instanceof Long l) return l;
         }
         return null;
-    }
-
-    private double toDouble(Object v) {
-        if (v instanceof Number n) return n.doubleValue();
-        return 0.0;
     }
 }
