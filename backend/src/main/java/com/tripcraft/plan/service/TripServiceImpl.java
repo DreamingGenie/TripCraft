@@ -73,6 +73,20 @@ public class TripServiceImpl implements TripService {
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
+    /**
+     * 같은 일정·날짜에서 [start, start+duration) 시간대가 기존 블록과 겹치면 거부.
+     * 호출 전 tripMapper.lockTripRow(tripId)로 일정을 잠가 동시 배치 race를 직렬화해야 한다.
+     */
+    private void assertNoOverlap(Long tripId, LocalDate date, java.time.LocalTime startTime,
+                                 Integer durationMinutes, Long excludeBlockId) {
+        if (startTime == null || durationMinutes == null) return;  // 시간 미확정 블록은 겹침 대상 아님
+        int startMin = startTime.getHour() * 60 + startTime.getMinute();
+        int endMin = startMin + durationMinutes;
+        if (blockMapper.countOverlapping(tripId, date, startMin, endMin, excludeBlockId) > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "선택한 시간대에 이미 다른 일정이 있어요");
+        }
+    }
+
     /** grab(드래그 중) 소유자가 요청자 본인이 아니면 선제 거부. grab은 stale/disconnect로 자동 해제됨. */
     private void assertNotGrabbedByOther(Long tripId, Long blockId, Long memberId) {
         Long owner = presenceController.getGrabOwner(tripId, blockId);
@@ -408,11 +422,14 @@ public class TripServiceImpl implements TripService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "후보군을 찾을 수 없습니다."));
         if (!candidate.getTripId().equals(tripId))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 일정의 후보군입니다.");
+        tripMapper.lockTripRow(tripId);  // 같은 일정 동시 편집 직렬화(겹침 검사·순서 할당 정합 보장)
+        int duration = req.getDurationMinutes() != null ? req.getDurationMinutes() : 120;
+        assertNoOverlap(tripId, req.getTripDate(), req.getStartTime(), duration, null);
         TripBlock block = new TripBlock();
         block.setCandidateId(req.getCandidateId());
         block.setTripDate(req.getTripDate());
         block.setStartTime(req.getStartTime());
-        block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
+        block.setDurationMinutes(duration);
         // display_order는 클라이언트 값을 믿지 않고 서버가 권위적으로 할당(동시 배치 시 순서 충돌 완화)
         block.setDisplayOrder(blockMapper.nextDisplayOrder(tripId, req.getTripDate()));
         blockMapper.insert(block);
@@ -437,6 +454,8 @@ public class TripServiceImpl implements TripService {
                     req.getTransitMode(), req.getTransitOptionIndex());
         } else {
             // 위치 편집(이동/리사이즈) — 낙관적 락
+            tripMapper.lockTripRow(tripId);  // 동시 편집 직렬화 → 겹침 검사가 최신 커밋 상태를 봄
+            assertNoOverlap(tripId, req.getTripDate(), req.getStartTime(), req.getDurationMinutes(), blockId);
             LocalDate oldDate = block.getTripDate();
             block.setTripDate(req.getTripDate());
             block.setStartTime(req.getStartTime());

@@ -24,6 +24,10 @@
         FROM trip WHERE id = #{id}
     </select>
 
+    <select id="lockTripRow" parameterType="long" resultType="long">
+        SELECT id FROM trip WHERE id = #{id} FOR UPDATE
+    </select>
+
     <select id="findByShareToken" parameterType="string" resultMap="tripMap">
         SELECT id, member_id, title, start_date, end_date, member_count, is_public, share_access, share_token, default_transit_mode, created_at, updated_at
         FROM trip WHERE share_token = #{token}
