@@ -292,19 +292,7 @@ public class TransitServiceImpl implements TransitService {
         }
     }
 
-    // ── 좌표 기반 자동차 4옵션 — attraction getDrivingOptions 와 동일 구조, 무캐시 라이브 ──
-    @Override
-    public List<TransitResponse> getDrivingOptionsByCoords(BigDecimal fromLat, BigDecimal fromLng,
-                                                           BigDecimal toLat, BigDecimal toLng, int departureHour) {
-        if (fromLat == null || fromLng == null || toLat == null || toLng == null) return List.of();
-        List<TransitResponse> results = new ArrayList<>();
-        for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
-            buildDrivingResponse(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], DRIVING_LABELS[i], departureHour)
-                    .ifPresent(results::add);
-        }
-        return results;
-    }
-
+    // ── 좌표 기반 자동차 단일 옵션 — 무캐시 라이브 ──
     @Override
     public Optional<TransitResponse> getDrivingOptionByCoords(BigDecimal fromLat, BigDecimal fromLng,
                                                               BigDecimal toLat, BigDecimal toLng,
@@ -678,77 +666,6 @@ public class TransitServiceImpl implements TransitService {
     private static final String[] DRIVING_REQUEST_MODES = {"DRIVING_00", "DRIVING_02", "DRIVING_01", "DRIVING_10"};
 
     @Override
-    public List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour) {
-        // 캐시 확인
-        List<TransitResponse> cached = new ArrayList<>();
-        for (int i = 0; i < DRIVING_REQUEST_MODES.length; i++) {
-            Optional<TransitCache> c = transitCacheMapper.findByKey(fromId, toId, departureHour, DRIVING_REQUEST_MODES[i]);
-            if (c.isEmpty()) { cached = null; break; }
-            cached.add(buildDrivingResponseFromCache(c.get()));
-        }
-        if (cached != null) return cached;
-
-        Attraction from = attractionMapper.findById(fromId).orElse(null);
-        Attraction to   = attractionMapper.findById(toId).orElse(null);
-        if (from == null || to == null
-                || from.getLatitude() == null || from.getLongitude() == null
-                || to.getLatitude() == null   || to.getLongitude() == null) {
-            return List.of();
-        }
-        BigDecimal fromLat = from.getLatitude(), fromLng = from.getLongitude();
-        BigDecimal toLat   = to.getLatitude(),   toLng   = to.getLongitude();
-
-        List<TransitResponse> results = new ArrayList<>();
-        for (int i = 0; i < DRIVING_SEARCH_OPTIONS.length; i++) {
-            TMapClient.TMapDrivingResult result = tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, DRIVING_SEARCH_OPTIONS[i], departureHour);
-            if (result != null && result.durationMinutes() > 0) {
-                String roadSummary = buildRoadSummary(result.segments());
-                String segJson;
-                try { segJson = objectMapper.writeValueAsString(result.segments()); }
-                catch (Exception e) { segJson = "[]"; }
-
-                ObjectNode detail = objectMapper.createObjectNode();
-                detail.put("tollFare", result.tollFare());
-                detail.put("roadSummary", roadSummary);
-                detail.put("label", DRIVING_LABELS[i]);
-                try { detail.set("segments", objectMapper.readTree(segJson)); }
-                catch (Exception ignored) {}
-
-                TransitCache cache = new TransitCache();
-                cache.setFromAttractionId(fromId);
-                cache.setToAttractionId(toId);
-                cache.setDepartureHour(departureHour);
-                cache.setRequestMode(DRIVING_REQUEST_MODES[i]);
-                cache.setDurationMinutes(result.durationMinutes());
-                cache.setTransportMode(MODE_DRIVING);
-                cache.setTransferCount(0);
-                cache.setFare(0);
-                cache.setTotalDistanceM(result.totalDistanceM());
-                cache.setTotalWalkM(0);
-                cache.setTaxiFare(result.taxiFare());
-                cache.setRouteCoords(result.routeCoords());
-                try { cache.setPathDetail(objectMapper.writeValueAsString(detail)); }
-                catch (Exception e) { cache.setPathDetail("{}"); }
-                try { transitCacheMapper.insert(cache); }
-                catch (Exception e) { log.warn("DRIVING 옵션 캐시 저장 실패 ({}): {}", DRIVING_REQUEST_MODES[i], e.getMessage()); }
-
-                results.add(TransitResponse.builder()
-                        .durationMinutes(result.durationMinutes())
-                        .transportMode(MODE_DRIVING)
-                        .taxiFare(result.taxiFare())
-                        .tollFare(result.tollFare())
-                        .totalDistanceM(result.totalDistanceM())
-                        .roadSummary(roadSummary)
-                        .routeSegmentsJson(segJson)
-                        .routeCoords(result.routeCoords())
-                        .label(DRIVING_LABELS[i])
-                        .build());
-            }
-        }
-        return results;
-    }
-
-    @Override
     public Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex) {
         if (optionIndex < 0 || optionIndex >= DRIVING_SEARCH_OPTIONS.length) return Optional.empty();
 
@@ -956,25 +873,6 @@ public class TransitServiceImpl implements TransitService {
         return parseSegmentsFromRaw(lane.get().getRawResponse());
     }
 
-    @Override
-    public List<Map<String, Object>> getLaneSegments(Long fromId, Long toId, int departureHour) {
-        Optional<TransitCache> cacheOpt = transitCacheMapper.findByKey(fromId, toId, departureHour, MODE_PUBLIC_TRANSIT);
-        if (cacheOpt.isEmpty()) return List.of();
-        try {
-            JsonNode pd = objectMapper.readTree(cacheOpt.get().getPathDetail());
-            // path_detail 구조: {"intercityPaths": [{..., "info": {"mapObj": "..."}}]}
-            String mapObj = pd.path("intercityPaths").get(0).path("info").path("mapObj").asText("");
-            if (mapObj.isEmpty()) return List.of();
-
-            Optional<LanePolyline> laneOpt = lanePolylineMapper.findByKey(mapObj);
-            if (laneOpt.isEmpty() || laneOpt.get().getRawResponse() == null) return List.of();
-
-            return parseSegmentsFromRaw(laneOpt.get().getRawResponse());
-        } catch (Exception e) {
-            log.warn("getLaneSegments 실패 from={} to={}: {}", fromId, toId, e.getMessage());
-            return List.of();
-        }
-    }
 
     private List<Map<String, Object>> parseSegmentsFromRaw(String rawResponse) {
         try {

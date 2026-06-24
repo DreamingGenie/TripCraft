@@ -57,22 +57,18 @@ public class TransitController {
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }
 
-    // 좌표 기반 자동차 4옵션(커스텀 장소). attraction /driving-options 와 동일 응답 구조.
+    // 좌표 기반 자동차 단일 옵션(커스텀 장소). 프론트가 optionIndex 별로 1개씩 조회.
     @GetMapping("/by-coords/driving-options")
-    public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOptionsByCoords(
+    public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOptionByCoords(
             @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
             @RequestParam("toLat") double toLat, @RequestParam("toLng") double toLng,
             @RequestParam(name = "hour", defaultValue = "9") int hour,
-            @RequestParam(name = "optionIndex", required = false) Integer optionIndex) {
-        java.math.BigDecimal fLat = java.math.BigDecimal.valueOf(fromLat), fLng = java.math.BigDecimal.valueOf(fromLng);
-        java.math.BigDecimal tLat = java.math.BigDecimal.valueOf(toLat),   tLng = java.math.BigDecimal.valueOf(toLng);
-        if (optionIndex != null) {
-            return ResponseEntity.ok(ApiResponse.ok(
-                    transitService.getDrivingOptionByCoords(fLat, fLng, tLat, tLng, hour, optionIndex)
-                            .map(List::of).orElse(List.of())));
-        }
+            @RequestParam(name = "optionIndex", defaultValue = "0") int optionIndex) {
         return ResponseEntity.ok(ApiResponse.ok(
-                transitService.getDrivingOptionsByCoords(fLat, fLng, tLat, tLng, hour)));
+                transitService.getDrivingOptionByCoords(
+                                java.math.BigDecimal.valueOf(fromLat), java.math.BigDecimal.valueOf(fromLng),
+                                java.math.BigDecimal.valueOf(toLat), java.math.BigDecimal.valueOf(toLng), hour, optionIndex)
+                        .map(List::of).orElse(List.of())));
     }
 
     @PostMapping("/select")
@@ -87,18 +83,16 @@ public class TransitController {
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }
 
+    // 자동차 단일 옵션. 프론트가 optionIndex(추천·최단·무료·최소) 별로 1개씩 조회.
     @GetMapping("/driving-options")
-    public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOptions(
+    public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOption(
             @RequestParam(name = "fromId") Long fromId,
             @RequestParam(name = "toId") Long toId,
             @RequestParam(name = "hour", defaultValue = "9") int hour,
-            @RequestParam(name = "optionIndex", required = false) Integer optionIndex) {
-        if (optionIndex != null) {
-            return ResponseEntity.ok(ApiResponse.ok(
-                    transitService.getDrivingOption(fromId, toId, hour, optionIndex)
-                            .map(List::of).orElse(List.of())));
-        }
-        return ResponseEntity.ok(ApiResponse.ok(transitService.getDrivingOptions(fromId, toId, hour)));
+            @RequestParam(name = "optionIndex", defaultValue = "0") int optionIndex) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                transitService.getDrivingOption(fromId, toId, hour, optionIndex)
+                        .map(List::of).orElse(List.of())));
     }
 
     @PostMapping("/select-driving")
@@ -120,14 +114,6 @@ public class TransitController {
         return transitService.getPathDetail(fromId, toId, hour)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
-    }
-
-    @GetMapping("/segments")
-    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getLaneSegments(
-            @RequestParam(name = "fromId") Long fromId,
-            @RequestParam(name = "toId") Long toId,
-            @RequestParam(name = "hour", defaultValue = "9") int hour) {
-        return ResponseEntity.ok(ApiResponse.ok(transitService.getLaneSegments(fromId, toId, hour)));
     }
 
     // 통합 경로 구간(어트랙션) — 구간별 색/도보/역마커용

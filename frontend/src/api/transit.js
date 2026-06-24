@@ -1,9 +1,5 @@
 import { http } from './http'
 
-export async function getTransitTime(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit?fromId=${fromId}&toId=${toId}&hour=${hour}`)
-}
-
 export async function getTransitByMode(fromId, toId, mode, hour = 9) {
   return await http.get(`/api/transit?fromId=${fromId}&toId=${toId}&hour=${hour}&mode=${mode}`)
 }
@@ -30,10 +26,6 @@ export async function getDrivingOptionByCoords(fromLat, fromLng, toLat, toLng, h
 
 export async function selectTransitPath(fromId, toId, hour, pathIndex) {
   return await http.post(`/api/transit/select?fromId=${fromId}&toId=${toId}&hour=${hour}&pathIndex=${pathIndex}`)
-}
-
-export async function getDrivingOptions(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit/driving-options?fromId=${fromId}&toId=${toId}&hour=${hour}`)
 }
 
 export async function getDrivingOption(fromId, toId, hour = 9, optionIndex) {
