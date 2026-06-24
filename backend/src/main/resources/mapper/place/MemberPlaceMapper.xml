@@ -25,6 +25,11 @@
         FROM member_place WHERE id = #{id}
     </select>
 
+    <select id="existsByCoords" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM member_place
+        WHERE member_id = #{memberId} AND latitude = #{lat} AND longitude = #{lng}
+    </select>
+
     <insert id="insert" parameterType="com.tripcraft.place.domain.MemberPlace"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO member_place (member_id, name, category, address, latitude, longitude)
