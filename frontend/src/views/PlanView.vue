@@ -135,6 +135,7 @@
       :share-token="activeTripDetail?.shareToken || ''"
       @close="shareModalOpen = false"
       @publish="onPublish"
+      @update="onShareUpdate"
     />
 
   <section v-show="mode === 'explore'" id="screen-explore">
@@ -636,6 +637,12 @@ function shareTrip() {
 function onPublish() {
   shareModalOpen.value = false
   shareTrip()
+}
+// 공유 설정 저장 후 현재 일정 상세에 반영 → 모달 재오픈 시 현재 상태 표시
+function onShareUpdate({ access, token }) {
+  if (activeTripDetail.value) {
+    activeTripDetail.value = { ...activeTripDetail.value, shareAccess: access, shareToken: token }
+  }
 }
 
 // ── UI state (모드 / 트레이 토글 / 드래그 감지) ──
@@ -1772,6 +1779,8 @@ onMounted(async () => {
   // 공유 링크 조회: 일정(정리) 모드만, 목록·탐색 로드 생략(비로그인 가능)
   if (isSharedView.value) {
     mode.value = 'organize'
+    // 로그인 상태 확정 후 보드 마운트 → 로그인 사용자는 실시간 협업 연결(익명은 조회만)
+    if (!auth.user) { try { await auth.fetchMe() } catch {} }
     activeTrip.value = Number(route.params.tripId)  // watch → getShared 로 detail 로드
     return
   }

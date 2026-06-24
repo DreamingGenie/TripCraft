@@ -2038,7 +2038,8 @@ watch(() => props.tripId, async (id, oldId) => {
   if (oldId != null) collab.disconnect()
   activeTripId.value = id
   await loadTrip()
-  if (!props.readOnly) connectCollab(id)  // read-only(공유 조회)는 협업 미연결
+  // 로그인 사용자는 read-only(링크 조회)여도 실시간 협업 연결(커서·블록 추적). 익명만 미연결(WS는 신원 필수)
+  if (auth.user?.id) connectCollab(id)
 })
 
 // PlanView 헤더의 "지도" 토글이 보드 지도 패널을 제어할 수 있도록 노출
@@ -2053,7 +2054,8 @@ onMounted(async () => {
     if (props.tripId != null) {
       activeTripId.value = props.tripId
       await loadTrip()
-      if (!props.readOnly) connectCollab(props.tripId)  // read-only(공유 조회)는 협업 미연결
+      // 로그인 사용자는 read-only(링크 조회)여도 실시간 협업 연결. 익명만 미연결(WS는 신원 필수)
+      if (auth.user?.id) connectCollab(props.tripId)
     }
     if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
     return
