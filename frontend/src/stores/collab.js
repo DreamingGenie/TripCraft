@@ -111,7 +111,7 @@ export const useCollabStore = defineStore('collab', () => {
       if (!stompClient?.connected) return
       stompClient.publish({
         destination: `/app/trip/${tripId}/pointer`,
-        body: JSON.stringify({ zone: 'other', interaction: '', targetBlockId: null, nickname: '' }),
+        body: JSON.stringify({ keepalive: true }),  // heartbeat — 좌표/zone 미변경(idle에도 커서 유지)
       })
     }, collabConfig.keepaliveMs)
   }

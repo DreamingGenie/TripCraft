@@ -70,7 +70,7 @@
     </Transition>
 
     <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
-    <div class="schedule-body" @mousemove="onPointerMove">
+    <div class="schedule-body" @mousemove="onPointerMove" @mouseleave="onBoardLeave">
       <!-- 후보군 사이드바 -->
       <aside class="candidate-sidebar"
              :class="{ collapsed: !sidebarOpen, 'drop-delete-zone': sidebarDropActive }"
@@ -766,6 +766,22 @@ let panelResizeStartWidth = 0
 
 let dragState = null
 let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 grab 잠금을 명시 해제하기 위해 보관
+
+// 적응형 전송 게이트(AIMD): 활동이 전송보다 빠르면(혼잡) 간격을 늘려 백로그를 막고,
+// 한가하면 줄여 더 부드럽게. 커서·ghost 전송 공통으로 사용.
+let sendInterval = collabConfig.cursorThrottleMs
+let lastGateTs = 0
+let gateSkips = 0
+function gateSend() {
+  const now = performance.now()
+  if (now - lastGateTs < sendInterval) { gateSkips++; return false }
+  // 직전 구간에 스킵이 많았다 = 움직임이 전송보다 빠름(혼잡) → 간격↑. 적으면 회복.
+  if (gateSkips >= 2) sendInterval = Math.min(collabConfig.cursorThrottleMaxMs, sendInterval + 12)
+  else sendInterval = Math.max(collabConfig.cursorThrottleMs, sendInterval - 8)
+  gateSkips = 0
+  lastGateTs = now
+  return true
+}
 const dragPreview = ref(null)
 const isProcessing = ref(false)
 const processingEvId = ref(null)
@@ -1873,6 +1889,9 @@ async function onResizeEnd() {
       displayOrder: ev.displayOrder ?? 1,
       version: ev.version ?? 0,
     })
+    // 서버가 version+1 했으므로 로컬도 동기화(미갱신 시 다음 수정에서 stale→409 오탐).
+    // resize는 loadTrip 재조회를 안 하므로 여기서 직접 증가시킨다.
+    ev.version = (ev.version ?? 0) + 1
   } catch (err) {
     if (isConflict(err)) {
       toast.show('다른 사용자가 먼저 수정했어요. 최신 상태로 갱신합니다')
@@ -1911,11 +1930,21 @@ function onDragOver(e, day) {
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
-  if (dragState.type === 'event' && activeTripId.value) {
+  // ghost 전송은 적응형 게이트로 제한 (드래그 중 dragover가 초당 수십 회 → 백로그·랙 방지).
+  // 로컬 dragPreview는 위에서 매 이벤트 갱신하므로 본인 화면은 그대로 부드럽다.
+  if (dragState.type === 'event' && activeTripId.value && gateSend()) {
     collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
       interaction: 'grab', dragState, nickname: auth.user?.nickname ?? '',
     }))
   }
+}
+
+// 협업자 커서를 보드 밖(plan 헤더 등)에서 즉시 숨김 — 마지막 위치에 얼어붙는 것 방지
+function onBoardLeave() {
+  if (dragState || !activeTripId.value) return
+  collab.sendPointer(activeTripId.value, {
+    zone: 'other', interaction: '', targetBlockId: null, nickname: auth.user?.nickname ?? '',
+  })
 }
 
 // 같은 날 내 [top, top+height) 구간이 기존 블록과 겹치는지(분=px). excludeId는 자기 자신 제외(이동/리사이즈).
@@ -2065,20 +2094,38 @@ async function removeEvent(day, ev) {
 }
 
 // ── 협업자 커서 전송 ──
-let pointerThrottle = null
 function onPointerMove(e) {
   if (!activeTripId.value) return
-  if (pointerThrottle) return
-  pointerThrottle = setTimeout(() => { pointerThrottle = null }, collabConfig.cursorThrottleMs)
+  if (!gateSend()) return
   collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
     interaction: '', nickname: auth.user?.nickname ?? '',
   }))
 }
 
+// ── 협업 자리비움(presence away/back): 포커스를 잃으면(다른 창/탭) 목록·커서에서 제거, 복귀 시 재등장 ──
+// 움직임이 없어도 화면에 있는 동안은 keepalive heartbeat로 유지된다. 닫기는 WS 끊김(서버 onDisconnect)이 처리.
+let awayTimer = null
+function markAway() {
+  // 잠깐의 blur(주소창 클릭 등)로 깜빡이지 않게 약간 지연 후 leave 전송
+  if (awayTimer) return
+  awayTimer = setTimeout(() => {
+    awayTimer = null
+    if (activeTripId.value != null) collab.sendPointer(activeTripId.value, { leave: true })
+  }, 600)
+}
+function markBack() {
+  if (awayTimer) { clearTimeout(awayTimer); awayTimer = null }
+  if (activeTripId.value == null) return
+  // presence 재등록(zone:'other' → 아바타는 보이고 커서는 격자 진입 시 표시). 놓친 변경 재동기화.
+  collab.sendPointer(activeTripId.value, {
+    zone: 'other', interaction: '', targetBlockId: null, nickname: auth.user?.nickname ?? '',
+  })
+  loadTrip()
+}
+
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible' && activeTripId.value != null) {
-    loadTrip()
-  }
+  if (document.visibilityState === 'visible') markBack()
+  else markAway()
 }
 
 // ── 유령 블록 헬퍼 ──
@@ -2148,15 +2195,29 @@ function applyTransitUpdate(payload) {
 
 let prevGrabbers = new Set()
 let lastEventSeq = -1  // 마지막으로 처리한 편집 이벤트 seq(중복·순서 역전 무시용). 일정 연결마다 리셋
+let lastPresenceTs = 0 // 직전 presence 수신 시각 — 수신 보간(smooth)을 갱신 간격에 맞추기 위함
+
+// 수신 보간 transition을 최근 갱신 간격(dt)에 맞춤 → 한가하면 부드럽게(상한까지), 촘촘하면 스냅(랙 0).
+function applyAdaptiveSmooth() {
+  const now = performance.now()
+  const dt = now - lastPresenceTs
+  lastPresenceTs = now
+  // transition은 항상 dt 이하 → 다음 갱신 전에 끝나 백로그가 쌓이지 않음. 하한=전송 하한, 상한=설정값.
+  const smooth = Math.max(collabConfig.cursorThrottleMs, Math.min(collabConfig.cursorSmoothMs, dt))
+  document.documentElement.style.setProperty('--collab-smooth', Math.round(smooth) + 'ms')
+}
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
   lastEventSeq = -1
+  lastPresenceTs = 0
+  sendInterval = collabConfig.cursorThrottleMs
   const observer = !auth.user?.id   // 비로그인 = 관전 모드(구독만 수신, 전송 X)
   if (!observer) loadCollaboratorImages()  // 협업자 명단(인증 필요)은 로그인 시에만 조회
   collab.setHandlers({
     tripEvent: handleTripEvent,
     presence: (list) => {
+      applyAdaptiveSmooth()
       collab.assignColors(list, myMemberId.value)
       const currentGrabbers = new Set(
         list
@@ -2190,6 +2251,9 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onPanelResizeMove)
   document.removeEventListener('mouseup', onPanelResizeEnd)
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('blur', markAway)
+  window.removeEventListener('focus', markBack)
+  if (awayTimer) clearTimeout(awayTimer)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
   arrowMarkers.forEach(m => m.setMap(null))
@@ -2224,6 +2288,8 @@ defineExpose({ openMapPanel, closeMapPanel, toggleMap: () => (showMapPanel.value
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('blur', markAway)   // 다른 창으로 전환 → 자리비움
+  window.addEventListener('focus', markBack)  // 복귀 → 재등장
   // 협업 커서/ghost가 갱신 사이를 미끄러지듯 보간하는 transition 시간(.env로 조절)
   document.documentElement.style.setProperty('--collab-smooth', collabConfig.cursorSmoothMs + 'ms')
 

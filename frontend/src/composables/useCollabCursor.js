@@ -27,7 +27,9 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
   }
   function zoneOf(target) {
     if (mapEl.value && mapEl.value.contains(target)) return 'map'
-    if (wrapperEl.value && wrapperEl.value.contains(target)) return 'timetable'
+    // 타임테이블 헤더(day 라벨)·시간축 거터·사이드바 등은 제외하고, 실제 격자(.day-cols)만 협업 영역으로 본다.
+    const grid = dayCols()
+    if (grid && grid.contains(target)) return 'timetable'
     return 'other'
   }
 
@@ -88,6 +90,17 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
     return dc.getBoundingClientRect().top + contentY
   }
 
+  // 현재 보이는 격자 세로 범위(sticky 헤더 아래 ~ 스크롤 바닥). 수신자 스크롤 차이로 시야 밖에
+  // 찍히는 커서/ghost를 숨기기 위함. 범위 밖이면 헤더·plan-header·GNB 위로 삐져나가므로 가린다.
+  function gridViewport() {
+    const w = wrapperEl.value
+    if (!w) return null
+    const wr = w.getBoundingClientRect()
+    const header = w.querySelector('.timetable-header')
+    const headerH = header ? header.getBoundingClientRect().height : 0
+    return { top: wr.top + headerH, bottom: wr.bottom }
+  }
+
   // 일반 커서 위치
   function cursorStyle(p) {
     if (p.zone === 'map') {
@@ -101,6 +114,9 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
     if (p.zone === 'timetable') {
       const top = contentToViewportY(p.contentY ?? 0)
       if (top == null) return { display: 'none' }
+      // 받는 사람이 스크롤해 시야 밖이면 숨김(헤더 영역으로 삐져나가는 것 방지)
+      const vp = gridViewport()
+      if (vp && (top < vp.top || top > vp.bottom)) return { display: 'none' }
       const col = dayColAt(p.dayIndex)
       let left
       if (col) {
@@ -126,6 +142,10 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
     const ghostTopContent = (p.contentY ?? 0) - (p.grabOffsetMin ?? 0) * PX_PER_MIN
     const top = contentToViewportY(ghostTopContent)
     if (top == null) return { display: 'none' }
+    const height = ghostBlockHeight(p.targetBlockId)
+    // 블록 세로 구간이 보이는 격자와 겹치지 않으면 숨김(걸치면 일부 노출 유지)
+    const vp = gridViewport()
+    if (vp && (top > vp.bottom || top + height < vp.top)) return { display: 'none' }
     let left
     if (col) {
       const r = col.getBoundingClientRect()
@@ -141,7 +161,7 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
       left: left + 'px',
       top: top + 'px',
       width: width + 'px',
-      height: ghostBlockHeight(p.targetBlockId) + 'px',
+      height: height + 'px',
     }
   }
 
@@ -155,11 +175,14 @@ export function useCollabCursor({ wrapperEl, mapEl, timetableScrollTop, ghostBlo
     const snapTopContent = Math.round(ghostTopContent / SNAP) * SNAP
     const top = contentToViewportY(snapTopContent)
     if (top == null) return { display: 'none' }
+    const height = ghostBlockHeight(p.targetBlockId)
+    const vp = gridViewport()
+    if (vp && (top > vp.bottom || top + height < vp.top)) return { display: 'none' }
     return {
       left:  (r.left + 5) + 'px',
       top:   top + 'px',
       width: (r.width - 10) + 'px',
-      height: ghostBlockHeight(p.targetBlockId) + 'px',
+      height: height + 'px',
     }
   }
 
