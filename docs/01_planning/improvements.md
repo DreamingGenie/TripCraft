@@ -56,7 +56,15 @@
 - **개선 방향**: 최소 `console.warn`/사용자 토스트로 가시화하고, 무시해도 되는 경우는 그 이유를 주석으로 명시.
 - **우선순위**: 낮음~중간
 
-## 7. 디버그 `console` 로그 잔존
+## 7. 협업 지도 커서 좌표 — 비율 근사(lat/lng 미변환)
+
+- **위치**: `frontend/src/composables/useCollabCursor.js` (`map` zone — `mapRatioX/mapRatioY`), `components/ScheduleBoard.vue` 지도 패널
+- **왜 부채인가**: 커서 좌표계 재설계로 시간표는 의미 좌표(dayIndex·colRatioX·contentY)로 정밀 동기화했으나, 지도 영역은 **컨테이너 내 0~1 비율**로만 근사한다. 두 사용자의 지도 줌·팬·패널 폭이 다르면 같은 비율 위치가 다른 지리 지점을 가리켜 어긋난다.
+- **미진행 사유**: 의미 단위 정확(같은 day·시간·블록)을 1차 목표로 두고, 지도는 비율 근사로 합의(사용자 확정). lat/lng 변환은 Naver Maps projection API 검증 시간이 추가로 필요.
+- **개선 방향**: 송신측 `map.getProjection().fromOffsetToCoord(point)`로 커서를 lat/lng로 변환해 전송, 수신측 `fromCoordToOffset(latlng)`로 자기 지도 기준 픽셀로 역변환. 줌·팬·폭 무관하게 동일 지점 보장.
+- **우선순위**: 낮음~중간 (지도 협업 빈도에 따라)
+
+## 8. 디버그 `console` 로그 잔존
 
 - **위치**: `frontend/src/stores/collab.js`(2곳), `views/PlanView.vue`, `views/ExploreView.vue`, `components/CollaboratorPanel.vue`
 - **왜 부채인가**: 프로덕션 콘솔 노이즈. 일부는 페이로드 노출 가능성.

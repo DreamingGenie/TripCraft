@@ -7,7 +7,7 @@ import { tripApi } from '@/api/trip'
 const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#e91e63']
 
 export const useCollabStore = defineStore('collab', () => {
-  const participants = ref([])   // [{ memberId, nickname, x, y, interaction, targetBlockId }]
+  const participants = ref([])   // [{ memberId, nickname, zone, interaction, targetBlockId, dayIndex, colRatioX, contentY, mapRatioX, mapRatioY, grabRatioX, grabOffsetMin }]
   const grabMap = ref({})        // blockId → memberId
   const colorMap = ref({})       // memberId → hex color
   const connected = ref(false)
@@ -105,7 +105,7 @@ export const useCollabStore = defineStore('collab', () => {
       if (!stompClient?.connected) return
       stompClient.publish({
         destination: `/app/trip/${tripId}/pointer`,
-        body: JSON.stringify({ x: 0, y: 0, interaction: '', targetBlockId: null, nickname: '', snapDayIndex: -1, snapTop: -1 }),
+        body: JSON.stringify({ zone: 'other', interaction: '', targetBlockId: null, nickname: '' }),
       })
     }, 4000)
   }
