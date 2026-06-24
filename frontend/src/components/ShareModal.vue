@@ -11,19 +11,23 @@
         <div class="share-access-row">
           <span class="share-link-ico" aria-hidden="true">🔗</span>
           <span class="share-access-label">링크 접근</span>
-          <select v-if="isOwner" class="share-access-select" :value="access"
-                  @change="changeAccess($event.target.value)">
-            <option value="PRIVATE">비공개</option>
-            <option value="VIEW">링크가 있는 사용자: 조회</option>
-            <option value="EDIT">링크가 있는 사용자: 편집</option>
-          </select>
+          <template v-if="isOwner">
+            <select class="share-access-select" v-model="access">
+              <option value="PRIVATE">비공개</option>
+              <option value="VIEW">링크가 있는 사용자: 조회</option>
+              <option value="EDIT">링크가 있는 사용자: 편집</option>
+            </select>
+            <button class="share-access-save" :disabled="!dirty || saving" @click="save">
+              {{ saving ? '저장 중…' : '저장' }}
+            </button>
+          </template>
           <span v-else class="share-access-static">{{ accessLabel }}</span>
         </div>
         <div v-if="shareUrl" class="share-link-row">
           <input class="share-link-input" :value="shareUrl" readonly @focus="$event.target.select()" />
           <button class="share-link-copy" @click="copyLink">{{ copied ? '복사됨' : '링크 복사' }}</button>
         </div>
-        <p v-else class="share-access-hint">비공개 — 소유자와 초대된 사용자만 접근할 수 있어요.</p>
+        <p v-else class="share-access-hint">{{ dirty ? '저장하면 공유 링크가 생성돼요.' : '비공개 — 소유자와 초대된 사용자만 접근할 수 있어요.' }}</p>
       </div>
 
       <!-- 사용자 검색·추가 (소유자만) -->
@@ -93,27 +97,35 @@ const props = defineProps({
   shareAccess: { type: String, default: 'PRIVATE' },
   shareToken: { type: String, default: '' },
 })
-defineEmits(['close', 'publish'])
+const emit = defineEmits(['close', 'publish', 'update'])
 
 const toast = useToastStore()
 
 // ── 링크 접근 설정 + 공유 URL ──
-const access = ref(props.shareAccess || 'PRIVATE')
+const access = ref(props.shareAccess || 'PRIVATE')        // 셀렉트 선택값(미저장 포함)
+const savedAccess = ref(props.shareAccess || 'PRIVATE')   // 현재 저장된 상태
 const token = ref(props.shareToken || '')
+const saving = ref(false)
 const ACCESS_LABEL = { PRIVATE: '비공개', VIEW: '링크 조회', EDIT: '링크 편집' }
-const accessLabel = computed(() => ACCESS_LABEL[access.value] || '비공개')
+const accessLabel = computed(() => ACCESS_LABEL[savedAccess.value] || '비공개')
+const dirty = computed(() => access.value !== savedAccess.value)
 const shareUrl = computed(() =>
-  access.value !== 'PRIVATE' && token.value
+  savedAccess.value !== 'PRIVATE' && token.value
     ? `${window.location.origin}/plan/${props.tripId}?s=${token.value}` : '')
-async function changeAccess(next) {
-  const prev = access.value
-  access.value = next
+async function save() {
+  if (!dirty.value || saving.value) return
+  saving.value = true
   try {
-    const res = await tripApi.setShareAccess(props.tripId, next)
+    const res = await tripApi.setShareAccess(props.tripId, access.value)
+    savedAccess.value = access.value
     if (res?.token) token.value = res.token
+    emit('update', { access: savedAccess.value, token: token.value })  // 부모 activeTripDetail 갱신
+    toast.show('공유 설정을 저장했어요')
   } catch {
-    access.value = prev
-    toast.show('접근 설정 변경에 실패했어요')
+    access.value = savedAccess.value
+    toast.show('저장에 실패했어요')
+  } finally {
+    saving.value = false
   }
 }
 const copied = ref(false)
@@ -238,6 +250,14 @@ onMounted(loadCollaborators)
   border: 1px solid var(--gray-border); border-radius: var(--radius-md);
   padding: 6px 10px; cursor: pointer;
 }
+.share-access-save {
+  font-family: inherit; font-size: var(--text-sm); font-weight: 650;
+  color: #fff; background: var(--purple-900);
+  border: none; border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer;
+  transition: background .14s, opacity .14s;
+}
+.share-access-save:hover:not(:disabled) { background: var(--primary-dark); }
+.share-access-save:disabled { opacity: .45; cursor: default; }
 .share-access-static { margin-left: auto; font-size: var(--text-sm); color: var(--gray-dark); }
 .share-access .share-link-row { margin-top: 10px; margin-bottom: 0; }
 .share-access-hint { margin: 10px 0 0; font-size: var(--text-xs); color: var(--gray-muted); }

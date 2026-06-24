@@ -71,7 +71,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
+                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
+                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
@@ -96,7 +97,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
+                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
+                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
