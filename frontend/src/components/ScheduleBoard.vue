@@ -1742,8 +1742,17 @@ async function onResizeEnd() {
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeEnd)
   if (!resizeState) return
-  const { ev } = resizeState
+  const { ev, startHeight } = resizeState
   resizeState = null
+  // 늘린 길이가 다음 블록과 겹치면 원래 길이로 되돌림(서버도 동일 검사)
+  const day = days.value.find(d => d.isoDate === ev.tripDate)
+  if (day && overlapsExisting(day, ev.top, ev.height, ev.id)) {
+    ev.height = startHeight
+    const s = topToTime(ev.top)
+    ev.timeLabel = `${s} – ${addMins(s, ev.height)}`
+    toast.show('그 시간대엔 이미 다른 일정이 있어요')
+    return
+  }
   try {
     await tripApi.updateBlock(activeTripId.value, ev.id, {
       tripDate: ev.tripDate,
@@ -1795,12 +1804,29 @@ function onDragOver(e, day) {
   }
 }
 
+// 같은 날 내 [top, top+height) 구간이 기존 블록과 겹치는지(분=px). excludeId는 자기 자신 제외(이동/리사이즈).
+function overlapsExisting(day, top, height, excludeId) {
+  const start = top, end = top + height
+  return day.events.some(ev => ev.id !== excludeId && start < ev.top + ev.height && ev.top < end)
+}
+
 async function onDrop(e, day) {
   if (!dragState) return
   day.dragOver = false
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const top = Math.round(Math.max(0, relY) / SNAP) * SNAP
   const startTime = topToTime(top)
+
+  // 시간대 겹침 선검사(즉시 피드백). 서버도 동일 검사로 최종 차단(동시성 race 포함).
+  const height = dragState.type === 'event' ? dragState.data.height : 60
+  const excludeId = dragState.type === 'event' ? dragState.data.id : null
+  if (overlapsExisting(day, top, height, excludeId)) {
+    toast.show('그 시간대엔 이미 다른 일정이 있어요')
+    dragState.data.dragging = false
+    dragPreview.value = null
+    dragState = null
+    return
+  }
 
   if (dragState.type === 'candidate') {
     await dropCandidate(day, top, startTime)
