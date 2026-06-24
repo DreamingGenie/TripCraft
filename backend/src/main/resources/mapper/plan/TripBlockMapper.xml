@@ -88,6 +88,13 @@
         WHERE id = #{id}
     </update>
 
+    <select id="nextDisplayOrder" resultType="int">
+        SELECT COALESCE(MAX(tb.display_order), 0) + 1
+        FROM trip_block tb
+        JOIN trip_candidate tc ON tc.id = tb.candidate_id
+        WHERE tc.trip_id = #{tripId} AND tb.trip_date = #{date}
+    </select>
+
     <select id="findByTripIdAndDate" resultMap="blockMap">
         SELECT tb.*
         FROM trip_block tb

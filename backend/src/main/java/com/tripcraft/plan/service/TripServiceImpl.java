@@ -40,6 +40,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 import com.tripcraft.plan.controller.TripPresenceController;
+import com.tripcraft.global.security.TripAccessVersion;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -68,6 +69,7 @@ public class TripServiceImpl implements TripService {
     private final RegionService regionService;
     private final SimpMessagingTemplate messaging;
     private final TripPresenceController presenceController;
+    private final TripAccessVersion accessVersion;
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
@@ -144,6 +146,7 @@ public class TripServiceImpl implements TripService {
         String token = trip.getShareToken();
         if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
         tripMapper.updateShare(tripId, access, token);
+        accessVersion.bump(tripId);  // 공유 접근 레벨 변경 → 캐시된 권한 무효화
         return token;
     }
 
@@ -161,8 +164,14 @@ public class TripServiceImpl implements TripService {
         return memberMapper.findById(memberId).map(Member::getNickname).orElse("(알 수 없음)");
     }
 
+    // 일정별 편집 이벤트 시퀀스(단조 증가). 클라이언트가 순서 역전·중복을 거를 수 있게 한다.
+    private final java.util.concurrent.ConcurrentHashMap<Long, java.util.concurrent.atomic.AtomicLong> eventSeq
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
     private void broadcast(Long tripId, TripEvent event) {
-        messaging.convertAndSend("/topic/trip/" + tripId, event);
+        long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
+                           .incrementAndGet();
+        messaging.convertAndSend("/topic/trip/" + tripId, event.withSeq(seq));
     }
 
     // ── 협업자 관리 ────────────────────────────────────────────────────────────
@@ -200,6 +209,7 @@ public class TripServiceImpl implements TripService {
         collab.setMemberId(targetMemberId);
         collab.setRole(role != null ? role : "EDITOR");
         collaboratorMapper.insert(collab);
+        accessVersion.bump(tripId);  // 협업자 추가 → 캐시된 권한 무효화(재초대 시 차단 해제)
     }
 
     @Override
@@ -207,6 +217,7 @@ public class TripServiceImpl implements TripService {
     public void removeCollaborator(Long tripId, Long targetMemberId, Long requesterId) {
         assertCanManage(tripId, requesterId);
         collaboratorMapper.delete(tripId, targetMemberId);
+        accessVersion.bump(tripId);  // 협업자 제거 → 캐시된 권한 즉시 무효화(presence 전송 차단)
     }
 
     // ── 기존 조회/편집 메서드 ──────────────────────────────────────────────────
@@ -375,10 +386,16 @@ public class TripServiceImpl implements TripService {
         assertCanEdit(tripId, memberId);
         candidateMapper.findById(candidateId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        // 흔한 경우 선제 체크(친절한 메시지). 단, 이 체크와 삭제 사이에 동시 placeBlock이 끼는
+        // TOCTOU 창이 있으므로, 실제 삭제는 FK(RESTRICT) 위반을 잡아 동일 메시지로 변환한다.
         if (candidateMapper.existsBlockByCandidateId(candidateId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "타임라인에 배치된 블록이 있습니다.");
         }
-        candidateMapper.deleteById(candidateId);
+        try {
+            candidateMapper.deleteById(candidateId);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "타임라인에 배치된 블록이 있습니다.");
+        }
         broadcast(tripId, TripEvent.of("CANDIDATE_REMOVED", memberId, nickname(memberId),
                 Map.of("candidateId", candidateId)));
     }
@@ -396,7 +413,8 @@ public class TripServiceImpl implements TripService {
         block.setTripDate(req.getTripDate());
         block.setStartTime(req.getStartTime());
         block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
-        block.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : 1);
+        // display_order는 클라이언트 값을 믿지 않고 서버가 권위적으로 할당(동시 배치 시 순서 충돌 완화)
+        block.setDisplayOrder(blockMapper.nextDisplayOrder(tripId, req.getTripDate()));
         blockMapper.insert(block);
         runAfterCommit(() -> recalculateTransitForDate(tripId, req.getTripDate()));
         broadcast(tripId, TripEvent.of("BLOCK_ADDED", memberId, nickname(memberId),
@@ -423,7 +441,10 @@ public class TripServiceImpl implements TripService {
             block.setTripDate(req.getTripDate());
             block.setStartTime(req.getStartTime());
             block.setDurationMinutes(req.getDurationMinutes());
-            block.setDisplayOrder(req.getDisplayOrder());
+            // 다른 날짜로 이동하면 그 날짜 기준으로 서버가 순서를 재할당(클라 값은 새 날짜에서 무의미)
+            block.setDisplayOrder(oldDate.equals(req.getTripDate())
+                    ? req.getDisplayOrder()
+                    : blockMapper.nextDisplayOrder(tripId, req.getTripDate()));
             // 클라이언트가 마지막으로 본 버전. null(구버전 클라이언트)이면 현재 버전으로 폴백(LWW)
             block.setVersion(req.getVersion() != null ? req.getVersion() : block.getVersion());
             int affected = blockMapper.updateWithVersion(block);

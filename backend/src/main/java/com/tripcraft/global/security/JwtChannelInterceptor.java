@@ -25,6 +25,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
     private final TripMapper tripMapper;
     private final TripCollaboratorMapper tripCollaboratorMapper;
+    private final TripAccessVersion accessVersion;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -64,9 +65,11 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         // 익명(memberId null)도 공유 일정이면 구독 허용 — canView 에서 share_access 로 판정
         Long memberId = getMemberIdFromSession(accessor);
 
-        // 같은 trip의 두 번째 구독(/presence 등)은 캐시 활용
+        // 같은 trip의 두 번째 구독(/presence 등)은 캐시 활용. 단, 접근 권한 세대가 바뀌면 재검증.
         String cacheKey = "tripAccess:" + tripId;
-        if (Boolean.TRUE.equals(accessor.getSessionAttributes().get(cacheKey))) return;
+        int gen = accessVersion.current(tripId);
+        Object cached = accessor.getSessionAttributes().get(cacheKey);
+        if (cached instanceof Integer c && c == gen) return;
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
@@ -76,7 +79,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
 
-        accessor.getSessionAttributes().put(cacheKey, true);
+        accessor.getSessionAttributes().put(cacheKey, gen);
     }
 
     // ── SEND: /app/trip/{tripId}/... 발행 시 조회 권한 확인 ─────────────────
@@ -90,9 +93,11 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         Long memberId = getMemberIdFromSession(accessor);
         if (memberId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
 
-        // SUBSCRIBE 캐시와 공유
+        // SUBSCRIBE 캐시와 공유. 접근 권한 세대가 바뀌면(협업자 제거 등) 재검증.
         String cacheKey = "tripAccess:" + tripId;
-        if (Boolean.TRUE.equals(accessor.getSessionAttributes().get(cacheKey))) return;
+        int gen = accessVersion.current(tripId);
+        Object cached = accessor.getSessionAttributes().get(cacheKey);
+        if (cached instanceof Integer c && c == gen) return;
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
@@ -102,7 +107,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
 
-        accessor.getSessionAttributes().put(cacheKey, true);
+        accessor.getSessionAttributes().put(cacheKey, gen);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
