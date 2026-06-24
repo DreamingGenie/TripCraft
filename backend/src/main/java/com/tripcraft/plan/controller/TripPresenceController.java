@@ -69,6 +69,17 @@ public class TripPresenceController {
         sessionMemberMap.put(sessionId, memberId);
         sessionTripMap.put(sessionId, tripId);
 
+        // leave: 다른 창/탭으로 포커스를 잃으면 보냄 → presence에서 즉시 제거(아바타·커서 함께 사라짐).
+        // 연결은 유지되므로 포커스 복귀 시 다시 ping으로 재등장. 창 종료는 onDisconnect가 처리.
+        if (Boolean.TRUE.equals(payload.get("leave"))) {
+            Map<String, PresenceState> sessions = presenceMap.get(tripId);
+            if (sessions != null && sessions.remove(sessionId) != null) {
+                releaseGrab(tripId, memberId);
+                broadcastPresence(tripId);
+            }
+            return;
+        }
+
         // keepalive(heartbeat): 좌표/zone은 건드리지 않고 lastSeen만 갱신 → idle에도 마지막 커서 유지.
         if (Boolean.TRUE.equals(payload.get("keepalive"))) {
             Map<String, PresenceState> sessions = presenceMap.get(tripId);

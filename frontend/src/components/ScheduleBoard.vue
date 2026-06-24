@@ -2301,10 +2301,30 @@ function onPointerMove(e) {
   }))
 }
 
+// ── 협업 자리비움(presence away/back): 포커스를 잃으면(다른 창/탭) 목록·커서에서 제거, 복귀 시 재등장 ──
+// 움직임이 없어도 화면에 있는 동안은 keepalive heartbeat로 유지된다. 닫기는 WS 끊김(서버 onDisconnect)이 처리.
+let awayTimer = null
+function markAway() {
+  // 잠깐의 blur(주소창 클릭 등)로 깜빡이지 않게 약간 지연 후 leave 전송
+  if (awayTimer) return
+  awayTimer = setTimeout(() => {
+    awayTimer = null
+    if (activeTripId.value != null) collab.sendPointer(activeTripId.value, { leave: true })
+  }, 600)
+}
+function markBack() {
+  if (awayTimer) { clearTimeout(awayTimer); awayTimer = null }
+  if (activeTripId.value == null) return
+  // presence 재등록(zone:'other' → 아바타는 보이고 커서는 격자 진입 시 표시). 놓친 변경 재동기화.
+  collab.sendPointer(activeTripId.value, {
+    zone: 'other', interaction: '', targetBlockId: null, nickname: auth.user?.nickname ?? '',
+  })
+  loadTrip()
+}
+
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible' && activeTripId.value != null) {
-    loadTrip()
-  }
+  if (document.visibilityState === 'visible') markBack()
+  else markAway()
 }
 
 // ── 유령 블록 헬퍼 ──
@@ -2430,6 +2450,9 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onPanelResizeMove)
   document.removeEventListener('mouseup', onPanelResizeEnd)
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('blur', markAway)
+  window.removeEventListener('focus', markBack)
+  if (awayTimer) clearTimeout(awayTimer)
   routePolylines.forEach(p => p.setMap(null))
   routeMarkers.forEach(m => m.setMap(null))
   arrowMarkers.forEach(m => m.setMap(null))
@@ -2464,6 +2487,8 @@ defineExpose({ openMapPanel, closeMapPanel, toggleMap: () => (showMapPanel.value
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('blur', markAway)   // 다른 창으로 전환 → 자리비움
+  window.addEventListener('focus', markBack)  // 복귀 → 재등장
   // 협업 커서/ghost가 갱신 사이를 미끄러지듯 보간하는 transition 시간(.env로 조절)
   document.documentElement.style.setProperty('--collab-smooth', collabConfig.cursorSmoothMs + 'ms')
 
