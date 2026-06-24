@@ -520,7 +520,15 @@
   background: var(--bg-surface);
   box-shadow: var(--shadow-sm);
 }
-.plan-organize .cand-sidebar-header { padding: 16px 18px 10px; }
+/* 보관함 헤더 언더라인을 timetable-header 언더라인과 정렬 — 동일 고정 높이 */
+.plan-organize { --board-header-h: 66px; }
+.plan-organize .timetable-header { height: var(--board-header-h); }
+.plan-organize .cand-sidebar-header {
+  height: var(--board-header-h);
+  box-sizing: border-box;
+  padding: 0 18px;
+  align-items: center;
+}
 .plan-organize .cand-sidebar-title { font-size: var(--text-lg); font-weight: 700; }
 .plan-organize .cand-flat-body {
   flex: 1;

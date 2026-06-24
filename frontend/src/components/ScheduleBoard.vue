@@ -280,13 +280,8 @@
                   <span class="event-name">{{ ev.name }}</span>
                   <span class="event-time">{{ ev.timeLabel }}</span>
                   <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
-                  <button v-if="!readOnly" class="event-del" :title="embedded ? '미배치로 빼기' : '삭제'"
-                          @click.stop="removeEvent(d, ev)">
-                    <svg v-if="embedded" width="11" height="11" viewBox="0 0 12 12" fill="none">
-                      <path d="M7.5 2L3 6l4.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <template v-else>✕</template>
-                  </button>
+                  <button v-if="!readOnly" class="event-del" :title="embedded ? '보관함으로 빼기' : '삭제'"
+                          @click.stop="removeEvent(d, ev)">✕</button>
                   <div v-if="!readOnly" class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
                 </div>
               </div>
