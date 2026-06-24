@@ -27,6 +27,10 @@ public class MyPlaceServiceImpl implements MyPlaceService {
     public Long create(MemberPlaceRequest req, Long memberId) {
         if (req.getName() == null || req.getName().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "장소명이 필요합니다.");
+        if (req.getLatitude() != null && req.getLongitude() != null
+                && memberPlaceMapper.existsByCoords(memberId, req.getLatitude(), req.getLongitude())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록한 내 장소예요.");
+        }
         MemberPlace p = new MemberPlace();
         p.setMemberId(memberId);
         p.setName(req.getName());

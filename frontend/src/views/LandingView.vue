@@ -142,7 +142,7 @@
     <!-- Footer -->
     <footer class="landing-footer">
       <RouterLink class="footer-logo" to="/">TripCraft</RouterLink>
-      <span class="footer-copy">© 2025 전진 · 송정기</span>
+      <span class="footer-copy">© 2026 전진 · 송정기</span>
       <nav class="footer-links">
         <RouterLink class="footer-link" to="/about">소개</RouterLink>
         <RouterLink class="footer-link" to="/community">커뮤니티</RouterLink>
@@ -153,16 +153,12 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const router = useRouter()
 const auth = useAuthStore()
 
-onMounted(async () => {
-  await auth.fetchMe()
-  if (auth.isLoggedIn) router.replace('/explore')
-})
+// 로그인 사용자도 랜딩을 볼 수 있게 자동 리다이렉트하지 않음(로고 → 랜딩). 헤더 상태용으로 세션만 확인.
+onMounted(() => { auth.fetchMe() })
 </script>
 
 <style scoped>

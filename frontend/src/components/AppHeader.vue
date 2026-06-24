@@ -53,10 +53,10 @@ const isExploreActive = computed(
   () => route.path === '/discover' || route.path.startsWith('/plan'),
 )
 
-// §2.4 맥락 라우팅: 로그인 + 현재여행 있으면 작업실(explore), 아니면 공개 탐색
+// §2.4 맥락 라우팅: 로그인 사용자는 작업실(/plan, 현재여행 있으면 그 일정), 비로그인만 공개 탐색(/discover)
 function goExplore() {
-  if (auth.isLoggedIn && activeTripStore.id != null) {
-    router.push(`/plan/${activeTripStore.id}`)
+  if (auth.isLoggedIn) {
+    router.push(activeTripStore.id != null ? `/plan/${activeTripStore.id}` : '/plan')
   } else {
     router.push('/discover')
   }

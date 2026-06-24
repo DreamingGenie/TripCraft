@@ -2,7 +2,7 @@
   <div class="place-form">
     <div class="pf-search">
       <input v-model="query" class="pf-input" placeholder="장소·주소 검색 (예: 신라호텔)"
-             @keydown.enter.prevent="doSearch" />
+             @keyup.enter="doSearch" @keydown.enter.prevent />
       <button class="pf-search-btn" :disabled="searching" @click="doSearch">{{ searching ? '검색…' : '검색' }}</button>
     </div>
 
@@ -10,8 +10,17 @@
       {{ showMap ? '지도 닫기 ▲' : '🗺 지도에서 위치 선택' }}
     </button>
     <div v-show="showMap" class="pf-map-wrap">
-      <div ref="mapEl" class="pf-map"></div>
-      <p class="pf-map-hint">지도를 눌러 위치를 직접 지정하세요</p>
+      <div class="pf-map-box">
+        <div ref="mapEl" class="pf-map"></div>
+        <div class="pf-map-pin" aria-hidden="true">
+          <svg width="26" height="34" viewBox="0 0 26 34" fill="none">
+            <path d="M13 1C6.4 1 1 6.3 1 12.9 1 21.7 13 33 13 33s12-11.3 12-20.1C25 6.3 19.6 1 13 1z"
+                  fill="#dc6343" stroke="#fff" stroke-width="2"/>
+            <circle cx="13" cy="13" r="4.2" fill="#fff"/>
+          </svg>
+        </div>
+      </div>
+      <p class="pf-map-hint">지도를 움직여 <b>가운데 핀</b>을 원하는 위치에 맞추세요</p>
     </div>
 
     <ul v-if="results.length" class="pf-results">
@@ -62,7 +71,6 @@ const lng = ref(null)
 const showMap = ref(false)
 const mapEl = ref(null)
 let map = null
-let marker = null
 
 function loadNaverMapScript() {
   return new Promise((resolve, reject) => {
@@ -97,31 +105,23 @@ function initMap() {
   const has = lat.value != null && lng.value != null
   const center = new naver.maps.LatLng(has ? Number(lat.value) : 37.5665, has ? Number(lng.value) : 126.9780)
   if (!map) {
-    map = new naver.maps.Map(mapEl.value, { center, zoom: has ? 15 : 12 })
-    naver.maps.Event.addListener(map, 'click', (e) => setPoint(e.coord.lat(), e.coord.lng()))
+    map = new naver.maps.Map(mapEl.value, { center, zoom: has ? 16 : 13 })
+    // 중앙 고정 핀: 지도를 움직이면(드래그) 중심 좌표를 선택 위치로 사용(역지오코딩 불필요)
+    naver.maps.Event.addListener(map, 'dragend', syncCenter)
   } else {
     map.setCenter(center)
     naver.maps.Event.trigger(map, 'resize')
   }
-  if (has) placeMarker(Number(lat.value), Number(lng.value))
 }
 
-function placeMarker(la, ln) {
-  const naver = window.naver
-  if (!naver?.maps || !map) return
-  const pos = new naver.maps.LatLng(la, ln)
-  if (marker) marker.setPosition(pos)
-  else marker = new naver.maps.Marker({ position: pos, map })
-}
-
-// 지도 클릭으로 직접 지정: 좌표만 잡고 주소는 비움(역지오코딩 불필요 — 좌표만으로 모든 기능 동작)
-function setPoint(la, ln) {
-  lat.value = la
-  lng.value = ln
+// 지도 중심을 선택 좌표로 동기화(사용자가 지도를 움직였을 때)
+function syncCenter() {
+  if (!map) return
+  const c = map.getCenter()
+  lat.value = c.lat()
+  lng.value = c.lng()
   picked.value = null
   address.value = ''
-  placeMarker(la, ln)
-  map?.setCenter(new window.naver.maps.LatLng(la, ln))
 }
 
 async function doSearch() {
@@ -138,10 +138,9 @@ function pick(r) {
   address.value = r.address || ''
   lat.value = r.latitude
   lng.value = r.longitude
-  // 지도가 열려 있으면 선택 위치로 마커·중심 이동
+  // 지도가 열려 있으면 선택 위치로 중심 이동(중앙 핀이 그 위치를 가리킴)
   if (showMap.value && r.latitude != null && r.longitude != null) {
     map?.setCenter(new window.naver.maps.LatLng(Number(r.latitude), Number(r.longitude)))
-    placeMarker(Number(r.latitude), Number(r.longitude))
   }
 }
 const canSubmit = computed(() => !!name.value.trim())
@@ -155,10 +154,8 @@ function submit() {
 function reset() {
   query.value = ''; results.value = []; searched.value = false; picked.value = null
   name.value = ''; address.value = ''; lat.value = null; lng.value = null
-  if (marker) { marker.setMap(null); marker = null }
 }
 onBeforeUnmount(() => {
-  if (marker) { marker.setMap(null); marker = null }
   if (map) { map.destroy?.(); map = null }
 })
 defineExpose({ reset })
@@ -185,9 +182,17 @@ defineExpose({ reset })
 }
 .pf-map-toggle:hover { background: var(--purple-50); border-color: var(--purple-900); }
 .pf-map-wrap { display: flex; flex-direction: column; gap: 4px; }
+.pf-map-box { position: relative; }
 .pf-map {
   width: 100%; height: 220px; border-radius: var(--radius-md);
   border: 1px solid var(--gray-border); overflow: hidden;
+}
+/* 지도 중앙 고정 핀 — 핀 끝(아래)이 지도 중심을 가리킴 */
+.pf-map-pin {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -100%);
+  pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.3));
 }
 .pf-map-hint { margin: 0; font-size: var(--text-2xs); color: var(--gray-muted); text-align: center; }
 .pf-results {
