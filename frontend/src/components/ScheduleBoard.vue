@@ -1972,6 +1972,11 @@ function grabberColor(blockId) {
 function handleTripEvent(event) {
   const myId = auth.user?.id
   if (event.actorId != null && event.actorId === myId) return
+  // 순서 역전·중복 무시(서버가 일정별 단조 seq 부여). 전체 재조회는 멱등이라 한 건 건너뛰어도 안전
+  if (event.seq != null) {
+    if (event.seq <= lastEventSeq) return
+    lastEventSeq = event.seq
+  }
   switch (event.type) {
     case 'BLOCK_ADDED':
     case 'BLOCK_MOVED':
@@ -2002,9 +2007,11 @@ function applyTransitUpdate(payload) {
 }
 
 let prevGrabbers = new Set()
+let lastEventSeq = -1  // 마지막으로 처리한 편집 이벤트 seq(중복·순서 역전 무시용). 일정 연결마다 리셋
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
+  lastEventSeq = -1
   const observer = !auth.user?.id   // 비로그인 = 관전 모드(구독만 수신, 전송 X)
   if (!observer) loadCollaboratorImages()  // 협업자 명단(인증 필요)은 로그인 시에만 조회
   collab.setHandlers({
