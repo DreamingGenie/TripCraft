@@ -2090,6 +2090,9 @@ async function onResizeEnd() {
       displayOrder: ev.displayOrder ?? 1,
       version: ev.version ?? 0,
     })
+    // 서버가 version+1 했으므로 로컬도 동기화(미갱신 시 다음 수정에서 stale→409 오탐).
+    // resize는 loadTrip 재조회를 안 하므로 여기서 직접 증가시킨다.
+    ev.version = (ev.version ?? 0) + 1
   } catch (err) {
     if (isConflict(err)) {
       toast.show('다른 사용자가 먼저 수정했어요. 최신 상태로 갱신합니다')
