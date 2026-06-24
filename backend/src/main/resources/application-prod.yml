@@ -1,0 +1,5 @@
+# 운영 프로필 — compose backend 의 SPRING_PROFILES_ACTIVE=prod 로 활성.
+# base application.yml 위에 오버라이드되는 값만 둔다. (로컬 dev 는 base 의 DEBUG 유지)
+logging:
+  level:
+    com.tripcraft: INFO

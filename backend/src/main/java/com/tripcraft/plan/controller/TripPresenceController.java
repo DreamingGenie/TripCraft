@@ -150,6 +150,7 @@ public class TripPresenceController {
         String sessionId = event.getSessionId();
         Long tripId = sessionTripMap.remove(sessionId);
         Long memberId = sessionMemberMap.remove(sessionId);
+        log.info("협업 세션 종료 sessionId={} tripId={} memberId={}", sessionId, tripId, memberId);
         if (tripId != null) {
             Map<String, PresenceState> sessions = presenceMap.get(tripId);
             if (sessions != null) {

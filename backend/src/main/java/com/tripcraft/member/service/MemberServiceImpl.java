@@ -8,6 +8,7 @@ import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
 import com.tripcraft.plan.mapper.TripMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
@@ -86,6 +88,8 @@ public class MemberServiceImpl implements MemberService {
 
         // 트랜잭션 커밋 후 파일 삭제 등록
         registerFileCleanup(pathsToDelete);
+
+        log.info("회원 탈퇴 완료 memberId={}", memberId);
     }
 
     private void registerFileCleanup(List<String> paths) {
