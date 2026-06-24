@@ -88,6 +88,8 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (to.meta.requiresAuth) {
+    // 공유 링크(?s=token): /plan 비로그인 조회 허용 — PlanView 가 getShared 로 로드
+    if (to.path.startsWith('/plan/') && to.query.s) return true
     const auth = useAuthStore()
     if (!auth.isLoggedIn) {
       await auth.fetchMe()

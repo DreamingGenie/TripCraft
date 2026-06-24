@@ -3,7 +3,13 @@
 
     <!-- 작업실 헤더: 현재 여행 칩 + 모드 토글 + (정리)공유·자동저장·지도토글 -->
     <header class="plan-header">
-      <div class="plan-trip-menu" ref="tripMenuRef">
+      <!-- 공유 링크 조회: 단순 제목 + 읽기전용/편집 뱃지 -->
+      <div v-if="isSharedView" class="plan-trip-chip plan-shared-title">
+        <span class="plan-trip-name">{{ activeTripDetail?.title || '공유된 일정' }}</span>
+        <span class="plan-shared-badge" :class="{ edit: !readOnly }">{{ readOnly ? '읽기 전용' : '편집 가능' }}</span>
+      </div>
+
+      <div v-if="!isSharedView" class="plan-trip-menu" ref="tripMenuRef">
         <button class="plan-trip-chip" :class="{ open: tripMenuOpen }"
                 @click="tripMenuOpen = !tripMenuOpen"
                 :aria-expanded="tripMenuOpen">
@@ -64,7 +70,7 @@
         </Transition>
       </div>
 
-      <div class="plan-modes">
+      <div v-if="!isSharedView" class="plan-modes">
         <button class="plan-mode" :class="{ active: mode === 'explore' }" @click="mode = 'explore'">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/>
@@ -590,6 +596,8 @@
         ref="boardRef"
         embedded
         :trip-id="activeTrip"
+        :read-only="readOnly"
+        :share-token="shareToken"
         @explore="mode = 'explore'" />
     </section>
 
@@ -632,6 +640,12 @@ function onPublish() {
 
 // ── UI state (모드 / 트레이 토글 / 드래그 감지) ──
 const mode = ref('explore') // 'explore' | 'organize'
+
+// 공유 링크 조회(?s=token): 비로그인 read-only. EDIT 링크 + 로그인이면 myRole=EDITOR 로 편집 허용
+const shareToken = ref(route.query.s || null)
+const isSharedView = computed(() => !!shareToken.value)
+const readOnly = computed(() =>
+  isSharedView.value && !['OWNER', 'EDITOR'].includes(activeTripDetail.value?.myRole))
 const trayOpen = ref(false) // 평소 지도를 넓게: 담기/드래그 시 자동으로 열림
 const isDraggingCard = ref(false)
 const currentTrip = computed(() =>
@@ -1365,6 +1379,13 @@ watch(activeTripCandidates, updateMarkers)
 
 watch(activeTrip, async (id) => {
   activeTripStore.set(id ?? null)
+  // 공유 링크 조회(비로그인 가능): getShared 로 detail 만 로드, URL(?s=) 유지
+  if (isSharedView.value) {
+    if (!id) { activeTripDetail.value = null; return }
+    try { activeTripDetail.value = await tripApi.getShared(shareToken.value) }
+    catch { activeTripDetail.value = null; toast.show('공유된 일정을 찾을 수 없어요') }
+    return
+  }
   // URL 동기화: 현재 일정과 /plan/:tripId 를 일치시킴(새로고침·공유 링크 정합)
   if (id && String(route.params.tripId ?? '') !== String(id)) {
     router.replace({ path: `/plan/${id}` })
@@ -1748,6 +1769,13 @@ async function addToTrip(attraction) {
 }
 
 onMounted(async () => {
+  // 공유 링크 조회: 일정(정리) 모드만, 목록·탐색 로드 생략(비로그인 가능)
+  if (isSharedView.value) {
+    mode.value = 'organize'
+    activeTrip.value = Number(route.params.tripId)  // watch → getShared 로 detail 로드
+    return
+  }
+
   scrollEl.value?.addEventListener('scroll', checkScroll)
   scrollEl.value?.addEventListener('scroll', onScrollCheck)
   document.addEventListener('click', onTripMenuOutside, true)
