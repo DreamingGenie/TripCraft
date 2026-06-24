@@ -8,6 +8,11 @@ export async function getTransitByMode(fromId, toId, mode, hour = 9) {
   return await http.get(`/api/transit?fromId=${fromId}&toId=${toId}&hour=${hour}&mode=${mode}`)
 }
 
+// 좌표 기반(커스텀 장소). 한쪽이라도 attraction id 가 없을 때 사용.
+export async function getTransitByCoords(fromLat, fromLng, toLat, toLng, mode, hour = 9) {
+  return await http.get(`/api/transit/by-coords?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${toLat}&toLng=${toLng}&hour=${hour}&mode=${mode}`)
+}
+
 export async function getTransitDetail(fromId, toId, hour = 9) {
   return await http.get(`/api/transit/detail?fromId=${fromId}&toId=${toId}&hour=${hour}`)
 }

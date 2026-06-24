@@ -197,6 +197,54 @@ public class TransitServiceImpl implements TransitService {
                 .build());
     }
 
+    // ── 좌표 기반(커스텀 장소): 무캐시 라이브. 기존 attraction 경로(getTransitTime)는 미변경 ──
+    @Override
+    public Optional<TransitResponse> getTransitByCoords(BigDecimal fromLat, BigDecimal fromLng,
+                                                        BigDecimal toLat, BigDecimal toLng,
+                                                        int departureHour, String mode) {
+        if (fromLat == null || fromLng == null || toLat == null || toLng == null) return Optional.empty();
+        String resolvedMode = (mode == null || mode.isBlank()) ? MODE_PUBLIC_TRANSIT : mode;
+
+        if (MODE_DRIVING.equals(resolvedMode) || MODE_WALKING.equals(resolvedMode)) {
+            boolean isTaxi = MODE_DRIVING.equals(resolvedMode);
+            TMapClient.TMapDrivingResult result = isTaxi
+                    ? tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, "00", departureHour)
+                    : tMapClient.fetchWalkingRoute(fromLat, fromLng, toLat, toLng);
+            if (result == null) return Optional.of(noneTransit());
+            String roadSummary = buildRoadSummary(result.segments());
+            String segJson;
+            try { segJson = objectMapper.writeValueAsString(result.segments()); }
+            catch (Exception e) { segJson = "[]"; }
+            return Optional.of(TransitResponse.builder()
+                    .durationMinutes(result.durationMinutes())
+                    .transportMode(resolvedMode)
+                    .transferCount(0).fare(0)
+                    .totalDistanceM(result.totalDistanceM())
+                    .taxiFare(result.taxiFare())
+                    .routeCoords(result.routeCoords())
+                    .roadSummary(roadSummary == null || roadSummary.isEmpty() ? null : roadSummary)
+                    .routeSegmentsJson(segJson)
+                    .build());
+        }
+
+        // PUBLIC_TRANSIT: ODsay best (v1 — 도시간 로컬 보강 생략)
+        List<OdsayClient.OdsayResult> results = odsayClient.findTransitPath(fromLat, fromLng, toLat, toLng);
+        if (results.isEmpty()) return Optional.of(noneTransit());
+        OdsayClient.OdsayResult best = results.get(0);
+        return Optional.of(TransitResponse.builder()
+                .durationMinutes(best.durationMinutes())
+                .transportMode(best.transportMode())
+                .transferCount(best.transferCount())
+                .fare(best.fare())
+                .totalWalkM(best.totalWalkM())
+                .routeCoords(extractPublicTransitCoords(best.pathDetail()))
+                .build());
+    }
+
+    private TransitResponse noneTransit() {
+        return TransitResponse.builder().transportMode("NONE").transferCount(0).fare(0).totalWalkM(0).build();
+    }
+
     private Optional<TransitResponse> fetchAndCacheTMapRoute(Long fromId, Long toId, int departureHour,
                                                               BigDecimal fromLat, BigDecimal fromLng,
                                                               BigDecimal toLat, BigDecimal toLng,

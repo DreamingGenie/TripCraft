@@ -591,6 +591,40 @@ public class TripServiceImpl implements TripService {
         return newTrip.getId();
     }
 
+    /** 후보 좌표 해석: attraction 이면 관광지 좌표, 커스텀이면 place 좌표. [lat, lng] 또는 null. */
+    private java.math.BigDecimal[] candidateCoords(TripCandidate c) {
+        if (c.getAttractionId() != null) {
+            Attraction a = attractionMapper.findById(c.getAttractionId()).orElse(null);
+            if (a == null || a.getLatitude() == null || a.getLongitude() == null) return null;
+            return new java.math.BigDecimal[]{ a.getLatitude(), a.getLongitude() };
+        }
+        if (c.getPlaceLat() == null || c.getPlaceLng() == null) return null;
+        return new java.math.BigDecimal[]{ c.getPlaceLat(), c.getPlaceLng() };
+    }
+
+    /** 두 후보 간 이동시간. 한쪽이라도 커스텀(attraction 없음)이면 좌표 기반. 대중교통 NONE 시 자동차 fallback. */
+    private Optional<TransitResponse> computeBlockTransit(TripCandidate from, TripCandidate to, String effectiveMode) {
+        boolean custom = from.getAttractionId() == null || to.getAttractionId() == null;
+        Optional<TransitResponse> transit;
+        if (custom) {
+            java.math.BigDecimal[] f = candidateCoords(from), t = candidateCoords(to);
+            if (f == null || t == null) return Optional.empty();
+            transit = transitService.getTransitByCoords(f[0], f[1], t[0], t[1], 9, effectiveMode);
+            if ("PUBLIC_TRANSIT".equals(effectiveMode) && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
+                Optional<TransitResponse> fb = transitService.getTransitByCoords(f[0], f[1], t[0], t[1], 9, "DRIVING");
+                if (fb.isPresent() && !"NONE".equals(fb.get().getTransportMode())) transit = fb;
+            }
+        } else {
+            long fromAttrId = from.getAttractionId(), toAttrId = to.getAttractionId();
+            transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, effectiveMode);
+            if ("PUBLIC_TRANSIT".equals(effectiveMode) && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
+                Optional<TransitResponse> fb = transitService.getTransitTime(fromAttrId, toAttrId, 9, "DRIVING");
+                if (fb.isPresent() && !"NONE".equals(fb.get().getTransportMode())) transit = fb;
+            }
+        }
+        return transit;
+    }
+
     private void recalculateTransitForDate(Long tripId, LocalDate date) {
         Trip trip = tripMapper.findById(tripId).orElse(null);
         String transitMode = (trip != null && trip.getDefaultTransitMode() != null)
@@ -616,8 +650,7 @@ public class TripServiceImpl implements TripService {
                     Optional<TripCandidate> fromCand = candidateMapper.findById(prev.getCandidateId());
                     Optional<TripCandidate> toCand   = candidateMapper.findById(block.getCandidateId());
                     if (fromCand.isPresent() && toCand.isPresent()) {
-                        long fromAttrId = fromCand.get().getAttractionId();
-                        long toAttrId   = toCand.get().getAttractionId();
+                        TripCandidate fc = fromCand.get(), tc = toCand.get();
                         String savedMode = block.getTransitMode();
                         // savedMode는 ODsay 결과(BUS/SUBWAY 등) 또는 요청 모드(DRIVING/WALKING)가 혼재함.
                         // getTransitTime의 requestMode는 PUBLIC_TRANSIT/DRIVING/WALKING 세 가지만 유효하므로
@@ -634,23 +667,16 @@ public class TripServiceImpl implements TripService {
                             // null 또는 NONE → trip 기본 모드
                             effectiveMode = transitMode;
                         }
-                        Optional<TransitResponse> transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, effectiveMode);
-                        // 대중교통이 기본 모드인데 경로가 없으면 자동차로 fallback
-                        if ("PUBLIC_TRANSIT".equals(effectiveMode)
-                                && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
-                            Optional<TransitResponse> fallback = transitService.getTransitTime(fromAttrId, toAttrId, 9, "DRIVING");
-                            if (fallback.isPresent() && !"NONE".equals(fallback.get().getTransportMode())) {
-                                transit = fallback;
-                            }
-                        }
+                        // attraction/커스텀(좌표) 분기 + 대중교통 NONE 시 자동차 fallback
+                        Optional<TransitResponse> transit = computeBlockTransit(fc, tc, effectiveMode);
                         block.setTransitDurationMinutes(transit.map(TransitResponse::getDurationMinutes).orElse(null));
                         // 사용자가 직접 선택한 DRIVING/WALKING은 모드 유지, 그 외는 재계산 결과로 갱신
                         boolean userOverride = "DRIVING".equals(savedMode) || "WALKING".equals(savedMode);
                         if (!userOverride) {
                             block.setTransitMode(transit.map(TransitResponse::getTransportMode).orElse(null));
                         }
-                        log.debug("Transit 계산: from={} to={} → {}분 ({}) mode={}",
-                                fromAttrId, toAttrId, block.getTransitDurationMinutes(), block.getTransitMode(), effectiveMode);
+                        log.debug("Transit 계산: from(cand={}) to(cand={}) → {}분 ({}) mode={}",
+                                fc.getId(), tc.getId(), block.getTransitDurationMinutes(), block.getTransitMode(), effectiveMode);
                     } else {
                         block.setTransitDurationMinutes(null);
                         block.setTransitMode(null);
