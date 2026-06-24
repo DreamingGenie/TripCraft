@@ -30,6 +30,20 @@ public class TransitController {
                 .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
     }
 
+    // 좌표 기반 이동시간(커스텀 장소). 한쪽이라도 attraction id 가 없을 때 사용.
+    @GetMapping("/by-coords")
+    public ResponseEntity<ApiResponse<TransitResponse>> getTransitByCoords(
+            @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
+            @RequestParam("toLat") double toLat, @RequestParam("toLng") double toLng,
+            @RequestParam(name = "hour", defaultValue = "9") int hour,
+            @RequestParam(name = "mode", defaultValue = "PUBLIC_TRANSIT") String mode) {
+        return transitService.getTransitByCoords(
+                        java.math.BigDecimal.valueOf(fromLat), java.math.BigDecimal.valueOf(fromLng),
+                        java.math.BigDecimal.valueOf(toLat), java.math.BigDecimal.valueOf(toLng), hour, mode)
+                .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
+                .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+    }
+
     @PostMapping("/select")
     public ResponseEntity<ApiResponse<TransitResponse>> selectPath(
             @RequestParam(name = "fromId") Long fromId,

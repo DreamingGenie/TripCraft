@@ -9,6 +9,12 @@ import java.util.Optional;
 
 public interface TransitService {
     Optional<TransitResponse> getTransitTime(Long fromAttractionId, Long toAttractionId, int departureHour, String mode);
+
+    /** 좌표 기반 이동시간(커스텀 장소용, 무캐시 라이브). 대중교통=ODsay best, 운전/도보=TMap. */
+    Optional<TransitResponse> getTransitByCoords(java.math.BigDecimal fromLat, java.math.BigDecimal fromLng,
+                                                 java.math.BigDecimal toLat, java.math.BigDecimal toLng,
+                                                 int departureHour, String mode);
+
     Optional<JsonNode> getPathDetail(Long fromAttractionId, Long toAttractionId, int departureHour);
     Optional<TransitResponse> selectPath(Long fromAttractionId, Long toAttractionId, int departureHour, int pathIndex);
     List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour);
