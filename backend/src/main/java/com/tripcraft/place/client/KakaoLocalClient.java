@@ -35,7 +35,7 @@ public class KakaoLocalClient {
                 .toUriString();
         try {
             String body = restClient.get()
-                    .uri(uri)
+                    .uri(java.net.URI.create(uri))   // 이미 encode 된 URI 그대로 사용(이중 인코딩 방지)
                     .header("Authorization", "KakaoAK " + restKey)
                     .retrieve()
                     .body(String.class);
