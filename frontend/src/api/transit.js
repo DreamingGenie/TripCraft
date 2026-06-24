@@ -45,10 +45,6 @@ export async function applyDrivingOption(fromId, toId, hour, optionIndex) {
   return await http.post(`/api/transit/select-driving?fromId=${fromId}&toId=${toId}&hour=${hour}&optionIndex=${optionIndex}`)
 }
 
-export async function getLaneSegments(fromId, toId, hour = 9) {
-  return await http.get(`/api/transit/segments?fromId=${fromId}&toId=${toId}&hour=${hour}`)
-}
-
 // 통합 경로 구간(구간별 색·도보·역마커용). 어트랙션 / 커스텀 좌표 두 버전.
 export async function getRouteSegments(fromId, toId, hour = 9) {
   return await http.get(`/api/transit/route-segments?fromId=${fromId}&toId=${toId}&hour=${hour}`)
