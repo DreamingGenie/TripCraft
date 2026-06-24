@@ -728,6 +728,7 @@ let panelResizeStartX = 0
 let panelResizeStartWidth = 0
 
 let dragState = null
+let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 grab 잠금을 명시 해제하기 위해 보관
 const dragPreview = ref(null)
 const isProcessing = ref(false)
 const processingEvId = ref(null)
@@ -847,6 +848,7 @@ function buildEvent(b, cand) {
     candidateId: b.candidateId,
     tripDate: b.tripDate,
     displayOrder: b.displayOrder ?? 1,
+    version: b.version ?? 0,
     name: cand?.attractionName || '',
     category: cand?.category || '',
     color: 'purple',
@@ -1630,6 +1632,11 @@ function getTransitSegmentLabel(sub) {
 }
 
 // ── 일정 로드 ──
+// 낙관적 락/grab 충돌(409) 판별 — 다른 사용자가 먼저 수정했거나 편집 중인 경우
+function isConflict(err) {
+  return err?.status === 409 || err?.response?.status === 409
+}
+
 async function loadTrip() {
   if (!activeTripId.value) return
   activeTripStore.set(activeTripId.value)
@@ -1691,6 +1698,7 @@ function onEventDragStart(e, ev, day) {
   const grabRatioX = blockRect.width > 0 ? grabOffsetX / blockRect.width : 0
   const grabOffsetMin = grabOffsetY / (HOUR_PX / 60)
   dragState = { type: 'event', data: ev, fromDay: day, grabOffsetY, grabOffsetX, grabRatioX, grabOffsetMin }
+  grabbedBlockId = ev.id
   ev.dragging = true
   e.dataTransfer.effectAllowed = 'move'
   const el = e.currentTarget
@@ -1742,9 +1750,15 @@ async function onResizeEnd() {
       startTime: topToTime(ev.top) + ':00',
       durationMinutes: ev.height,
       displayOrder: ev.displayOrder ?? 1,
+      version: ev.version ?? 0,
     })
   } catch (err) {
-    toast.show(err.message || '체류 시간 수정 실패')
+    if (isConflict(err)) {
+      toast.show('다른 사용자가 먼저 수정했어요. 최신 상태로 갱신합니다')
+      await loadTrip()
+    } else {
+      toast.show(err.message || '체류 시간 수정 실패')
+    }
   }
 }
 
@@ -1758,12 +1772,14 @@ function onDragEnd() {
   dragPreview.value = null
   dragState = null
   if (activeTripId.value) {
-    // grab 해제 — zone:'other'로 보내 ghost/잠금을 즉시 내림
+    // grab 해제 — 잡았던 블록 id를 실어 보내 서버 grabMap에서 명시적으로 제거(잠금 즉시 해제).
+    // targetBlockId가 null이면 서버가 grab을 못 지워 stale evict(5초)까지 잠금이 남는다.
     collab.sendPointer(activeTripId.value, {
-      zone: 'other', interaction: '', targetBlockId: null,
+      zone: 'other', interaction: '', targetBlockId: grabbedBlockId,
       nickname: auth.user?.nickname ?? '',
     })
   }
+  grabbedBlockId = null
 }
 
 function onDragOver(e, day) {
@@ -1858,10 +1874,13 @@ async function moveEvent(day, top, startTime) {
       startTime: startTime + ':00',
       durationMinutes: ev.height,
       displayOrder: newDisplayOrder,
+      version: ev.version ?? 0,
     })
     await loadTrip()
   } catch (err) {
-    toast.show(err.message || '이동 실패')
+    toast.show(isConflict(err)
+      ? '다른 사용자가 먼저 수정했어요. 최신 상태로 갱신합니다'
+      : (err.message || '이동 실패'))
     await loadTrip()
   } finally {
     isProcessing.value = false
