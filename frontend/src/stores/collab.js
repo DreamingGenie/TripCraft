@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { tripApi } from '@/api/trip'
+import { collabConfig } from '@/config/collab'
 
 const PALETTE = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#e91e63']
 
@@ -94,7 +95,7 @@ export const useCollabStore = defineStore('collab', () => {
       onDisconnect: () => {
         connected.value = false
         isReconnecting = true
-        reconnectTimer = setTimeout(() => _doConnect(tripId), 3000)
+        reconnectTimer = setTimeout(() => _doConnect(tripId), collabConfig.reconnectMs)
       },
       onStompError: (frame) => {
         console.warn('[collab] STOMP error', frame)
@@ -112,7 +113,7 @@ export const useCollabStore = defineStore('collab', () => {
         destination: `/app/trip/${tripId}/pointer`,
         body: JSON.stringify({ zone: 'other', interaction: '', targetBlockId: null, nickname: '' }),
       })
-    }, 4000)
+    }, collabConfig.keepaliveMs)
   }
 
   function stopKeepalive() {

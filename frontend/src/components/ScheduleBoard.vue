@@ -547,6 +547,7 @@ import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
+import { collabConfig } from '@/config/collab'
 
 // embedded=true 이면 PlanView organize 모드 안에서 동작(자체 툴바·트레이 select 숨김,
 // 현재 일정은 tripId prop 으로 제어). false 이면 /schedule 단독 화면.
@@ -1955,7 +1956,7 @@ let pointerThrottle = null
 function onPointerMove(e) {
   if (!activeTripId.value) return
   if (pointerThrottle) return
-  pointerThrottle = setTimeout(() => { pointerThrottle = null }, 50)
+  pointerThrottle = setTimeout(() => { pointerThrottle = null }, collabConfig.cursorThrottleMs)
   collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
     interaction: '', nickname: auth.user?.nickname ?? '',
   }))
@@ -2107,6 +2108,8 @@ defineExpose({ openMapPanel, closeMapPanel, toggleMap: () => (showMapPanel.value
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  // 협업 커서/ghost가 갱신 사이를 미끄러지듯 보간하는 transition 시간(.env로 조절)
+  document.documentElement.style.setProperty('--collab-smooth', collabConfig.cursorSmoothMs + 'ms')
 
   if (props.embedded) {
     // organize 모드: tripId prop 으로 일정 로드 (자체 trips 목록 불필요)
@@ -2212,6 +2215,8 @@ onMounted(async () => {
 .collab-cursor {
   position: fixed; pointer-events: none; z-index: 9999;
   display: flex; align-items: flex-start; gap: 4px;
+  /* throttle 간격 사이를 미끄러지듯 보간 — 점프 대신 부드러운 이동(--collab-smooth는 .env로 조절) */
+  transition: left var(--collab-smooth, 80ms) linear, top var(--collab-smooth, 80ms) linear;
 }
 .cursor-icon { flex-shrink: 0; }
 .cursor-avatar {
@@ -2229,6 +2234,7 @@ onMounted(async () => {
   border: none; border-left: 4px solid; border-radius: 10px;
   padding: 6px 10px; overflow: hidden;
   opacity: 0.5; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  transition: left var(--collab-smooth, 80ms) linear, top var(--collab-smooth, 80ms) linear;
 }
 .collab-ghost-block[data-color="purple"] { background: var(--purple-50); border-color: var(--purple-900); }
 .collab-ghost-block[data-color="pink"]   { background: var(--pink-50);   border-color: var(--pink-600); }
