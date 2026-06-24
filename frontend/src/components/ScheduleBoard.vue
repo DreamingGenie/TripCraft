@@ -500,7 +500,8 @@
   <!-- 협업자 커서 + 유령 블록 오버레이 -->
   <Teleport to="body">
     <template v-for="p in otherParticipants" :key="p.memberId">
-      <div v-if="p.interaction !== 'grab' && p.zone && p.zone !== 'other'"
+      <!-- 지도 zone 커서는 임시 숨김(lat/lng 미변환 → 줌·팬·폭 다르면 어긋남). improvements.md §7 구현 후 'map' 환원 -->
+      <div v-if="p.interaction !== 'grab' && p.zone === 'timetable'"
            class="collab-cursor"
            :style="{ ...cursorStyle(p), '--cursor-color': collab.colorMap[p.memberId] }">
         <svg class="cursor-icon" viewBox="0 0 16 20" width="16" height="20" xmlns="http://www.w3.org/2000/svg">

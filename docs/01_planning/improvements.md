@@ -56,12 +56,28 @@
 - **개선 방향**: 최소 `console.warn`/사용자 토스트로 가시화하고, 무시해도 되는 경우는 그 이유를 주석으로 명시.
 - **우선순위**: 낮음~중간
 
-## 7. 협업 지도 커서 좌표 — 비율 근사(lat/lng 미변환)
+## 7. 협업 지도 커서 좌표 — lat/lng 미변환 (현재 지도 커서 숨김 처리)
 
-- **위치**: `frontend/src/composables/useCollabCursor.js` (`map` zone — `mapRatioX/mapRatioY`), `components/ScheduleBoard.vue` 지도 패널
-- **왜 부채인가**: 커서 좌표계 재설계로 시간표는 의미 좌표(dayIndex·colRatioX·contentY)로 정밀 동기화했으나, 지도 영역은 **컨테이너 내 0~1 비율**로만 근사한다. 두 사용자의 지도 줌·팬·패널 폭이 다르면 같은 비율 위치가 다른 지리 지점을 가리켜 어긋난다.
-- **미진행 사유**: 의미 단위 정확(같은 day·시간·블록)을 1차 목표로 두고, 지도는 비율 근사로 합의(사용자 확정). lat/lng 변환은 Naver Maps projection API 검증 시간이 추가로 필요.
-- **개선 방향**: 송신측 `map.getProjection().fromOffsetToCoord(point)`로 커서를 lat/lng로 변환해 전송, 수신측 `fromCoordToOffset(latlng)`로 자기 지도 기준 픽셀로 역변환. 줌·팬·폭 무관하게 동일 지점 보장.
+- **위치**: `frontend/src/composables/useCollabCursor.js` (`map` zone — `mapRatioX/mapRatioY`, `cursorStyle` map 분기), `components/ScheduleBoard.vue`(커서 오버레이 `v-if`, `naverMapInstance`)
+- **왜 부채인가**: 커서 좌표계 재설계로 시간표는 의미 좌표(dayIndex·colRatioX·contentY)로 정밀 동기화했으나, 지도 영역은 **컨테이너 내 0~1 비율**로만 근사 가능하다. 두 사용자의 지도 줌·팬·패널 폭이 다르면 같은 비율이 다른 지리 지점을 가리켜 어긋난다.
+- **현재 상태(2026-06-24)**: 어긋난 커서를 보여주느니 **지도 zone 커서를 숨김 처리**함. 송신측은 여전히 `mapRatioX/Y`를 실어 보내지만(payload 호환 유지), 수신측 오버레이 `v-if`가 `p.zone === 'timetable'`로 한정되어 map zone 커서가 렌더되지 않는다. lat/lng 구현 완료 시 이 `v-if`만 풀면 즉시 활성화 가능.
+- **미진행 사유**: 의미 단위 정확(같은 day·시간·블록)을 1차 목표로 합의(사용자 확정). lat/lng 변환은 Naver Maps projection API 검증 시간이 추가로 필요.
+
+### 구현 계획 (바로 착수 가능)
+
+설계: 커서 픽셀 ↔ 지리 좌표를 Naver projection으로 변환. **`mapRatioX/Y`는 삭제하지 말고 fallback으로 유지**, `mapLat/mapLng`를 추가하는 점진 방식(회귀 위험 0).
+
+1. **`ScheduleBoard.vue`** — 모듈 `let naverMapInstance`를 composable에 **getter로 주입**(`getMap: () => naverMapInstance`). 인스턴스가 `initMap` 이후 늦게 할당되므로 값이 아닌 getter여야 함.
+2. **`useCollabCursor.js` 송신** — `buildPointerPayload` map 분기에서 `getMap()?.getProjection()`이 있으면 `fromOffsetToCoord(new naver.maps.Point(clientX - mapRect.left, clientY - mapRect.top))` → `mapLat/mapLng` 추가(비율도 함께 유지).
+3. **`useCollabCursor.js` 수신** — `cursorStyle` map 분기에서 `mapLat/mapLng`+projection 준비 시 `fromCoordToOffset(new naver.maps.LatLng(lat, lng))` → `mapRect.left/top + offset`. 없으면 기존 비율 fallback.
+4. **`ScheduleBoard.vue` 오버레이 `v-if`** — `p.zone === 'timetable'` 제한을 `(p.zone === 'timetable' || p.zone === 'map')`로 환원.
+5. **`TripPresenceController.java`** — `PresenceState`에 `mapLat/mapLng` 추가, `handlePointer` 파싱·`broadcastPresence` 출력에 동일 키. 비율 필드는 유지.
+6. **`collab.js`** — participants 주석 스키마에 `mapLat/mapLng` 추가(코드 영향 없음).
+
+**엣지 케이스**: ① `getProjection()`이 init 직후 null → guard 후 비율 fallback. ② `fromOffsetToCoord` 기준점은 지도 컨테이너 좌상단이므로 `clientX - mapRect.left` 변환 필수. ③ 수신측 패널 닫힘 시 표시 안 함(현행 유지).
+
+**작업량**: 구현 ~1.5~2h(projection 타이밍·역변환 디버깅), 검증 2계정·서로 다른 줌/팬/폭 2창 E2E ~30m. 리스크 낮음(map 분기만 교체, timetable 무관, 백엔드는 필드 추가).
+
 - **우선순위**: 낮음~중간 (지도 협업 빈도에 따라)
 
 ## 8. 디버그 `console` 로그 잔존
