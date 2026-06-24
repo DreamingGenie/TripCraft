@@ -35,6 +35,11 @@
         SELECT COUNT(*) > 0 FROM trip_block WHERE candidate_id = #{candidateId}
     </select>
 
+    <select id="existsCustomByCoords" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM trip_candidate
+        WHERE trip_id = #{tripId} AND place_lat = #{lat} AND place_lng = #{lng}
+    </select>
+
     <insert id="insert" parameterType="com.tripcraft.plan.domain.TripCandidate" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO trip_candidate (trip_id, attraction_id, city_code, source,
                                     place_name, place_category, place_address, place_lat, place_lng)

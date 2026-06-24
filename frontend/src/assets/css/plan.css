@@ -600,6 +600,21 @@
 }
 .plan-organize .cand-flat-add:hover { background: var(--purple-900); color: #fff; }
 
+.plan-organize .cand-flat-del {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--gray-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 6px 7px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.plan-organize .cand-flat-del:hover { background: var(--cat-food-tint, rgba(220,99,67,.12)); color: var(--cat-food-ink, #dc6343); }
+
 /* 이미 배치된 후보: 비활성화하지 않고(다시 배치 가능) 배치 횟수만 표시 */
 .plan-organize .cand-flat-placed {
   display: inline-flex;
