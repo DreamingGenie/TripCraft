@@ -97,7 +97,8 @@
 
 > **2차 적용 완료(2026-06-24)**: 아래 9-1·9-2·9-3·9-5 적용. 9-4는 재검증 결과 핵심 주장이 오진이라 분석 정정. grab 해제 누락 버그(드래그 종료 시 서버 grabMap이 안 비워져 stale까지 잠금 잔존)도 함께 수정.
 
-- **9-1. displayOrder 서버 권위 할당 — ✅ 적용** — `placeBlock`은 클라 값을 무시하고 `nextDisplayOrder`(MAX+1)로 서버가 할당, 다른 날짜로 이동 시에도 그 날짜 기준 재할당. 동시 배치 시 순서 충돌을 완화. *잔여*: 두 `MAX+1` SELECT가 동시에 같은 값을 읽는 좁은 race는 남음(완전 차단은 `trip_block.trip_id` 컬럼 추가 + `UNIQUE(trip_id, trip_date, display_order)` 필요 — 스키마 확장이라 보류). "다른 블록을 같은 시간대에 겹치게 놓는" 시각적 겹침은 start_time 기반이라 별개이며 커서 인지에 위임.
+- **9-1. displayOrder 서버 권위 할당 — ✅ 적용** — `placeBlock`은 클라 값을 무시하고 `nextDisplayOrder`(MAX+1)로 서버가 할당, 다른 날짜로 이동 시에도 그 날짜 기준 재할당. 동시 배치 시 순서 충돌을 완화. *잔여*: 두 `MAX+1` SELECT 동시 읽기 race는 §12의 `trip` 행 잠금(`FOR UPDATE`)을 거치는 placeBlock/updateBlock 경로에선 직렬화돼 해소됨(완전 무관 보장은 `trip_block.trip_id` + UNIQUE라야 하지만 우선순위 낮음).
+- **9-1b. 블록 시간대 겹침 금지 — ✅ 적용(§12 참조)** — "다른 블록을 같은 시간대에 겹치게 놓는" 문제는 9-1(display_order)과 별개의 시간 제약. 서버 `countOverlapping` + `trip` 행 `FOR UPDATE` 직렬화로 차단(아래 §12).
 - **9-2. removeCandidate TOCTOU — ✅ 적용** — 선제 `existsBlockByCandidateId` 체크는 친절 메시지용으로 유지하고, 실제 `deleteById`를 `DataIntegrityViolationException`(FK RESTRICT) 캐치로 감싸 동시 placeBlock이 끼어든 경우도 동일 메시지(409)로 변환.
 - **9-3. 이벤트 시퀀스 — ✅ 적용(부분)** — `TripEvent.seq`(일정별 `AtomicLong` 단조 증가)를 `broadcast()`에서 스탬프, 프론트 `handleTripEvent`가 `seq <= lastEventSeq`면 무시(중복·역전 제거). *잔여*: 재연결 중 유실분 재조회 엔드포인트는 미구현(현재 reconnect `loadTrip` 전체 재조회로 수렴하므로 데이터 유실은 없음).
 - **9-4. presence in-memory 경합 — ⚠️ 분석 정정(코드 변경 없음)** — 기존 "`computeIfAbsent` 복합 연산 비원자성" 주장은 **오진**: `ConcurrentHashMap.computeIfAbsent`는 원자적이라 동시 호출자가 같은 내부 맵을 받는다. 남은 항목(재연결 유령 sessionId, `broadcastPresence` 스냅샷 TOCTOU, 세션맵 2-put 비대칭)은 모두 **자가 회복·표시 수준**(다음 broadcast/stale evict로 수렴)이라 핫 패스(커서 이동마다)에 락을 거는 비용이 이득보다 큼 → 의도적으로 현행 유지. 우선순위 낮음으로 하향.
@@ -148,6 +149,16 @@
 - **11-6. 권한 캐시·세션 정리 부하** — presence in-memory 맵(§9-4)·세대 카운터가 인원·세션 수에 비례. 표시 수준이라 치명적이진 않으나, 유령 참가자 정리(stale evict 5초)가 인원 많을 때 더 눈에 띔.
 
 > 요약: **데이터 정합성은 인원이 늘어도 낙관적 락+grab+권한세대로 지켜진다.** 인원 확장 시 먼저 무너지는 건 **정합성이 아니라 성능·UX**(broadcast 부하, 거부율, 재계산 중복)다. 따라서 다음 보강 1순위는 §9-6(broadcast 효율)과 §11-3(재계산 디바운스).
+
+## 12. 블록 시간대 겹침 금지 — ✅ 적용 (2026-06-24)
+
+> 한 날짜에 두 블록이 같은 시간대에 겹쳐 존재하지 못하게 막는다(예: 1~5시 위에 3~7시 배치 금지). 단일 편집 정합성 + 협업 동시성 둘 다 처리.
+
+- **겹침 정의**: 같은 trip·날짜에서 `[start, start+duration)` 교차. 분 단위(0~1440) 정수 비교(`countOverlapping`)로 `TIME` 자정 넘김 회피. start_time NULL(미확정)은 제외.
+- **서버**: `placeBlock`·`updateBlock`(위치 편집)에서 검사 → 겹치면 409 "선택한 시간대에 이미 다른 일정이 있어요".
+- **동시성**: 검사 직전 `trip` 행 `FOR UPDATE`(`lockTripRow`)로 같은 일정 편집을 직렬화 → 두 명이 동시에 겹치는 자리에 놓는 race를 차단(둘째는 첫째 커밋 후 최신 상태로 검사). 부수 효과로 9-1 MAX+1 race도 이 잠금 안에서 안전.
+- **프론트**: 드롭/리사이즈 전 `overlapsExisting`(top/height) 선검사 → 즉시 토스트 + 낙관적 UI 되돌림. 서버가 최종 권위(race 시 409 폴백).
+- **한계/후속**: 잠금 단위가 "일정 전체"라 같은 일정의 무관한 편집도 짧게 직렬화(인원 많으면 §9-6 broadcast가 먼저 병목이라 실질 영향 작음). 시각적 겹침 미리보기(드롭 프리뷰 빨강)나 리사이즈 라이브 클램프는 UX 후속.
 
 ---
 
