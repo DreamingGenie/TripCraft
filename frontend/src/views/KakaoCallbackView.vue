@@ -30,7 +30,7 @@ onMounted(async () => {
   // 백엔드가 access/refresh 토큰을 HttpOnly 쿠키로 심으므로 응답 바디에서 토큰을 읽지 않는다.
   const result = await auth.kakaoLogin(code)
   if (result.ok) {
-    router.replace('/explore')
+    router.replace('/plan')
   } else {
     toast.show(result.message || '카카오 로그인에 실패했습니다.')
     router.replace('/auth')
