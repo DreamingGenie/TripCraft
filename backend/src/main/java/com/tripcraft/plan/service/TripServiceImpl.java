@@ -161,6 +161,7 @@ public class TripServiceImpl implements TripService {
         if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
         tripMapper.updateShare(tripId, access, token);
         accessVersion.bump(tripId);  // 공유 접근 레벨 변경 → 캐시된 권한 무효화
+        log.info("공유 설정 변경 tripId={} access={} requesterId={}", tripId, access, requesterId);
         return token;
     }
 
@@ -311,6 +312,7 @@ public class TripServiceImpl implements TripService {
         trip.setIsPublic(false);
         trip.setDefaultTransitMode(req.getDefaultTransitMode() != null ? req.getDefaultTransitMode() : "PUBLIC_TRANSIT");
         tripMapper.insert(trip);
+        log.info("여행 생성 tripId={} memberId={}", trip.getId(), memberId);
         return trip.getId();
     }
 

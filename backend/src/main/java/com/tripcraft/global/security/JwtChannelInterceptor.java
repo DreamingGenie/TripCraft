@@ -52,6 +52,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         if (memberId != null) {
             accessor.setUser(new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
         }
+        log.info("협업 WS 연결 sessionId={} memberId={}", accessor.getSessionId(), memberId);
     }
 
     // ── SUBSCRIBE: /topic/trip/{tripId} 구독 시 조회 권한 확인 ──────────────
@@ -77,7 +78,10 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                         || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
-        if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+        if (!canView) {
+            log.warn("협업 WS 구독 거부(권한 없음) tripId={} memberId={}", tripId, memberId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+        }
 
         accessor.getSessionAttributes().put(cacheKey, gen);
     }
@@ -91,7 +95,10 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         if (tripId == null) return;
 
         Long memberId = getMemberIdFromSession(accessor);
-        if (memberId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (memberId == null) {
+            log.warn("협업 WS 발행 거부(미인증) tripId={}", tripId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
 
         // SUBSCRIBE 캐시와 공유. 접근 권한 세대가 바뀌면(협업자 제거 등) 재검증.
         String cacheKey = "tripAccess:" + tripId;
@@ -105,7 +112,10 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                         || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
-        if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+        if (!canView) {
+            log.warn("협업 WS 발행 거부(권한 없음) tripId={} memberId={}", tripId, memberId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
+        }
 
         accessor.getSessionAttributes().put(cacheKey, gen);
     }

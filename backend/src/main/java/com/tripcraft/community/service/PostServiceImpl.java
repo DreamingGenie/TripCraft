@@ -13,6 +13,7 @@ import com.tripcraft.community.event.PostImageDeletedEvent;
 import com.tripcraft.global.attach.domain.Attach;
 import com.tripcraft.global.attach.mapper.AttachMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
@@ -53,6 +55,7 @@ public class PostServiceImpl implements PostService {
         // 대표사진(post_cover_draft, targetId=memberId) → 이 게시글의 커버로 연결
         attachMapper.updateTargetId("post_cover_draft", memberId, "post_cover", post.getId());
 
+        log.info("게시글 작성 postId={} memberId={}", post.getId(), memberId);
         return post.getId();
     }
 
@@ -110,6 +113,7 @@ public class PostServiceImpl implements PostService {
         if (!hostPaths.isEmpty()) {
             eventPublisher.publishEvent(new PostImageDeletedEvent(hostPaths));
         }
+        log.info("게시글 삭제 postId={} memberId={}", id, memberId);
     }
 
     @Override
