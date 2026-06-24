@@ -53,6 +53,7 @@ const isSocial = computed(() => !!auth.user?.socialProvider)
 const tabs = [
   { to: '/mypage/trips',     label: '내 여행',   icon: 'M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7ZM9 4v13M15 7v13' },
   { to: '/mypage/profile',   label: '내 정보',   icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0' },
+  { to: '/mypage/places',    label: '내 장소',   icon: 'M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10ZM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z' },
   { to: '/mypage/map',       label: '방문 지도', icon: 'm9 4-6 2.4v13.6L9 18l6 2 6-2.4V4l-6 2.4-6-2.4ZM9 4v14M15 6v14' },
   { to: '/mypage/posts',     label: '내가 쓴 글', icon: 'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z' },
   { to: '/mypage/bookmarks', label: '북마크',    icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' },

@@ -623,6 +623,15 @@
   font-weight: 650;
   cursor: pointer;
 }
+.plan-organize .btn-add-place {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 6px; padding: 9px;
+  font-family: inherit; font-size: var(--text-base); font-weight: 650;
+  color: var(--purple-900); background: var(--purple-50);
+  border: 1px solid var(--purple-100); border-radius: var(--radius-md); cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.plan-organize .btn-add-place:hover { background: var(--purple-100); border-color: var(--purple-900); }
 
 /* ── 보관함 접기/펼치기 (Day 요약 바 폐지: 날짜별 활동·이동 합은 근거 부족 + 다일정 시 레이아웃 붕괴) ── */
 /* 헤더 내 접기 버튼 */

@@ -206,6 +206,9 @@
             <button v-if="embedded && !readOnly" class="btn-add-from-explore" @click="$emit('explore')">
               + 탐색에서 더 담기
             </button>
+            <button v-if="embedded && !readOnly" class="btn-add-place" @click="addPlaceOpen = true">
+              + 내 장소 · 직접 추가
+            </button>
             <RouterLink v-else to="/explore" class="btn-add-from-explore">
               + 관광지 탐색에서 추가하기
             </RouterLink>
@@ -524,6 +527,10 @@
     </template>
   </Teleport>
 
+  <!-- 장소 추가(내 장소·직접 추가) -->
+  <AddPlaceModal v-if="addPlaceOpen && activeTripId" :trip-id="activeTripId"
+                 @close="addPlaceOpen = false" @added="onPlaceAdded" />
+
   </main>
 </template>
 
@@ -537,6 +544,7 @@ import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
+import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
 
 // embedded=true 이면 PlanView organize 모드 안에서 동작(자체 툴바·트레이 select 숨김,
@@ -564,6 +572,8 @@ const SNAP = 30
 
 // ── UI state ──
 const sidebarOpen = ref(true)
+const addPlaceOpen = ref(false)
+function onPlaceAdded() { loadTrip() }
 
 // ── 분류 6색 ink (전 화면 공통 신호) ──
 const CAT_INK = {
