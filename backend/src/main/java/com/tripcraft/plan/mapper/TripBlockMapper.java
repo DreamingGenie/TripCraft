@@ -21,6 +21,9 @@ public interface TripBlockMapper {
 
     List<TripBlock> findByTripIdAndDate(@Param("tripId") Long tripId, @Param("date") LocalDate date);
 
+    /** 해당 일정·날짜의 다음 display_order(= MAX+1). 서버 권위적으로 순서를 할당해 클라이언트 충돌 방지. */
+    int nextDisplayOrder(@Param("tripId") Long tripId, @Param("date") LocalDate date);
+
     void insert(TripBlock block);
 
     void update(TripBlock block);
