@@ -348,6 +348,10 @@ public class TripServiceImpl implements TripService {
         if (req.getName() == null || req.getName().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "장소명이 필요합니다.");
         String category = req.getCategory() != null ? req.getCategory() : "관광지";
+        if (req.getLatitude() != null && req.getLongitude() != null
+                && candidateMapper.existsCustomByCoords(tripId, req.getLatitude(), req.getLongitude())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 보관함에 있는 장소예요.");
+        }
         TripCandidate c = new TripCandidate();
         c.setTripId(tripId);
         c.setSource("CUSTOM");
@@ -380,6 +384,10 @@ public class TripServiceImpl implements TripService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."));
         if (!p.getMemberId().equals(memberId))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (p.getLatitude() != null && p.getLongitude() != null
+                && candidateMapper.existsCustomByCoords(tripId, p.getLatitude(), p.getLongitude())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 보관함에 있는 장소예요.");
+        }
         TripCandidate c = new TripCandidate();
         c.setTripId(tripId);
         c.setSource("CUSTOM");

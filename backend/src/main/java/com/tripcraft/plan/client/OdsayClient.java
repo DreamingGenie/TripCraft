@@ -30,6 +30,16 @@ public class OdsayClient {
     private static final String BASE_URL      = "https://api.odsay.com/v1/api/searchPubTransPathT";
     private static final String LOAD_LANE_URL = "https://api.odsay.com/v1/api/loadLane";
 
+    // 도시내(local) 경로 캐시 — 도시간 경로 보강 시 출발지→출발역/도착역→목적지를 경로마다 호출하는데,
+    // 같은 역을 공유하는 경로가 많아 중복이 심하다. 캐시로 호출 수를 줄여 내부 rate-limit 을 방지.
+    // 성공·추정(-98) 결과만 저장(빈 응답=rate-limit 은 미저장 → 재시도). 단일 인스턴스 전제.
+    private final java.util.Map<String, LocalPathResult> localPathCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int LOCAL_CACHE_MAX = 2000;
+
+    private static String localKey(BigDecimal a, BigDecimal b, BigDecimal c, BigDecimal d) {
+        return String.format("%.5f,%.5f>%.5f,%.5f", a.doubleValue(), b.doubleValue(), c.doubleValue(), d.doubleValue());
+    }
+
     /** ODsay 응답의 모든 경로를 파싱해 반환. 도보 전용 경로는 제외. 오류 시 빈 리스트 반환. */
     public List<OdsayResult> findTransitPath(BigDecimal fromLat, BigDecimal fromLng,
                                               BigDecimal toLat, BigDecimal toLng) {
@@ -77,6 +87,9 @@ public class OdsayClient {
      *  700m 이내(-98) → Haversine 추정(estimated=true). 도시간 결과·오류 → empty. */
     public Optional<LocalPathResult> findLocalPath(BigDecimal fromLat, BigDecimal fromLng,
                                                     BigDecimal toLat, BigDecimal toLng) {
+        String cacheKey = localKey(fromLat, fromLng, toLat, toLng);
+        LocalPathResult hit = localPathCache.get(cacheKey);
+        if (hit != null) return Optional.of(hit);
         String encodedKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
         String url = BASE_URL + "?lang=0&SearchType=0&SX=" + fromLng + "&SY=" + fromLat
                 + "&EX=" + toLng + "&EY=" + toLat + "&apiKey=" + encodedKey;
@@ -93,10 +106,12 @@ public class OdsayClient {
                         ? root.path("error").get(0).path("code").asInt(0)
                         : root.path("error").path("code").asInt(0);
                 if (code == -98) {
-                    return Optional.of(new LocalPathResult(
-                            haversineMinutes(fromLat, fromLng, toLat, toLng, 5.0), true, null));
+                    LocalPathResult est = new LocalPathResult(
+                            haversineMinutes(fromLat, fromLng, toLat, toLng, 5.0), true, null);
+                    putLocalCache(cacheKey, est);   // -98(너무 가까움)은 결정적 추정 → 캐시
+                    return Optional.of(est);
                 }
-                return Optional.empty();
+                return Optional.empty();   // 그 외 오류(rate-limit 등)는 캐시 안 함 → 재시도
             }
 
             JsonNode paths = root.path("result").path("path");
@@ -107,12 +122,19 @@ public class OdsayClient {
 
             int totalTime = first.path("info").path("totalTime").asInt(0);
             if (totalTime <= 0) return Optional.empty();
-            return Optional.of(new LocalPathResult(totalTime, false, first));
+            LocalPathResult ok = new LocalPathResult(totalTime, false, first);
+            putLocalCache(cacheKey, ok);
+            return Optional.of(ok);
 
         } catch (Exception e) {
             log.warn("ODsay 도시내 호출 실패: {}", e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private void putLocalCache(String key, LocalPathResult v) {
+        if (localPathCache.size() > LOCAL_CACHE_MAX) localPathCache.clear();
+        localPathCache.put(key, v);
     }
 
     /** Haversine 직선거리 기반 소요 시간 추정. 도시내 API 실패 시 폴백으로 사용. */
