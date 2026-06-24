@@ -20,8 +20,9 @@
         </div>
 
         <!-- 공지 배너 -->
-        <!-- 검색창: 전체폭 단일 필드(좌측 아이콘·우측 clear), Enter로 검색 → 형제 요소와 폭 통일 -->
-        <div class="search-bar">
+        <!-- 검색창: 전체폭 단일 필드(좌측 아이콘·우측 clear), Enter로 검색 → 형제 요소와 폭 통일.
+             클래스명 search-field 로 분리 — explore.css 전역 .search-bar/.search-bar input 규칙 누수(테두리 제거·포커스 글로우) 차단 -->
+        <div class="search-field">
           <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />

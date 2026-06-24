@@ -425,8 +425,8 @@
    §5 organize 모드 — 24h 격자 + 보관함(플랫·분류색, 다중배치) + Day요약
    ScheduleBoard 를 embedded 로 임베드. .plan-organize 스코프로 한정.
    ============================================================ */
-.plan-organize { flex: 1; min-height: 0; display: flex; background: var(--bg-page); }
-.plan-organize .board-embedded { flex: 1; min-height: 0; display: flex; }
+.plan-organize { flex: 1; min-width: 0; min-height: 0; display: flex; background: var(--bg-page); }
+.plan-organize .board-embedded { flex: 1; min-width: 0; min-height: 0; display: flex; }
 .plan-organize #screen-schedule { background: var(--bg-page); }
 
 /* 빈 상태 */
