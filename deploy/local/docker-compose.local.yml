@@ -1,0 +1,63 @@
+# 로컬 간단 실행용 — http://localhost:8095 (TLS·호스트nginx 불필요).
+# 이미지에 스키마·시드·nginx설정을 구워 자족화 → docker save 로 통째 전달 가능.
+#
+# 소스에서 실행:   docker compose -f docker-compose.local.yml up -d --build
+# 번들(이미지)로 실행: docker compose -f docker-compose.local.yml up -d --no-build  (build-and-save.sh 로 만든 이미지 load 후)
+#
+# 시크릿: ./backend-secrets.local.env (없으면 .example 복사). 외부 API키는 더미여도 기동됨
+#          — 이메일 로그인·실시간 협업 테스트엔 키 불필요.
+
+services:
+  mysql:
+    build:
+      context: ../..
+      dockerfile: deploy/local/mysql.Dockerfile
+    image: tripcraft-mysql:local
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-localroot}
+      MYSQL_DATABASE: ${DB_NAME:-tripcraft}
+      MYSQL_USER: ${DB_USERNAME:-tripcraft}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-localpw}
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-localroot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../../backend
+    image: tripcraft-backend:local
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-tripcraft}
+      DB_USERNAME: ${DB_USERNAME:-tripcraft}
+      DB_PASSWORD: ${DB_PASSWORD:-localpw}
+      UPLOAD_DIR: /app/uploads
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Seoul
+    env_file:
+      - ./backend-secrets.local.env   # JWT·외부 API키(더미 가능)
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/local/web.Dockerfile
+    image: tripcraft-web:local
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:${APP_PORT:-8095}:80"   # 로컬 전용 — http://localhost:8095
+    restart: unless-stopped
+
+volumes:
+  uploads:
