@@ -16,4 +16,5 @@ public class BlockUpdateRequest {
     private Integer transitDurationMinutes;
     private Integer taxiFare;
     private Integer transitOptionIndex;
+    private Integer version;
 }

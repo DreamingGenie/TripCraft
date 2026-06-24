@@ -19,4 +19,5 @@ public class BlockItem {
     private Integer transitDurationMinutes;
     private String transitMode;
     private Integer transitOptionIndex;
+    private Integer version;
 }
