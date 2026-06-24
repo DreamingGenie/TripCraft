@@ -30,4 +30,8 @@ export const tripApi = {
     http.post(`/api/trips/${tripId}/collaborators`, { memberId, role }),
   removeCollaborator: (tripId, targetMemberId) =>
     http.del(`/api/trips/${tripId}/collaborators/${targetMemberId}`),
+
+  // 링크 공유: 접근 레벨 설정(소유자) → { access, token } / 토큰으로 조회(비로그인 허용)
+  setShareAccess: (tripId, access) => http.put(`/api/trips/${tripId}/share`, { access }),
+  getShared: (token) => http.get(`/api/trips/shared/${token}`),
 }

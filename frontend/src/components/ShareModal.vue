@@ -6,11 +6,24 @@
         <button class="share-x" @click="$emit('close')" aria-label="닫기">✕</button>
       </header>
 
-      <!-- 엑세스 링크 복사: 초대된 사용자는 이 링크로 작업실에 들어옴(접근 권한은 서버에서 검증) -->
-      <div class="share-link-row">
-        <span class="share-link-ico" aria-hidden="true">🔗</span>
-        <input class="share-link-input" :value="accessLink" readonly @focus="$event.target.select()" />
-        <button class="share-link-copy" @click="copyLink">{{ copied ? '복사됨' : '링크 복사' }}</button>
+      <!-- 링크 접근 설정 + 공유 URL (랜덤 토큰). 접근 레벨은 서버에서 검증 -->
+      <div class="share-access">
+        <div class="share-access-row">
+          <span class="share-link-ico" aria-hidden="true">🔗</span>
+          <span class="share-access-label">링크 접근</span>
+          <select v-if="isOwner" class="share-access-select" :value="access"
+                  @change="changeAccess($event.target.value)">
+            <option value="PRIVATE">비공개</option>
+            <option value="VIEW">링크가 있는 사용자: 조회</option>
+            <option value="EDIT">링크가 있는 사용자: 편집</option>
+          </select>
+          <span v-else class="share-access-static">{{ accessLabel }}</span>
+        </div>
+        <div v-if="shareUrl" class="share-link-row">
+          <input class="share-link-input" :value="shareUrl" readonly @focus="$event.target.select()" />
+          <button class="share-link-copy" @click="copyLink">{{ copied ? '복사됨' : '링크 복사' }}</button>
+        </div>
+        <p v-else class="share-access-hint">비공개 — 소유자와 초대된 사용자만 접근할 수 있어요.</p>
       </div>
 
       <!-- 사용자 검색·추가 (소유자만) -->
@@ -77,17 +90,37 @@ const props = defineProps({
   ownerLabel: { type: String, default: '소유자' },
   participants: { type: Array, default: () => [] },
   colorMap: { type: Object, default: () => ({}) },
+  shareAccess: { type: String, default: 'PRIVATE' },
+  shareToken: { type: String, default: '' },
 })
 defineEmits(['close', 'publish'])
 
 const toast = useToastStore()
 
-// ── 엑세스 링크 ──
-const accessLink = computed(() => `${window.location.origin}/plan/${props.tripId}`)
+// ── 링크 접근 설정 + 공유 URL ──
+const access = ref(props.shareAccess || 'PRIVATE')
+const token = ref(props.shareToken || '')
+const ACCESS_LABEL = { PRIVATE: '비공개', VIEW: '링크 조회', EDIT: '링크 편집' }
+const accessLabel = computed(() => ACCESS_LABEL[access.value] || '비공개')
+const shareUrl = computed(() =>
+  access.value !== 'PRIVATE' && token.value
+    ? `${window.location.origin}/plan/${props.tripId}?s=${token.value}` : '')
+async function changeAccess(next) {
+  const prev = access.value
+  access.value = next
+  try {
+    const res = await tripApi.setShareAccess(props.tripId, next)
+    if (res?.token) token.value = res.token
+  } catch {
+    access.value = prev
+    toast.show('접근 설정 변경에 실패했어요')
+  }
+}
 const copied = ref(false)
 async function copyLink() {
+  if (!shareUrl.value) return
   try {
-    await navigator.clipboard.writeText(accessLink.value)
+    await navigator.clipboard.writeText(shareUrl.value)
     copied.value = true
     setTimeout(() => (copied.value = false), 1500)
   } catch {
@@ -194,6 +227,20 @@ onMounted(loadCollaborators)
   transition: background .14s;
 }
 .share-link-copy:hover { background: var(--primary-dark); }
+
+/* 링크 접근 설정 */
+.share-access { margin-bottom: 16px; }
+.share-access-row { display: flex; align-items: center; gap: 8px; }
+.share-access-label { font-size: var(--text-sm); font-weight: 650; color: var(--text-primary); }
+.share-access-select {
+  margin-left: auto; font-family: inherit; font-size: var(--text-sm);
+  color: var(--text-primary); background: var(--bg-page);
+  border: 1px solid var(--gray-border); border-radius: var(--radius-md);
+  padding: 6px 10px; cursor: pointer;
+}
+.share-access-static { margin-left: auto; font-size: var(--text-sm); color: var(--gray-dark); }
+.share-access .share-link-row { margin-top: 10px; margin-bottom: 0; }
+.share-access-hint { margin: 10px 0 0; font-size: var(--text-xs); color: var(--gray-muted); }
 
 /* 검색·추가 */
 .share-invite { position: relative; margin-bottom: 16px; }

@@ -13,6 +13,10 @@ public interface TripMapper {
 
     Optional<Trip> findById(Long id);
 
+    Optional<Trip> findByShareToken(String token);
+
+    void updateShare(@Param("id") Long id, @Param("access") String access, @Param("token") String token);
+
     List<Trip> findByMemberId(Long memberId);
 
     List<Trip> findCollaboratingByMemberId(Long memberId);

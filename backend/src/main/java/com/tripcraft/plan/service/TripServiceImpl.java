@@ -66,10 +66,18 @@ public class TripServiceImpl implements TripService {
     private TripRole resolveRole(Long tripId, Long memberId) {
         Trip trip = tripMapper.findById(tripId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (trip.getMemberId().equals(memberId)) return TripRole.OWNER;
-        return collaboratorMapper.findByTripAndMember(tripId, memberId)
-            .map(c -> TripRole.valueOf(c.getRole()))
-            .orElse(null);
+        if (memberId != null && trip.getMemberId().equals(memberId)) return TripRole.OWNER;
+        if (memberId != null) {
+            TripRole r = collaboratorMapper.findByTripAndMember(tripId, memberId)
+                .map(c -> TripRole.valueOf(c.getRole()))
+                .orElse(null);
+            if (r != null) return r;
+        }
+        // 링크 공유 폴백: VIEW=조회 / EDIT=로그인 시 편집·비로그인 조회 / PRIVATE=없음
+        String access = trip.getShareAccess();
+        if ("EDIT".equals(access)) return memberId != null ? TripRole.EDITOR : TripRole.VIEWER;
+        if ("VIEW".equals(access)) return TripRole.VIEWER;
+        return null;
     }
 
     private void assertCanView(Long tripId, Long memberId) {
@@ -86,6 +94,38 @@ public class TripServiceImpl implements TripService {
     private void assertCanManage(Long tripId, Long memberId) {
         if (resolveRole(tripId, memberId) != TripRole.OWNER)
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
+
+    private String generateShareToken() {
+        byte[] buf = new byte[16];
+        new java.security.SecureRandom().nextBytes(buf);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(buf); // 22자
+    }
+
+    // ── 공유 링크 ─────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public String setShareAccess(Long tripId, String access, Long requesterId) {
+        assertCanManage(tripId, requesterId);
+        if (!"PRIVATE".equals(access) && !"VIEW".equals(access) && !"EDIT".equals(access))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid access");
+        Trip trip = tripMapper.findById(tripId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        String token = trip.getShareToken();
+        if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
+        tripMapper.updateShare(tripId, access, token);
+        return token;
+    }
+
+    @Override
+    public TripDetailResponse getSharedTrip(String token, Long memberId) {
+        Trip trip = tripMapper.findByShareToken(token)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (trip.getShareAccess() == null || "PRIVATE".equals(trip.getShareAccess()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        // assertCanView 는 share_access 폴백으로 통과 (비로그인 포함)
+        return getTripDetail(trip.getId(), memberId);
     }
 
     private String nickname(Long memberId) {
@@ -193,7 +233,8 @@ public class TripServiceImpl implements TripService {
 
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
             trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),
-            trip.getDefaultTransitMode(), ownerNickname, myRole, candidateItems);
+            trip.getDefaultTransitMode(), ownerNickname, myRole, candidateItems,
+            trip.getShareAccess(), trip.getShareToken());
     }
 
     @Override

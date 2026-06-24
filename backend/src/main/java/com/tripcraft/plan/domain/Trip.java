@@ -17,6 +17,8 @@ public class Trip {
     private LocalDate endDate;
     private Integer memberCount;
     private Boolean isPublic;
+    private String shareAccess = "PRIVATE";   // PRIVATE | VIEW | EDIT (링크 접근 레벨)
+    private String shareToken;                // 공유 링크 랜덤 토큰(URL-safe)
     private String defaultTransitMode = "PUBLIC_TRANSIT";
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

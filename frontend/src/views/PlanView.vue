@@ -125,6 +125,8 @@
       :owner-label="activeTripOwnerLabel"
       :participants="collab.participants"
       :color-map="collab.colorMap"
+      :share-access="activeTripDetail?.shareAccess || 'PRIVATE'"
+      :share-token="activeTripDetail?.shareToken || ''"
       @close="shareModalOpen = false"
       @publish="onPublish"
     />

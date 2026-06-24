@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/signup", "/api/auth/refresh", "/api/auth/logout", "/api/auth/kakao").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/attractions/**", "/api/posts/**", "/api/notices/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/trips/*/blocks-summary").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/trips/shared/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // WebSocket (SockJS HTTP 핸드셰이크)
                 .requestMatchers("/ws/**").permitAll()

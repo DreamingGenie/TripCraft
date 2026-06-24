@@ -89,6 +89,25 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getTripDetail(id, memberId)));
     }
 
+    // 링크 접근 레벨 설정 (소유자) → {access, token}
+    @PutMapping("/{id}/share")
+    public ResponseEntity<ApiResponse<Map<String, String>>> setShare(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Long memberId) {
+        String access = body.getOrDefault("access", "PRIVATE");
+        String token = tripService.setShareAccess(id, access, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("access", access, "token", token == null ? "" : token)));
+    }
+
+    // 공유 토큰으로 일정 조회 (비로그인 허용 — SecurityConfig permitAll)
+    @GetMapping("/shared/{token}")
+    public ResponseEntity<ApiResponse<TripDetailResponse>> getShared(
+            @PathVariable("token") String token,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getSharedTrip(token, memberId)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(
             @PathVariable("id") Long id,
