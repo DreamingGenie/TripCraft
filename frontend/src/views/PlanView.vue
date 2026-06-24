@@ -40,7 +40,22 @@
                   <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <div v-if="!trips.length" class="plan-trip-dd-empty">등록된 일정이 없습니다</div>
+              <template v-if="collaboratingTrips.length">
+                <div class="plan-trip-dd-group">초대받은 일정</div>
+                <button
+                  v-for="t in collaboratingTrips" :key="'collab-' + t.id"
+                  class="plan-trip-dd-item" :class="{ active: t.id === activeTrip }"
+                  @click="selectTrip(t.id)">
+                  <span class="plan-trip-dd-main">
+                    <span class="plan-trip-dd-name">{{ t.title }}</span>
+                    <span class="plan-trip-dd-dates">{{ t.startDate }} ~ {{ t.endDate }}</span>
+                  </span>
+                  <svg v-if="t.id === activeTrip" class="plan-trip-dd-check" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </template>
+              <div v-if="!trips.length && !collaboratingTrips.length" class="plan-trip-dd-empty">등록된 일정이 없습니다</div>
               <button class="plan-trip-dd-new" @click="tripMenuOpen = false; openScheduleModal()">
                 + 새 일정 만들기
               </button>
@@ -67,6 +82,28 @@
       </div>
 
       <span class="plan-header-spacer"></span>
+
+      <!-- 협업자 초대·관리 (일정 선택 시 항상) -->
+      <div v-if="currentTrip" class="plan-collab-menu">
+        <button ref="collabBtnRef" class="plan-action-btn plan-action-btn--collab"
+                :class="{ active: collabPanelOpen }"
+                @click="collabPanelOpen = !collabPanelOpen">
+          <span class="collab-status-dot" :class="{ connected: collab.connected }"></span>
+          협업자
+        </button>
+        <Transition name="trip-menu-pop">
+          <div v-if="collabPanelOpen" ref="collabPanelRef" class="plan-collab-overlay">
+            <CollaboratorPanel
+              :trip-id="activeTrip"
+              :is-owner="activeTripIsOwner"
+              :owner-label="activeTripOwnerLabel"
+              :participants="collab.participants"
+              :color-map="collab.colorMap"
+              @close="collabPanelOpen = false"
+            />
+          </div>
+        </Transition>
+      </div>
 
       <!-- 정리 모드 전용 우측 액션 -->
       <template v-if="mode === 'organize' && currentTrip">
@@ -565,13 +602,16 @@ import { ref, computed, reactive, inject, watch, onMounted, onUnmounted, nextTic
 import { useRoute, useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toast'
 import { useActiveTripStore } from '@/stores/activeTrip'
+import { useCollabStore } from '@/stores/collab'
 import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
 import AttractionChat from '@/components/AttractionChat.vue'
 import ScheduleBoard from '@/components/ScheduleBoard.vue'
+import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
 
 const toast = useToastStore()
 const activeTripStore = useActiveTripStore()
+const collab = useCollabStore()
 const openScheduleModal = inject('openScheduleModal')
 
 const route = useRoute()
@@ -589,7 +629,18 @@ function shareTrip() {
 const mode = ref('explore') // 'explore' | 'organize'
 const trayOpen = ref(false) // 평소 지도를 넓게: 담기/드래그 시 자동으로 열림
 const isDraggingCard = ref(false)
-const currentTrip = computed(() => trips.value.find(t => t.id === activeTrip.value))
+const currentTrip = computed(() =>
+  trips.value.find(t => t.id === activeTrip.value) ||
+  collaboratingTrips.value.find(t => t.id === activeTrip.value)
+)
+
+// ── 협업자 패널 (초대·역할) ──
+const collabPanelOpen = ref(false)
+const collabPanelRef = ref(null)
+const collabBtnRef = ref(null)
+const activeTripDetail = ref(null)  // 현재 일정 상세 (myRole·ownerNickname)
+const activeTripIsOwner = computed(() => activeTripDetail.value?.myRole === 'OWNER')
+const activeTripOwnerLabel = computed(() => activeTripDetail.value?.ownerNickname ?? '소유자')
 
 // ── 헤더 현재 여행 드롭다운 ──
 const tripMenuOpen = ref(false)
@@ -601,12 +652,18 @@ function selectTrip(id) {
 }
 function onTripMenuOutside(e) {
   if (tripMenuRef.value && !tripMenuRef.value.contains(e.target)) tripMenuOpen.value = false
+  if (collabPanelOpen.value
+      && collabPanelRef.value && !collabPanelRef.value.contains(e.target)
+      && collabBtnRef.value && !collabBtnRef.value.contains(e.target)) {
+    collabPanelOpen.value = false
+  }
 }
 function onTripMenuKey(e) {
   if (e.key === 'Escape') tripMenuOpen.value = false
 }
 
 const trips = ref([])
+const collaboratingTrips = ref([])   // 초대받아 참여 중인 일정
 const tripsLoading = ref(false)
 const activeTrip = ref(null)
 const addedIds = ref(new Set())
@@ -1306,14 +1363,17 @@ watch(activeTrip, async (id) => {
     activeTripCandidates.value = []
     addedIds.value = new Set()
     candidateIdMap.value = new Map()
+    activeTripDetail.value = null
     return
   }
   try {
     const detail = await tripApi.get(id)
+    activeTripDetail.value = detail
     activeTripCandidates.value = detail.candidates || []
     addedIds.value = new Set(detail.candidates.map(c => c.attractionId))
     candidateIdMap.value = new Map(detail.candidates.map(c => [c.attractionId, c.id]))
   } catch {
+    activeTripDetail.value = null
     activeTripCandidates.value = []
   }
 })
@@ -1321,7 +1381,8 @@ watch(activeTrip, async (id) => {
 // 라우트 tripId 변경(딥링크/뒤로가기) → 현재 일정 전환 (컴포넌트 재사용 시 onMounted 미실행 대응)
 watch(() => route.params.tripId, (val) => {
   const n = val ? Number(val) : null
-  if (n && n !== activeTrip.value && trips.value.some(t => t.id === n)) {
+  const known = trips.value.some(t => t.id === n) || collaboratingTrips.value.some(t => t.id === n)
+  if (n && n !== activeTrip.value && known) {
     activeTrip.value = n
   }
 })
@@ -1422,13 +1483,19 @@ async function onDropToActiveTray(e) {
 async function loadTrips() {
   tripsLoading.value = true
   try {
-    trips.value = await tripApi.list()
-    if (trips.value.length) {
-      // 우선순위: 라우트 tripId > 공유 store > 첫 일정
+    const [owned, collaborating] = await Promise.allSettled([
+      tripApi.list(),
+      tripApi.listCollaborating(),
+    ])
+    trips.value = owned.status === 'fulfilled' ? owned.value : []
+    collaboratingTrips.value = collaborating.status === 'fulfilled' ? collaborating.value : []
+    const all = [...trips.value, ...collaboratingTrips.value]
+    if (all.length) {
+      // 우선순위: 라우트 tripId > 공유 store > 첫 일정(소유 우선)
       const routeId = route.params.tripId ? Number(route.params.tripId) : null
       const candidate = [routeId, activeTripStore.id]
-        .find(id => id != null && trips.value.some(t => t.id === id))
-      activeTrip.value = candidate ?? trips.value[0].id
+        .find(id => id != null && all.some(t => t.id === id))
+      activeTrip.value = candidate ?? all[0].id
       activeTripStore.set(activeTrip.value)
     }
   } catch {
