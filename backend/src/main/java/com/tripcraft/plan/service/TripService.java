@@ -39,6 +39,10 @@ public interface TripService {
 
     Long addCandidate(Long tripId, Long attractionId, Long memberId);
 
+    Long addCustomCandidate(Long tripId, com.tripcraft.plan.dto.CustomCandidateRequest req, Long memberId);
+
+    Long addCandidateFromMyPlace(Long tripId, Long placeId, Long memberId);
+
     void removeCandidate(Long tripId, Long candidateId, Long memberId);
 
     Long placeBlock(Long tripId, BlockCreateRequest request, Long memberId);

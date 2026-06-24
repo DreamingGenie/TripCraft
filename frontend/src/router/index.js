@@ -53,6 +53,7 @@ const mypageRoutes = [
       { path: '', redirect: '/mypage/trips' },
       { path: 'trips',     component: () => import('@/views/TripsView.vue') },
       { path: 'profile',   component: () => import('@/views/MyProfileView.vue') },
+      { path: 'places',    component: () => import('@/views/MyPlacesView.vue') },
       { path: 'map',       component: () => import('@/views/MyMapView.vue') },
       { path: 'posts',     component: () => import('@/views/MyPostsView.vue') },
       { path: 'bookmarks', component: () => import('@/views/MyBookmarksView.vue') },

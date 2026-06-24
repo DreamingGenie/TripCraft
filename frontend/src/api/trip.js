@@ -8,6 +8,11 @@ export const tripApi = {
 
   addCandidate: (tripId, attractionId) =>
     http.post(`/api/trips/${tripId}/candidates`, { attractionId }),
+  // 커스텀 장소 직접 추가 / 내 장소에서 추가
+  addCustomCandidate: (tripId, body) =>
+    http.post(`/api/trips/${tripId}/candidates/custom`, body),
+  addCandidateFromMyPlace: (tripId, placeId) =>
+    http.post(`/api/trips/${tripId}/candidates/from-place/${placeId}`),
   removeCandidate: (tripId, candidateId) =>
     http.del(`/api/trips/${tripId}/candidates/${candidateId}`),
 

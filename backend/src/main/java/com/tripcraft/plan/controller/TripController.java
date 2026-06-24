@@ -125,6 +125,24 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok(candidateId));
     }
 
+    // 커스텀 장소 직접 추가
+    @PostMapping("/{id}/candidates/custom")
+    public ResponseEntity<ApiResponse<Long>> addCustomCandidate(
+            @PathVariable("id") Long id,
+            @RequestBody com.tripcraft.plan.dto.CustomCandidateRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.status(201).body(ApiResponse.ok(tripService.addCustomCandidate(id, request, memberId)));
+    }
+
+    // 내 장소에서 보관함으로 추가
+    @PostMapping("/{id}/candidates/from-place/{placeId}")
+    public ResponseEntity<ApiResponse<Long>> addCandidateFromMyPlace(
+            @PathVariable("id") Long id,
+            @PathVariable("placeId") Long placeId,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.status(201).body(ApiResponse.ok(tripService.addCandidateFromMyPlace(id, placeId, memberId)));
+    }
+
     @DeleteMapping("/{id}/candidates/{candidateId}")
     public ResponseEntity<ApiResponse<Void>> removeCandidate(
             @PathVariable("id") Long id,
