@@ -21,21 +21,14 @@ public interface TransitService {
     Optional<JsonNode> getTransitDetailByCoords(java.math.BigDecimal fromLat, java.math.BigDecimal fromLng,
                                                 java.math.BigDecimal toLat, java.math.BigDecimal toLng, int departureHour);
 
-    /** 좌표 기반 자동차 4옵션. attraction getDrivingOptions 와 동일 구조, 무캐시 라이브. */
-    List<TransitResponse> getDrivingOptionsByCoords(java.math.BigDecimal fromLat, java.math.BigDecimal fromLng,
-                                                    java.math.BigDecimal toLat, java.math.BigDecimal toLng, int departureHour);
-
     /** 좌표 기반 자동차 단일 옵션(optionIndex). 무캐시 라이브. */
     Optional<TransitResponse> getDrivingOptionByCoords(java.math.BigDecimal fromLat, java.math.BigDecimal fromLng,
                                                        java.math.BigDecimal toLat, java.math.BigDecimal toLng,
                                                        int departureHour, int optionIndex);
 
     Optional<TransitResponse> selectPath(Long fromAttractionId, Long toAttractionId, int departureHour, int pathIndex);
-    List<TransitResponse> getDrivingOptions(Long fromId, Long toId, int departureHour);
     Optional<TransitResponse> getDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
     void applyDrivingOption(Long fromId, Long toId, int departureHour, int optionIndex);
-    /** loadLane raw_response를 파싱해 구간별 좌표 반환. [{c: modeClass, p: [[lng,lat],...]}] */
-    List<Map<String, Object>> getLaneSegments(Long fromId, Long toId, int departureHour);
 
     /** 통합 경로 구간(어트랙션). [{c:class, t:호선/버스종류, name:승차역, end:하차역, p:[[lng,lat],...]}] */
     List<Map<String, Object>> getRouteSegments(Long fromId, Long toId, int departureHour);
