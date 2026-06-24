@@ -70,7 +70,7 @@
     </Transition>
 
     <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
-    <div class="schedule-body" @mousemove="onPointerMove">
+    <div class="schedule-body" @mousemove="onPointerMove" @mouseleave="onBoardLeave">
       <!-- 후보군 사이드바 -->
       <aside class="candidate-sidebar"
              :class="{ collapsed: !sidebarOpen, 'drop-delete-zone': sidebarDropActive }"
@@ -754,6 +754,7 @@ let panelResizeStartWidth = 0
 
 let dragState = null
 let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 grab 잠금을 명시 해제하기 위해 보관
+let grabThrottle = null    // 드래그 중 ghost 포인터 전송 throttle 타이머
 const dragPreview = ref(null)
 const isProcessing = ref(false)
 const processingEvId = ref(null)
@@ -2110,11 +2111,23 @@ function onDragOver(e, day) {
   const relY = e.clientY - e.currentTarget.getBoundingClientRect().top - (dragState.grabOffsetY ?? 0)
   const height = dragState.type === 'event' ? dragState.data.height : 60
   dragPreview.value = { top: Math.round(Math.max(0, relY) / SNAP) * SNAP, height }
+  // ghost 전송은 throttle (드래그 중 dragover가 초당 수십 회 발생 → 백로그·랙 방지).
+  // 로컬 dragPreview는 위에서 매 이벤트 갱신하므로 본인 화면은 그대로 부드럽다.
   if (dragState.type === 'event' && activeTripId.value) {
+    if (grabThrottle) return
+    grabThrottle = setTimeout(() => { grabThrottle = null }, collabConfig.cursorThrottleMs)
     collab.sendPointer(activeTripId.value, buildPointerPayload(e, {
       interaction: 'grab', dragState, nickname: auth.user?.nickname ?? '',
     }))
   }
+}
+
+// 협업자 커서를 보드 밖(plan 헤더 등)에서 즉시 숨김 — 마지막 위치에 얼어붙는 것 방지
+function onBoardLeave() {
+  if (dragState || !activeTripId.value) return
+  collab.sendPointer(activeTripId.value, {
+    zone: 'other', interaction: '', targetBlockId: null, nickname: auth.user?.nickname ?? '',
+  })
 }
 
 // 같은 날 내 [top, top+height) 구간이 기존 블록과 겹치는지(분=px). excludeId는 자기 자신 제외(이동/리사이즈).
