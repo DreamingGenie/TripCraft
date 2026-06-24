@@ -17,7 +17,7 @@ export const useCollabStore = defineStore('collab', () => {
   let isReconnecting = false
   let keepaliveTimer = null
 
-  // 이벤트 핸들러 콜백 — ScheduleView에서 주입
+  // 이벤트 핸들러 콜백 — ScheduleBoard에서 주입
   let onTripEvent = null
   let onPresence = null
   let onReconnect = null  // 재연결 시 loadTrip() 콜백

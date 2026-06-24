@@ -86,22 +86,41 @@
         <p class="section-sub">복잡했던 여행 계획을 TripCraft가 간단하게 만들어드립니다.</p>
         <div class="features-grid">
           <div class="feature-card">
-            <span class="feature-icon">🔍</span>
+            <span class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
             <div class="feature-title">관광지 탐색</div>
             <p class="feature-desc">전국 관광지, 음식점, 숙박을 한 곳에서 검색하고 지도로 확인하세요.</p>
           </div>
           <div class="feature-card">
-            <span class="feature-icon">📅</span>
+            <span class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M3.5 9.5H20.5M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
             <div class="feature-title">일정 드래그</div>
             <p class="feature-desc">드래그 앤 드롭으로 원하는 날짜와 시간에 간편하게 타임라인을 구성하세요.</p>
           </div>
           <div class="feature-card">
-            <span class="feature-icon">🚌</span>
+            <span class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M12 6.5V12L15.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <div class="feature-title">이동 시간 계산</div>
             <p class="feature-desc">ODsay API로 장소 간 대중교통 이동 시간을 자동으로 계산해드립니다.</p>
           </div>
           <div class="feature-card">
-            <span class="feature-icon">💬</span>
+            <span class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v8c0 .83-.67 1.5-1.5 1.5H9l-4 4v-4H5.5C4.67 15 4 14.33 4 13.5v-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <div class="feature-title">커뮤니티</div>
             <p class="feature-desc">완성된 여행 일정을 공유하고 다른 여행자들과 피드백을 나눠보세요.</p>
           </div>

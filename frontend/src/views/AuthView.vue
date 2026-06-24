@@ -9,15 +9,27 @@
       <p class="auth-brand-sub">관광지 탐색부터 이동 시간 계산까지<br>모든 여행 계획을 한 곳에서</p>
       <div class="auth-brand-features">
         <div class="auth-brand-feature">
-          <span class="auth-feature-check">✓</span>
+          <span class="auth-feature-check">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
           전국 관광지 탐색
         </div>
         <div class="auth-brand-feature">
-          <span class="auth-feature-check">✓</span>
+          <span class="auth-feature-check">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
           드래그로 일정 구성
         </div>
         <div class="auth-brand-feature">
-          <span class="auth-feature-check">✓</span>
+          <span class="auth-feature-check">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
           이동 시간 자동 계산
         </div>
       </div>
@@ -70,7 +82,12 @@
           <div class="divider-line"></div>
         </div>
 
-        <button class="kakao-btn" @click="kakaoChoice = true">💬 카카오로 로그인</button>
+        <button class="kakao-btn" @click="kakaoChoice = true">
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+            <path d="M9 2.5C5.13 2.5 2 5 2 8.05c0 1.96 1.32 3.68 3.32 4.66-.15.53-.54 1.94-.62 2.24-.1.37.14.37.29.27.12-.08 1.86-1.26 2.62-1.78.45.06.91.1 1.39.1 3.87 0 7-2.5 7-5.49C16 5 12.87 2.5 9 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          </svg>
+          카카오로 로그인
+        </button>
 
         <!-- 카카오 계정 선택 팝업 -->
         <div v-if="kakaoChoice" class="kakao-modal-overlay" @click.self="kakaoChoice = false">
@@ -195,51 +212,59 @@ async function doSignup() {
 .kakao-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(44, 44, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 .kakao-modal {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  width: 280px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  width: 300px;
   max-width: 90vw;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  gap: var(--space-2);
+  box-shadow: var(--shadow-lg);
 }
 .kakao-modal-title {
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
   font-weight: 600;
+  color: var(--text-primary);
   text-align: center;
 }
 .kakao-modal-btn {
   padding: 12px;
   border: none;
-  border-radius: 8px;
-  background: #fee500;
+  border-radius: var(--radius-md);
+  background: #FEE500;
   color: #191600;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
+  transition: opacity .12s;
 }
+.kakao-modal-btn:hover { opacity: 0.9; }
 .kakao-modal-btn.secondary {
-  background: #f2f2f2;
-  color: #333;
+  background: var(--bg-page);
+  color: var(--gray-dark);
 }
 .kakao-modal-btn small {
   font-weight: 400;
   opacity: 0.7;
 }
 .kakao-modal-cancel {
-  padding: 8px;
+  padding: var(--space-2);
   border: none;
   background: none;
-  color: #888;
+  color: var(--gray-muted);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
 }
+.kakao-modal-cancel:hover { color: var(--text-primary); }
 </style>

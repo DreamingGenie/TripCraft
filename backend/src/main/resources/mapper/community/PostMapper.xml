@@ -27,6 +27,16 @@
                   ON pa.target_id = m.id
     </sql>
 
+    <!-- 공통: 대표사진(cover) — SELECT 컬럼 (alias p, JOIN post p 필요)
+         우선순위: 업로드 대표사진(post_cover) → 본문 첫 이미지(post) → 연결 일정 대표이미지 → null -->
+    <sql id="coverImageCol">
+        COALESCE(
+          (SELECT CONCAT('/uploads/images/', a.name) FROM attach a WHERE a.target='post_cover' AND a.target_id=p.id ORDER BY a.id DESC LIMIT 1),
+          (SELECT CONCAT('/uploads/images/', a.name) FROM attach a WHERE a.target='post'       AND a.target_id=p.id ORDER BY a.id ASC  LIMIT 1),
+          (SELECT at.first_image FROM trip_candidate tc JOIN attraction at ON at.id=tc.attraction_id WHERE tc.trip_id=p.trip_id ORDER BY tc.id LIMIT 1)
+        ) AS coverImageUrl
+    </sql>
+
     <!-- 공통: 댓글 수 서브쿼리 -->
     <sql id="commentCountSubquery">
         (SELECT COUNT(*) FROM post_comment c WHERE c.post_id = p.id) AS commentCount
@@ -71,7 +81,8 @@
                <include refid="commentCountSubquery"/>,
                p.created_at AS createdAt,
                false AS liked,
-               <include refid="profileImageCol"/>
+               <include refid="profileImageCol"/>,
+               <include refid="coverImageCol"/>
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <include refid="profileImageJoin"/>
@@ -150,7 +161,8 @@
                <include refid="commentCountSubquery"/>,
                p.created_at AS createdAt,
                false AS liked,
-               <include refid="profileImageCol"/>
+               <include refid="profileImageCol"/>,
+               <include refid="coverImageCol"/>
         FROM post p
         LEFT JOIN member m ON m.id = p.member_id
         <include refid="profileImageJoin"/>

@@ -74,7 +74,7 @@ onMounted(async () => {
 <style scoped>
 .map-subtitle {
   margin: 6px 0 0;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--gray-muted);
 }
 .visited-count {
@@ -97,7 +97,7 @@ onMounted(async () => {
 }
 .map-loading {
   color: var(--gray-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   padding: 40px 0;
 }
 .korea-map {
@@ -133,7 +133,7 @@ onMounted(async () => {
 .legend {
   display: flex;
   gap: 20px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--gray-muted);
 }
 .legend-item {

@@ -43,13 +43,13 @@
     <select id="findExpiredDrafts" resultMap="attachMap">
         SELECT id, name, host_name, size, mimetype, host_path, target, target_id, created_at
         FROM attach
-        WHERE target = 'post_draft'
+        WHERE target IN ('post_draft', 'post_cover_draft')
           AND created_at &lt; NOW() - INTERVAL 1 DAY
     </select>
 
     <delete id="deleteExpiredDrafts">
         DELETE FROM attach
-        WHERE target = 'post_draft'
+        WHERE target IN ('post_draft', 'post_cover_draft')
           AND created_at &lt; NOW() - INTERVAL 1 DAY
     </delete>
 

@@ -107,7 +107,7 @@ function syncPartial() {
 
 /* 헤더: TripCraft purple-900 */
 .admin-title {
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 700;
   margin-bottom: 28px;
   color: var(--purple-900);
@@ -117,15 +117,14 @@ function syncPartial() {
 /* 카드: TripCraft 토큰 + left accent */
 .admin-card {
   background: var(--bg-surface);
-  border: 0.5px solid var(--gray-border);
   border-left: 4px solid var(--purple-900);
   border-radius: var(--radius-xl);
   padding: 28px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  box-shadow: var(--shadow-md);
 }
 
 .admin-card h2 {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
   margin-bottom: 6px;
   color: var(--text-primary);
@@ -133,7 +132,7 @@ function syncPartial() {
 
 .desc {
   color: var(--gray-muted);
-  font-size: var(--font-size-md);
+  font-size: var(--text-sm);
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -146,7 +145,7 @@ function syncPartial() {
 }
 
 .hint {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-xs);
   color: var(--gray-muted);
 }
 
@@ -162,7 +161,7 @@ function syncPartial() {
   padding: 7px 10px;
   border: 0.5px solid var(--gray-border);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--text-sm);
   font-family: inherit;
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -180,7 +179,7 @@ function syncPartial() {
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--text-sm);
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
@@ -196,7 +195,7 @@ function syncPartial() {
   color: var(--purple-900);
   border: 0.5px solid var(--purple-900);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
+  font-size: var(--text-sm);
   font-family: inherit;
   cursor: pointer;
   transition: background .12s, transform .1s;
@@ -209,7 +208,7 @@ function syncPartial() {
   margin-top: 18px;
   padding: 12px 16px;
   border-radius: var(--radius-lg);
-  font-size: var(--font-size-md);
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 .result-box.ok {
@@ -218,14 +217,14 @@ function syncPartial() {
   border: 0.5px solid var(--teal-100);
 }
 .result-box.err {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 0.5px solid #fecaca;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 0.5px solid var(--color-danger-soft);
 }
 
 .progress-hint {
   margin-top: 12px;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-xs);
   color: var(--gray-muted);
   display: flex;
   align-items: center;

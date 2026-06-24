@@ -11,6 +11,7 @@ import './assets/css/plan.css'
 import './assets/css/schedule.css'
 import './assets/css/community.css'
 import './assets/css/calendar.css'
+import './assets/css/trips.css'
 
 const app = createApp(App)
 app.use(createPinia())

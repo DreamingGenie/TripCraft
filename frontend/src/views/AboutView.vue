@@ -21,13 +21,13 @@
 
         <h3 class="about-badge-title">기술 스택</h3>
         <div class="tech-badges">
-          <span class="tech-badge badge-java">Java 21</span>
-          <span class="tech-badge badge-spring">Spring Boot 3</span>
-          <span class="tech-badge badge-vue">Vue 3</span>
-          <span class="tech-badge badge-mybatis">MyBatis</span>
-          <span class="tech-badge badge-mysql">MySQL 8.0</span>
-          <span class="tech-badge badge-naver">Naver Maps</span>
-          <span class="tech-badge badge-odsay">ODsay API</span>
+          <span class="tech-badge">Java 21</span>
+          <span class="tech-badge">Spring Boot 3</span>
+          <span class="tech-badge">Vue 3</span>
+          <span class="tech-badge">MyBatis</span>
+          <span class="tech-badge">MySQL 8.0</span>
+          <span class="tech-badge">Naver Maps</span>
+          <span class="tech-badge">ODsay API</span>
         </div>
       </div>
     </section>
@@ -76,8 +76,8 @@ import { RouterLink } from 'vue-router'
 
 .about-hero {
   background: var(--bg-surface);
-  border-bottom: 0.5px solid var(--gray-border);
-  padding: 56px 40px 48px;
+  box-shadow: var(--shadow-sm);
+  padding: 64px 40px 56px;
 }
 
 .about-hero-inner {
@@ -87,37 +87,35 @@ import { RouterLink } from 'vue-router'
 
 .about-eyebrow {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--purple-900);
   letter-spacing: .6px;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 
 .about-headline {
-  font-size: 2.25rem;
+  font-size: var(--text-3xl);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.03em;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .about-sub {
-  font-size: 15px;
+  font-size: var(--text-md);
   color: var(--gray-dark);
   line-height: 1.6;
 }
 
 .about-section {
-  padding: 52px 40px;
+  padding: 56px 40px;
   background: var(--bg-page);
 }
 
 .about-section-alt {
   background: var(--bg-surface);
-  border-top: 0.5px solid var(--gray-border);
-  border-bottom: 0.5px solid var(--gray-border);
 }
 
 .about-inner {
@@ -126,56 +124,49 @@ import { RouterLink } from 'vue-router'
 }
 
 .about-section-title {
-  font-size: 1.1rem;
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   letter-spacing: -0.01em;
 }
 
 .about-desc {
-  font-size: 14px;
+  font-size: var(--text-base);
   color: var(--gray-dark);
   line-height: 1.75;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-6);
 }
 
 .about-badge-title {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--gray-muted);
   text-transform: uppercase;
   letter-spacing: .5px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .tech-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .tech-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 500;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border-radius: var(--radius-full);
-  border: 0.5px solid;
+  color: var(--purple-900);
+  background: var(--purple-50);
 }
-
-.badge-java    { color: #c0392b; background: #fef2f2; border-color: #fca5a5; }
-.badge-spring  { color: #15803d; background: #f0fdf4; border-color: #86efac; }
-.badge-vue     { color: #16a34a; background: #f0fdf4; border-color: #4ade80; }
-.badge-mybatis { color: var(--blue-600); background: var(--blue-50); border-color: var(--blue-100); }
-.badge-mysql   { color: #0369a1; background: #f0f9ff; border-color: #7dd3fc; }
-.badge-naver   { color: #15803d; background: #f0fdf4; border-color: #86efac; }
-.badge-odsay   { color: var(--purple-900); background: var(--purple-50); border-color: var(--purple-100); }
 
 .team-grid {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .team-card {
@@ -183,11 +174,17 @@ import { RouterLink } from 'vue-router'
   align-items: center;
   gap: 14px;
   background: var(--bg-page);
-  border: 0.5px solid var(--gray-border);
   border-radius: var(--radius-xl);
   padding: 18px 24px;
   flex: 1;
   max-width: 260px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s, transform .15s;
+}
+
+.team-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .team-avatar {
@@ -196,7 +193,7 @@ import { RouterLink } from 'vue-router'
   border-radius: 50%;
   background: var(--purple-900);
   color: #fff;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -205,19 +202,19 @@ import { RouterLink } from 'vue-router'
 }
 
 .team-name {
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 3px;
 }
 
 .team-role {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--gray-muted);
 }
 
 .about-cta {
-  padding: 48px 40px;
+  padding: 56px 40px;
   text-align: center;
   background: var(--bg-page);
 }
@@ -225,15 +222,16 @@ import { RouterLink } from 'vue-router'
 .about-cta-btn {
   display: inline-flex;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 500;
   color: #fff;
   background: var(--purple-900);
   border: none;
   border-radius: var(--radius-lg);
-  padding: 12px 28px;
+  padding: 13px 30px;
   text-decoration: none;
-  transition: opacity .12s, transform .1s;
+  box-shadow: var(--shadow-sm);
+  transition: transform .1s, box-shadow .12s;
 }
-.about-cta-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.about-cta-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 </style>
