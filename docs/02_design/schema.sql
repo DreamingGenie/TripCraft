@@ -361,6 +361,7 @@ CREATE TABLE trip_block (
     transit_duration_minutes SMALLINT    NULL     COMMENT '이전 블록→이 블록 이동 시간(분). 첫 블록은 NULL',
     transit_mode             VARCHAR(100) NULL    COMMENT '이동 수단 목록 (콤마 구분, 예: EXPRESSBUS,RAIL). 첫 블록은 NULL',
     transit_option_index     INT         NULL     COMMENT '선택된 경로 인덱스 (대중교통 pathIndex 또는 자동차 옵션 0~3)',
+    version                  INT         NOT NULL DEFAULT 0 COMMENT '낙관적 락 버전. 사용자 편집 시 +1. transit 재계산은 미변경',
     created_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

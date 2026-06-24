@@ -36,7 +36,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
+import com.tripcraft.plan.controller.TripPresenceController;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -64,6 +67,28 @@ public class TripServiceImpl implements TripService {
     private final TransitService transitService;
     private final RegionService regionService;
     private final SimpMessagingTemplate messaging;
+    private final TripPresenceController presenceController;
+
+    // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
+
+    /** grab(드래그 중) 소유자가 요청자 본인이 아니면 선제 거부. grab은 stale/disconnect로 자동 해제됨. */
+    private void assertNotGrabbedByOther(Long tripId, Long blockId, Long memberId) {
+        Long owner = presenceController.getGrabOwner(tripId, blockId);
+        if (owner != null && !owner.equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 사용자가 이 블록을 편집 중입니다");
+        }
+    }
+
+    /** 외부 API를 포함하는 transit 재계산을 변경 트랜잭션 커밋 후로 미룬다(커넥션 장기 점유 방지). */
+    private void runAfterCommit(Runnable task) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { task.run(); }
+            });
+        } else {
+            task.run();
+        }
+    }
 
     // ── 권한 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -210,7 +235,8 @@ public class TripServiceImpl implements TripService {
             .collect(Collectors.groupingBy(TripBlock::getCandidateId,
                 Collectors.mapping(b -> new BlockItem(b.getId(), b.getCandidateId(),
                     b.getTripDate(), b.getDisplayOrder(), b.getStartTime(), b.getDurationMinutes(),
-                    b.getTransitDurationMinutes(), b.getTransitMode(), b.getTransitOptionIndex()),
+                    b.getTransitDurationMinutes(), b.getTransitMode(), b.getTransitOptionIndex(),
+                    b.getVersion()),
                     Collectors.toList())));
 
         Map<Integer, String> sidoLabels = regionService.sidoLabelMap();
@@ -372,7 +398,7 @@ public class TripServiceImpl implements TripService {
         block.setDurationMinutes(req.getDurationMinutes() != null ? req.getDurationMinutes() : 120);
         block.setDisplayOrder(req.getDisplayOrder() != null ? req.getDisplayOrder() : 1);
         blockMapper.insert(block);
-        recalculateTransitForDate(tripId, req.getTripDate());
+        runAfterCommit(() -> recalculateTransitForDate(tripId, req.getTripDate()));
         broadcast(tripId, TripEvent.of("BLOCK_ADDED", memberId, nickname(memberId),
                 Map.of("blockId", block.getId(), "candidateId", req.getCandidateId(),
                        "tripDate", req.getTripDate(), "displayOrder", block.getDisplayOrder())));
@@ -383,24 +409,30 @@ public class TripServiceImpl implements TripService {
     @Transactional
     public void updateBlock(Long tripId, Long blockId, BlockUpdateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
+        assertNotGrabbedByOther(tripId, blockId, memberId);
         TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        LocalDate oldDate = block.getTripDate();
-        block.setTripDate(req.getTripDate());
-        block.setStartTime(req.getStartTime());
-        block.setDurationMinutes(req.getDurationMinutes());
-        block.setDisplayOrder(req.getDisplayOrder());
 
         if (req.getTransitMode() != null) {
-            block.setTransitMode(req.getTransitMode());
-            block.setTransitDurationMinutes(req.getTransitDurationMinutes());
-            block.setTransitOptionIndex(req.getTransitOptionIndex());
-            blockMapper.update(block);
+            // 사용자가 transit 옵션 직접 선택 — transit 컬럼만 갱신(version·위치 미변경)
+            blockMapper.updateTransitById(blockId, req.getTransitDurationMinutes(),
+                    req.getTransitMode(), req.getTransitOptionIndex());
         } else {
-            blockMapper.update(block);
-            recalculateTransitForDate(tripId, req.getTripDate());
+            // 위치 편집(이동/리사이즈) — 낙관적 락
+            LocalDate oldDate = block.getTripDate();
+            block.setTripDate(req.getTripDate());
+            block.setStartTime(req.getStartTime());
+            block.setDurationMinutes(req.getDurationMinutes());
+            block.setDisplayOrder(req.getDisplayOrder());
+            // 클라이언트가 마지막으로 본 버전. null(구버전 클라이언트)이면 현재 버전으로 폴백(LWW)
+            block.setVersion(req.getVersion() != null ? req.getVersion() : block.getVersion());
+            int affected = blockMapper.updateWithVersion(block);
+            if (affected == 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 사용자가 먼저 이 블록을 수정했어요");
+            }
+            runAfterCommit(() -> recalculateTransitForDate(tripId, req.getTripDate()));
             if (!oldDate.equals(req.getTripDate())) {
-                recalculateTransitForDate(tripId, oldDate);
+                runAfterCommit(() -> recalculateTransitForDate(tripId, oldDate));
             }
         }
         broadcast(tripId, TripEvent.of("BLOCK_MOVED", memberId, nickname(memberId),
@@ -412,11 +444,12 @@ public class TripServiceImpl implements TripService {
     @Transactional
     public void removeBlock(Long tripId, Long blockId, Long memberId) {
         assertCanEdit(tripId, memberId);
+        assertNotGrabbedByOther(tripId, blockId, memberId);
         TripBlock block = blockMapper.findById(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         LocalDate date = block.getTripDate();
         blockMapper.deleteById(blockId);
-        recalculateTransitForDate(tripId, date);
+        runAfterCommit(() -> recalculateTransitForDate(tripId, date));
         broadcast(tripId, TripEvent.of("BLOCK_DELETED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "tripDate", date)));
     }
@@ -583,7 +616,9 @@ public class TripServiceImpl implements TripService {
                         block.setTransitMode(null);
                     }
                 }
-                blockMapper.update(block);
+                // transit 전용 갱신 — 사용자의 위치/순서 변경이나 version 을 건드리지 않는다(오탐 방지)
+                blockMapper.updateTransitById(block.getId(), block.getTransitDurationMinutes(),
+                        block.getTransitMode(), block.getTransitOptionIndex());
             } catch (Exception e) {
                 log.warn("Transit 재계산 실패 (blockId={}): tripId={}, date={}: {}",
                         block.getId(), tripId, date, e.getMessage());

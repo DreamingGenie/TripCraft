@@ -83,7 +83,8 @@ public class TripPresenceController {
         if ("grab".equals(interaction) && targetBlockId != null) {
             tripGrab.put(targetBlockId, memberId);
         } else if (targetBlockId != null) {
-            tripGrab.remove(targetBlockId);
+            // 본인이 소유한 grab만 해제(다른 사용자가 방금 잡은 잠금을 덮어 지우지 않도록 원자적 조건부 remove)
+            tripGrab.remove(targetBlockId, memberId);
         }
 
         broadcastPresence(tripId);
