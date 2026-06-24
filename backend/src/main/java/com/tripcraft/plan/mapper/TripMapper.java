@@ -13,6 +13,9 @@ public interface TripMapper {
 
     Optional<Trip> findById(Long id);
 
+    /** 같은 일정의 동시 편집 직렬화용 행 잠금(SELECT … FOR UPDATE). 트랜잭션 커밋까지 유지. */
+    Long lockTripRow(Long id);
+
     Optional<Trip> findByShareToken(String token);
 
     void updateShare(@Param("id") Long id, @Param("access") String access, @Param("token") String token);

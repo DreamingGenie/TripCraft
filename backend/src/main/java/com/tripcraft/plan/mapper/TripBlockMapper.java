@@ -24,6 +24,14 @@ public interface TripBlockMapper {
     /** 해당 일정·날짜의 다음 display_order(= MAX+1). 서버 권위적으로 순서를 할당해 클라이언트 충돌 방지. */
     int nextDisplayOrder(@Param("tripId") Long tripId, @Param("date") LocalDate date);
 
+    /**
+     * 같은 일정·날짜에서 [startMin, endMin) 구간과 겹치는 블록 수.
+     * 분 단위(0~1440)로 비교해 TIME 자정 넘김 문제를 피한다. excludeBlockId(이동/리사이즈 시 자기 자신)는 제외.
+     */
+    int countOverlapping(@Param("tripId") Long tripId, @Param("date") LocalDate date,
+                         @Param("startMin") int startMin, @Param("endMin") int endMin,
+                         @Param("excludeBlockId") Long excludeBlockId);
+
     void insert(TripBlock block);
 
     void update(TripBlock block);
