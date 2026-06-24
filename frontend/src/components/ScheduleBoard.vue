@@ -897,6 +897,8 @@ function getTransitPills(day) {
         transitOptionIndex: curr.transitOptionIndex,
         fromAttractionId: prevCand?.attractionId,
         toAttractionId: currCand?.attractionId,
+        fromLat: prevCand?.latitude, fromLng: prevCand?.longitude,
+        toLat: currCand?.latitude, toLng: currCand?.longitude,
         departureHour: Math.min(Math.floor(pillTop / 60), 23),
         toBlockId: curr.id,
         toBlockDate: curr.tripDate,
@@ -910,6 +912,10 @@ function getTransitPills(day) {
 }
 
 function pillKey(pill) {
+  // 커스텀 장소(attraction id 없음)는 블록 단위 고유 키(좌표쌍 구분)
+  if (!pill.fromAttractionId || !pill.toAttractionId) {
+    return `c-${pill.toBlockId}-${pill.departureHour}`
+  }
   return `${pill.fromAttractionId}-${pill.toAttractionId}-${pill.departureHour}`
 }
 
@@ -963,7 +969,10 @@ async function fetchPillMode(pill, mode) {
   if (pillLoadingModes[loadKey] || pillResults[key]?.[mode] !== undefined) return
   pillLoadingModes[loadKey] = true
   try {
-    const result = await getTransitByMode(pill.fromAttractionId, pill.toAttractionId, mode, pill.departureHour)
+    // 커스텀 장소(attraction id 없음)는 좌표 기반 호출
+    const result = (pill.fromAttractionId && pill.toAttractionId)
+      ? await getTransitByMode(pill.fromAttractionId, pill.toAttractionId, mode, pill.departureHour)
+      : await getTransitByCoords(pill.fromLat, pill.fromLng, pill.toLat, pill.toLng, mode, pill.departureHour)
     if (!pillResults[key]) pillResults[key] = {}
     pillResults[key][mode] = result
   } catch {
