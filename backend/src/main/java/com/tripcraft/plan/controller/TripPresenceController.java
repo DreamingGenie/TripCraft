@@ -46,7 +46,13 @@ public class TripPresenceController {
                          String interaction, Long targetBlockId, Instant lastSeen,
                          int dayIndex, double colRatioX, double contentY,
                          double mapRatioX, double mapRatioY,
-                         double grabRatioX, double grabOffsetMin) {}
+                         double grabRatioX, double grabOffsetMin) {
+        /** 좌표·zone은 그대로 두고 lastSeen만 갱신한 복제본 (keepalive heartbeat용). */
+        PresenceState withLastSeen(Instant t) {
+            return new PresenceState(memberId, nickname, zone, interaction, targetBlockId, t,
+                    dayIndex, colRatioX, contentY, mapRatioX, mapRatioY, grabRatioX, grabOffsetMin);
+        }
+    }
 
     @MessageMapping("/trip/{tripId}/pointer")
     public void handlePointer(@DestinationVariable Long tripId,
@@ -62,6 +68,14 @@ public class TripPresenceController {
         String sessionId = headerAccessor.getSessionId();
         sessionMemberMap.put(sessionId, memberId);
         sessionTripMap.put(sessionId, tripId);
+
+        // keepalive(heartbeat): 좌표/zone은 건드리지 않고 lastSeen만 갱신 → idle에도 마지막 커서 유지.
+        if (Boolean.TRUE.equals(payload.get("keepalive"))) {
+            Map<String, PresenceState> sessions = presenceMap.get(tripId);
+            PresenceState prev = sessions != null ? sessions.get(sessionId) : null;
+            if (prev != null) sessions.put(sessionId, prev.withLastSeen(Instant.now()));
+            return;  // 상태 불변 → broadcast 불필요(수신측은 마지막 상태 유지)
+        }
 
         String zone = (String) payload.getOrDefault("zone", "other");
         String interaction = (String) payload.getOrDefault("interaction", "");
