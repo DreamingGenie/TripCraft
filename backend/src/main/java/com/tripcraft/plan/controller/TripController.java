@@ -89,6 +89,25 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getTripDetail(id, memberId)));
     }
 
+    // 링크 접근 레벨 설정 (소유자) → {access, token}
+    @PutMapping("/{id}/share")
+    public ResponseEntity<ApiResponse<Map<String, String>>> setShare(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Long memberId) {
+        String access = body.getOrDefault("access", "PRIVATE");
+        String token = tripService.setShareAccess(id, access, memberId);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("access", access, "token", token == null ? "" : token)));
+    }
+
+    // 공유 토큰으로 일정 조회 (비로그인 허용 — SecurityConfig permitAll)
+    @GetMapping("/shared/{token}")
+    public ResponseEntity<ApiResponse<TripDetailResponse>> getShared(
+            @PathVariable("token") String token,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getSharedTrip(token, memberId)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(
             @PathVariable("id") Long id,
@@ -104,6 +123,24 @@ public class TripController {
             @AuthenticationPrincipal Long memberId) {
         Long candidateId = tripService.addCandidate(id, request.getAttractionId(), memberId);
         return ResponseEntity.status(201).body(ApiResponse.ok(candidateId));
+    }
+
+    // 커스텀 장소 직접 추가
+    @PostMapping("/{id}/candidates/custom")
+    public ResponseEntity<ApiResponse<Long>> addCustomCandidate(
+            @PathVariable("id") Long id,
+            @RequestBody com.tripcraft.plan.dto.CustomCandidateRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.status(201).body(ApiResponse.ok(tripService.addCustomCandidate(id, request, memberId)));
+    }
+
+    // 내 장소에서 보관함으로 추가
+    @PostMapping("/{id}/candidates/from-place/{placeId}")
+    public ResponseEntity<ApiResponse<Long>> addCandidateFromMyPlace(
+            @PathVariable("id") Long id,
+            @PathVariable("placeId") Long placeId,
+            @AuthenticationPrincipal Long memberId) {
+        return ResponseEntity.status(201).body(ApiResponse.ok(tripService.addCandidateFromMyPlace(id, placeId, memberId)));
     }
 
     @DeleteMapping("/{id}/candidates/{candidateId}")

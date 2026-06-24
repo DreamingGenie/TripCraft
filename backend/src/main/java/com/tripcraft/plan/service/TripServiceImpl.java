@@ -27,6 +27,9 @@ import com.tripcraft.plan.mapper.TripBlockMapper;
 import com.tripcraft.plan.mapper.TripCandidateMapper;
 import com.tripcraft.plan.mapper.TripCollaboratorMapper;
 import com.tripcraft.plan.mapper.TripMapper;
+import com.tripcraft.plan.dto.CustomCandidateRequest;
+import com.tripcraft.place.domain.MemberPlace;
+import com.tripcraft.place.mapper.MemberPlaceMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -57,6 +60,7 @@ public class TripServiceImpl implements TripService {
     private final TripCollaboratorMapper collaboratorMapper;
     private final AttractionMapper attractionMapper;
     private final MemberMapper memberMapper;
+    private final MemberPlaceMapper memberPlaceMapper;
     private final TransitService transitService;
     private final RegionService regionService;
     private final SimpMessagingTemplate messaging;
@@ -66,10 +70,18 @@ public class TripServiceImpl implements TripService {
     private TripRole resolveRole(Long tripId, Long memberId) {
         Trip trip = tripMapper.findById(tripId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (trip.getMemberId().equals(memberId)) return TripRole.OWNER;
-        return collaboratorMapper.findByTripAndMember(tripId, memberId)
-            .map(c -> TripRole.valueOf(c.getRole()))
-            .orElse(null);
+        if (memberId != null && trip.getMemberId().equals(memberId)) return TripRole.OWNER;
+        if (memberId != null) {
+            TripRole r = collaboratorMapper.findByTripAndMember(tripId, memberId)
+                .map(c -> TripRole.valueOf(c.getRole()))
+                .orElse(null);
+            if (r != null) return r;
+        }
+        // 링크 공유 폴백: VIEW=조회 / EDIT=로그인 시 편집·비로그인 조회 / PRIVATE=없음
+        String access = trip.getShareAccess();
+        if ("EDIT".equals(access)) return memberId != null ? TripRole.EDITOR : TripRole.VIEWER;
+        if ("VIEW".equals(access)) return TripRole.VIEWER;
+        return null;
     }
 
     private void assertCanView(Long tripId, Long memberId) {
@@ -86,6 +98,38 @@ public class TripServiceImpl implements TripService {
     private void assertCanManage(Long tripId, Long memberId) {
         if (resolveRole(tripId, memberId) != TripRole.OWNER)
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+    }
+
+    private String generateShareToken() {
+        byte[] buf = new byte[16];
+        new java.security.SecureRandom().nextBytes(buf);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(buf); // 22자
+    }
+
+    // ── 공유 링크 ─────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public String setShareAccess(Long tripId, String access, Long requesterId) {
+        assertCanManage(tripId, requesterId);
+        if (!"PRIVATE".equals(access) && !"VIEW".equals(access) && !"EDIT".equals(access))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid access");
+        Trip trip = tripMapper.findById(tripId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        String token = trip.getShareToken();
+        if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
+        tripMapper.updateShare(tripId, access, token);
+        return token;
+    }
+
+    @Override
+    public TripDetailResponse getSharedTrip(String token, Long memberId) {
+        Trip trip = tripMapper.findByShareToken(token)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (trip.getShareAccess() == null || "PRIVATE".equals(trip.getShareAccess()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        // assertCanView 는 share_access 폴백으로 통과 (비로그인 포함)
+        return getTripDetail(trip.getId(), memberId);
     }
 
     private String nickname(Long memberId) {
@@ -172,6 +216,13 @@ public class TripServiceImpl implements TripService {
         Map<Integer, String> sidoLabels = regionService.sidoLabelMap();
         Map<Integer, Map<Integer, String>> sigunguLabels = regionService.sigunguLabelMap();
         List<CandidateItem> candidateItems = candidates.stream().map(c -> {
+            if (c.getAttractionId() == null) {  // 커스텀 장소
+                return new CandidateItem(c.getId(), null, c.getPlaceName(), null,
+                    null, "", null, c.getPlaceAddress() != null ? c.getPlaceAddress() : "",
+                    c.getPlaceCategory() != null ? c.getPlaceCategory() : "관광지", c.getSource(),
+                    c.getPlaceLat(), c.getPlaceLng(),
+                    blocksByCandidate.getOrDefault(c.getId(), List.of()));
+            }
             Attraction a = attractionMapper.findById(c.getAttractionId()).orElse(null);
             String name = a != null ? a.getTitle() : "알 수 없음";
             String img = a != null ? a.getFirstImage() : null;
@@ -193,7 +244,8 @@ public class TripServiceImpl implements TripService {
 
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
             trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),
-            trip.getDefaultTransitMode(), ownerNickname, myRole, candidateItems);
+            trip.getDefaultTransitMode(), ownerNickname, myRole, candidateItems,
+            trip.getShareAccess(), trip.getShareToken());
     }
 
     @Override
@@ -236,6 +288,59 @@ public class TripServiceImpl implements TripService {
         broadcast(tripId, TripEvent.of("CANDIDATE_ADDED", memberId, nickname(memberId),
                 Map.of("candidateId", candidate.getId(), "attractionId", attractionId)));
         return candidate.getId();
+    }
+
+    @Override
+    @Transactional
+    public Long addCustomCandidate(Long tripId, CustomCandidateRequest req, Long memberId) {
+        assertCanEdit(tripId, memberId);
+        if (req.getName() == null || req.getName().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "장소명이 필요합니다.");
+        String category = req.getCategory() != null ? req.getCategory() : "관광지";
+        TripCandidate c = new TripCandidate();
+        c.setTripId(tripId);
+        c.setSource("CUSTOM");
+        c.setPlaceName(req.getName());
+        c.setPlaceCategory(category);
+        c.setPlaceAddress(req.getAddress());
+        c.setPlaceLat(req.getLatitude());
+        c.setPlaceLng(req.getLongitude());
+        candidateMapper.insert(c);
+        if (req.isSaveToMyPlaces()) {
+            MemberPlace p = new MemberPlace();
+            p.setMemberId(memberId);
+            p.setName(req.getName());
+            p.setCategory(category);
+            p.setAddress(req.getAddress());
+            p.setLatitude(req.getLatitude());
+            p.setLongitude(req.getLongitude());
+            memberPlaceMapper.insert(p);
+        }
+        broadcast(tripId, TripEvent.of("CANDIDATE_ADDED", memberId, nickname(memberId),
+                Map.of("candidateId", c.getId())));
+        return c.getId();
+    }
+
+    @Override
+    @Transactional
+    public Long addCandidateFromMyPlace(Long tripId, Long placeId, Long memberId) {
+        assertCanEdit(tripId, memberId);
+        MemberPlace p = memberPlaceMapper.findById(placeId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."));
+        if (!p.getMemberId().equals(memberId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        TripCandidate c = new TripCandidate();
+        c.setTripId(tripId);
+        c.setSource("CUSTOM");
+        c.setPlaceName(p.getName());
+        c.setPlaceCategory(p.getCategory());
+        c.setPlaceAddress(p.getAddress());
+        c.setPlaceLat(p.getLatitude());
+        c.setPlaceLng(p.getLongitude());
+        candidateMapper.insert(c);
+        broadcast(tripId, TripEvent.of("CANDIDATE_ADDED", memberId, nickname(memberId),
+                Map.of("candidateId", c.getId())));
+        return c.getId();
     }
 
     @Override

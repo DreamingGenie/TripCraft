@@ -3,7 +3,13 @@
 
     <!-- 작업실 헤더: 현재 여행 칩 + 모드 토글 + (정리)공유·자동저장·지도토글 -->
     <header class="plan-header">
-      <div class="plan-trip-menu" ref="tripMenuRef">
+      <!-- 공유 링크 조회: 단순 제목 + 읽기전용/편집 뱃지 -->
+      <div v-if="isSharedView" class="plan-trip-chip plan-shared-title">
+        <span class="plan-trip-name">{{ activeTripDetail?.title || '공유된 일정' }}</span>
+        <span class="plan-shared-badge" :class="{ edit: !readOnly }">{{ readOnly ? '읽기 전용' : '편집 가능' }}</span>
+      </div>
+
+      <div v-if="!isSharedView" class="plan-trip-menu" ref="tripMenuRef">
         <button class="plan-trip-chip" :class="{ open: tripMenuOpen }"
                 @click="tripMenuOpen = !tripMenuOpen"
                 :aria-expanded="tripMenuOpen">
@@ -64,7 +70,7 @@
         </Transition>
       </div>
 
-      <div class="plan-modes">
+      <div v-if="!isSharedView" class="plan-modes">
         <button class="plan-mode" :class="{ active: mode === 'explore' }" @click="mode = 'explore'">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/>
@@ -83,44 +89,29 @@
 
       <span class="plan-header-spacer"></span>
 
-      <!-- 협업자 초대·관리 (일정 선택 시 항상) -->
-      <div v-if="currentTrip" class="plan-collab-menu">
-        <button ref="collabBtnRef" class="plan-action-btn plan-action-btn--collab"
-                :class="{ active: collabPanelOpen }"
-                @click="collabPanelOpen = !collabPanelOpen">
-          <span class="collab-status-dot" :class="{ connected: collab.connected }"></span>
-          협업자
-        </button>
-        <Transition name="trip-menu-pop">
-          <div v-if="collabPanelOpen" ref="collabPanelRef" class="plan-collab-overlay">
-            <CollaboratorPanel
-              :trip-id="activeTrip"
-              :is-owner="activeTripIsOwner"
-              :owner-label="activeTripOwnerLabel"
-              :participants="collab.participants"
-              :color-map="collab.colorMap"
-              @close="collabPanelOpen = false"
-            />
-          </div>
-        </Transition>
-      </div>
+      <!-- 일정 선택 시: 협업 프레즌스 아바타 + (정리)지도 + 공유 — 탐색·정리 양 모드 공통 -->
+      <template v-if="currentTrip">
+        <!-- ⑤ 협업자 프레즌스 아바타 (구 toolbar-avatar-wrap 이식) -->
+        <div v-if="otherParticipants.length" class="plan-collab-avatars">
+          <span v-for="p in otherParticipants" :key="p.memberId"
+                class="plan-avatar" :title="p.nickname"
+                :style="{ '--avatar-border': collab.colorMap[p.memberId] || 'var(--purple-900)' }">
+            <img v-if="collaboratorImageMap[p.memberId]" :src="collaboratorImageMap[p.memberId]" class="plan-avatar-img" alt="" />
+            <span v-else class="plan-avatar-initial">{{ p.nickname?.charAt(0)?.toUpperCase() }}</span>
+          </span>
+        </div>
 
-      <!-- 정리 모드 전용 우측 액션 -->
-      <template v-if="mode === 'organize' && currentTrip">
-        <span class="plan-saved">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          저장됨
-        </span>
-        <button class="plan-action-btn" @click="toggleBoardMap">
+        <!-- 정리 모드 전용: 지도 토글 -->
+        <button v-if="mode === 'organize'" class="plan-action-btn" @click="toggleBoardMap">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M2 4l4-1.5 4 1.5 4-1.5v9.5L10 13l-4-1.5L2 13V4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
             <path d="M6 2.5v9M10 4v9.5" stroke="currentColor" stroke-width="1.3"/>
           </svg>
           지도
         </button>
-        <button class="plan-action-btn plan-action-btn--share" @click="shareTrip">
+
+        <!-- ⑥ 공유 (양 모드) → 공유 모달 -->
+        <button class="plan-action-btn plan-action-btn--share" @click="shareModalOpen = true">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <circle cx="12" cy="3.5" r="2" stroke="currentColor" stroke-width="1.3"/>
             <circle cx="4" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
@@ -131,6 +122,27 @@
         </button>
       </template>
     </header>
+
+    <!-- ④ 공유 모달: 엑세스 링크·사용자 추가·편집권한·여행이야기 게시 -->
+    <ShareModal
+      v-if="shareModalOpen && currentTrip"
+      :trip-id="activeTrip"
+      :is-owner="activeTripIsOwner"
+      :owner-label="activeTripOwnerLabel"
+      :participants="collab.participants"
+      :color-map="collab.colorMap"
+      :share-access="activeTripDetail?.shareAccess || 'PRIVATE'"
+      :share-token="activeTripDetail?.shareToken || ''"
+      @close="shareModalOpen = false"
+      @publish="onPublish"
+      @update="onShareUpdate"
+    />
+
+    <!-- 편집 링크 + 비로그인: 로그인 유도 배너 -->
+    <div v-if="showLoginToEdit" class="plan-login-banner">
+      <span>✏️ 편집 가능한 공유 링크예요. <strong>로그인</strong>하면 함께 편집할 수 있어요.</span>
+      <button class="plan-login-btn" @click="goLoginToEdit">로그인</button>
+    </div>
 
   <section v-show="mode === 'explore'" id="screen-explore">
 
@@ -591,6 +603,8 @@
         ref="boardRef"
         embedded
         :trip-id="activeTrip"
+        :read-only="readOnly"
+        :share-token="shareToken"
         @explore="mode = 'explore'" />
     </section>
 
@@ -607,11 +621,13 @@ import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/at
 import { tripApi } from '@/api/trip'
 import AttractionChat from '@/components/AttractionChat.vue'
 import ScheduleBoard from '@/components/ScheduleBoard.vue'
-import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
+import ShareModal from '@/components/ShareModal.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToastStore()
 const activeTripStore = useActiveTripStore()
 const collab = useCollabStore()
+const auth = useAuthStore()
 const openScheduleModal = inject('openScheduleModal')
 
 const route = useRoute()
@@ -624,9 +640,31 @@ function shareTrip() {
   if (!activeTrip.value) return
   router.push({ path: '/community', query: { shareTrip: activeTrip.value } })
 }
+function onPublish() {
+  shareModalOpen.value = false
+  shareTrip()
+}
+// 공유 설정 저장 후 현재 일정 상세에 반영 → 모달 재오픈 시 현재 상태 표시
+function onShareUpdate({ access, token }) {
+  if (activeTripDetail.value) {
+    activeTripDetail.value = { ...activeTripDetail.value, shareAccess: access, shareToken: token }
+  }
+}
 
 // ── UI state (모드 / 트레이 토글 / 드래그 감지) ──
 const mode = ref('explore') // 'explore' | 'organize'
+
+// 공유 링크 조회(?s=token): 비로그인 read-only. EDIT 링크 + 로그인이면 myRole=EDITOR 로 편집 허용
+const shareToken = ref(route.query.s || null)
+const isSharedView = computed(() => !!shareToken.value)
+const readOnly = computed(() =>
+  isSharedView.value && !['OWNER', 'EDITOR'].includes(activeTripDetail.value?.myRole))
+// 편집 링크인데 비로그인 → 로그인하면 편집 가능 안내
+const showLoginToEdit = computed(() =>
+  isSharedView.value && !auth.user && activeTripDetail.value?.shareAccess === 'EDIT')
+function goLoginToEdit() {
+  router.push({ path: '/auth', query: { redirect: route.fullPath } })
+}
 const trayOpen = ref(false) // 평소 지도를 넓게: 담기/드래그 시 자동으로 열림
 const isDraggingCard = ref(false)
 const currentTrip = computed(() =>
@@ -634,13 +672,23 @@ const currentTrip = computed(() =>
   collaboratingTrips.value.find(t => t.id === activeTrip.value)
 )
 
-// ── 협업자 패널 (초대·역할) ──
-const collabPanelOpen = ref(false)
-const collabPanelRef = ref(null)
-const collabBtnRef = ref(null)
+// ── 공유 모달 + 협업 프레즌스 ──
+const shareModalOpen = ref(false)
 const activeTripDetail = ref(null)  // 현재 일정 상세 (myRole·ownerNickname)
 const activeTripIsOwner = computed(() => activeTripDetail.value?.myRole === 'OWNER')
 const activeTripOwnerLabel = computed(() => activeTripDetail.value?.ownerNickname ?? '소유자')
+// 헤더 아바타: 나를 제외한 접속 협업자 + memberId→프로필이미지 맵
+const myMemberId = computed(() => auth.user?.id)
+const otherParticipants = computed(() => collab.participants.filter(p => p.memberId !== myMemberId.value))
+const collaboratorImageMap = ref({})
+async function loadCollaboratorImages(tripId) {
+  try {
+    const list = await tripApi.getCollaborators(tripId)
+    const map = {}
+    list.forEach(c => { if (c.profileImageUrl) map[c.memberId] = c.profileImageUrl })
+    collaboratorImageMap.value = map
+  } catch { collaboratorImageMap.value = {} }
+}
 
 // ── 헤더 현재 여행 드롭다운 ──
 const tripMenuOpen = ref(false)
@@ -652,11 +700,6 @@ function selectTrip(id) {
 }
 function onTripMenuOutside(e) {
   if (tripMenuRef.value && !tripMenuRef.value.contains(e.target)) tripMenuOpen.value = false
-  if (collabPanelOpen.value
-      && collabPanelRef.value && !collabPanelRef.value.contains(e.target)
-      && collabBtnRef.value && !collabBtnRef.value.contains(e.target)) {
-    collabPanelOpen.value = false
-  }
 }
 function onTripMenuKey(e) {
   if (e.key === 'Escape') tripMenuOpen.value = false
@@ -1355,6 +1398,13 @@ watch(activeTripCandidates, updateMarkers)
 
 watch(activeTrip, async (id) => {
   activeTripStore.set(id ?? null)
+  // 공유 링크 조회(비로그인 가능): getShared 로 detail 만 로드, URL(?s=) 유지
+  if (isSharedView.value) {
+    if (!id) { activeTripDetail.value = null; return }
+    try { activeTripDetail.value = await tripApi.getShared(shareToken.value) }
+    catch { activeTripDetail.value = null; toast.show('공유된 일정을 찾을 수 없어요') }
+    return
+  }
   // URL 동기화: 현재 일정과 /plan/:tripId 를 일치시킴(새로고침·공유 링크 정합)
   if (id && String(route.params.tripId ?? '') !== String(id)) {
     router.replace({ path: `/plan/${id}` })
@@ -1364,6 +1414,7 @@ watch(activeTrip, async (id) => {
     addedIds.value = new Set()
     candidateIdMap.value = new Map()
     activeTripDetail.value = null
+    collaboratorImageMap.value = {}
     return
   }
   try {
@@ -1372,6 +1423,7 @@ watch(activeTrip, async (id) => {
     activeTripCandidates.value = detail.candidates || []
     addedIds.value = new Set(detail.candidates.map(c => c.attractionId))
     candidateIdMap.value = new Map(detail.candidates.map(c => [c.attractionId, c.id]))
+    loadCollaboratorImages(id)  // 헤더 프레즌스 아바타용 프로필 이미지 맵
   } catch {
     activeTripDetail.value = null
     activeTripCandidates.value = []
@@ -1736,6 +1788,15 @@ async function addToTrip(attraction) {
 }
 
 onMounted(async () => {
+  // 공유 링크 조회: 일정(정리) 모드만, 목록·탐색 로드 생략(비로그인 가능)
+  if (isSharedView.value) {
+    mode.value = 'organize'
+    // 로그인 상태 확정 후 보드 마운트 → 로그인 사용자는 실시간 협업 연결(익명은 조회만)
+    if (!auth.user) { try { await auth.fetchMe() } catch {} }
+    activeTrip.value = Number(route.params.tripId)  // watch → getShared 로 detail 로드
+    return
+  }
+
   scrollEl.value?.addEventListener('scroll', checkScroll)
   scrollEl.value?.addEventListener('scroll', onScrollCheck)
   document.addEventListener('click', onTripMenuOutside, true)

@@ -8,6 +8,11 @@ export const tripApi = {
 
   addCandidate: (tripId, attractionId) =>
     http.post(`/api/trips/${tripId}/candidates`, { attractionId }),
+  // 커스텀 장소 직접 추가 / 내 장소에서 추가
+  addCustomCandidate: (tripId, body) =>
+    http.post(`/api/trips/${tripId}/candidates/custom`, body),
+  addCandidateFromMyPlace: (tripId, placeId) =>
+    http.post(`/api/trips/${tripId}/candidates/from-place/${placeId}`),
   removeCandidate: (tripId, candidateId) =>
     http.del(`/api/trips/${tripId}/candidates/${candidateId}`),
 
@@ -30,4 +35,8 @@ export const tripApi = {
     http.post(`/api/trips/${tripId}/collaborators`, { memberId, role }),
   removeCollaborator: (tripId, targetMemberId) =>
     http.del(`/api/trips/${tripId}/collaborators/${targetMemberId}`),
+
+  // 링크 공유: 접근 레벨 설정(소유자) → { access, token } / 토큰으로 조회(비로그인 허용)
+  setShareAccess: (tripId, access) => http.put(`/api/trips/${tripId}/share`, { access }),
+  getShared: (token) => http.get(`/api/trips/shared/${token}`),
 }

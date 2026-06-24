@@ -83,6 +83,10 @@
           <div class="cand-sidebar-header">
             <span class="cand-sidebar-title">{{ embedded ? '보관함' : '후보군' }}</span>
             <span v-if="candidates.length" class="cand-sidebar-count">{{ candidates.length }}</span>
+            <!-- embedded(organize) 전용: 보관함 접기 -->
+            <button v-if="embedded" class="cand-collapse-btn" @click="sidebarOpen = false" title="보관함 접기" aria-label="보관함 접기">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
 
           <!-- embedded(organize): 플랫 리스트 + 분류색 (§5-5). 같은 장소 여러 번 배치 가능 -->
@@ -98,7 +102,7 @@
               <div v-for="c in candidates" :key="c.id"
                    class="cand-flat-card" :class="{ 'cand-flat-card--placed': blockCount(c) > 0 }"
                    :style="{ '--cat-ink': catInk(c.category) }"
-                   draggable="true"
+                   :draggable="!readOnly"
                    @dragstart="onCandDragStart($event, c)"
                    @dragend="onDragEnd">
                 <span class="cand-flat-bar"></span>
@@ -158,7 +162,7 @@
                                 <div v-if="!collapsedCats[`${group.city}__${sg.sg}__${catGroup.cat}`]" class="cat-body">
                                   <div v-for="c in catGroup.candidates" :key="c.id"
                                        class="cand-row" :class="{ placed: c.placed }"
-                                       draggable="true"
+                                       :draggable="!readOnly"
                                        @dragstart="onCandDragStart($event, c)"
                                        @dragend="onDragEnd">
                                     <span class="drag-dot">⠿</span>
@@ -181,7 +185,7 @@
                             <div v-if="!collapsedCats[`${group.city}__${catGroup.cat}`]" class="cat-body">
                               <div v-for="c in catGroup.candidates" :key="c.id"
                                    class="cand-row" :class="{ placed: c.placed }"
-                                   draggable="true"
+                                   :draggable="!readOnly"
                                    @dragstart="onCandDragStart($event, c)"
                                    @dragend="onDragEnd">
                                 <span class="drag-dot">⠿</span>
@@ -199,8 +203,11 @@
           </div>
 
           <div class="cand-sidebar-footer">
-            <button v-if="embedded" class="btn-add-from-explore" @click="$emit('explore')">
+            <button v-if="embedded && !readOnly" class="btn-add-from-explore" @click="$emit('explore')">
               + 탐색에서 더 담기
+            </button>
+            <button v-if="embedded && !readOnly" class="btn-add-place" @click="addPlaceOpen = true">
+              + 내 장소 · 직접 추가
             </button>
             <RouterLink v-else to="/explore" class="btn-add-from-explore">
               + 관광지 탐색에서 추가하기
@@ -211,18 +218,13 @@
 
       <!-- 시간표 -->
       <div class="timetable-main">
-        <!-- embedded(organize): Day 요약 바 (§5-6). standalone: 드래그 힌트 -->
-        <div v-if="embedded" class="board-day-summary">
-          <div v-for="s in daySummaries" :key="s.label" class="board-day-chip"
-               :class="{ tight: s.tight }">
-            <span class="board-day-chip-label">{{ s.label }}</span>
-            <span class="board-day-chip-meta">활동 {{ s.activityLabel }}</span>
-            <span v-if="s.transitMin > 0" class="board-day-chip-sep">·</span>
-            <span v-if="s.transitMin > 0" class="board-day-chip-meta">이동 {{ s.transitLabel }}</span>
-            <span v-if="s.tight" class="board-day-chip-warn">다소 빡빡해요</span>
-          </div>
-        </div>
-        <div v-else class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
+        <!-- 접힌 보관함 펼치기 (embedded 전용) -->
+        <button v-if="embedded && !sidebarOpen" class="cand-expand-btn" @click="sidebarOpen = true" title="보관함 펼치기">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          보관함
+        </button>
+        <!-- standalone: 드래그 힌트 -->
+        <div v-if="!embedded" class="hint-bar">✋ 왼쪽 후보군 카드를 원하는 날짜·시간대로 드래그해서 놓으세요</div>
 
         <div class="timetable-wrapper" ref="wrapperEl" @scroll="e => { openPillKey = null; timetableScrollTop = e.currentTarget.scrollTop }">
           <div class="timetable-header">
@@ -274,21 +276,16 @@
                        'event-block--cat': embedded,
                        'grabbed-by-other': collab.isGrabbedByOther(ev.id, myMemberId),
                      }"
-                     draggable="true"
+                     :draggable="!readOnly"
                      :style="{ top: ev.top + 'px', height: ev.height + 'px', '--cat-ink': catInk(ev.category), '--grabber-color': grabberColor(ev.id) }"
                      @dragstart="onEventDragStart($event, ev, d)"
                      @dragend="onDragEnd">
                   <span class="event-name">{{ ev.name }}</span>
                   <span class="event-time">{{ ev.timeLabel }}</span>
                   <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
-                  <button class="event-del" :title="embedded ? '미배치로 빼기' : '삭제'"
-                          @click.stop="removeEvent(d, ev)">
-                    <svg v-if="embedded" width="11" height="11" viewBox="0 0 12 12" fill="none">
-                      <path d="M7.5 2L3 6l4.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <template v-else>✕</template>
-                  </button>
-                  <div class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
+                  <button v-if="!readOnly" class="event-del" :title="embedded ? '보관함으로 빼기' : '삭제'"
+                          @click.stop="removeEvent(d, ev)">✕</button>
+                  <div v-if="!readOnly" class="resize-handle" @mousedown.stop="onResizeStart($event, ev)"></div>
                 </div>
               </div>
             </div>
@@ -530,6 +527,10 @@
     </template>
   </Teleport>
 
+  <!-- 장소 추가(내 장소·직접 추가) -->
+  <AddPlaceModal v-if="addPlaceOpen && activeTripId" :trip-id="activeTripId"
+                 @close="addPlaceOpen = false" @added="onPlaceAdded" />
+
   </main>
 </template>
 
@@ -543,6 +544,7 @@ import { useCollabStore } from '@/stores/collab'
 import { tripApi } from '@/api/trip'
 import { getTransitByMode, getTransitDetail, selectTransitPath, getDrivingOption, applyDrivingOption, getLaneSegments, getWalkingCoords } from '@/api/transit'
 import CollaboratorPanel from '@/components/CollaboratorPanel.vue'
+import AddPlaceModal from '@/components/AddPlaceModal.vue'
 import { useCollabCursor } from '@/composables/useCollabCursor'
 
 // embedded=true 이면 PlanView organize 모드 안에서 동작(자체 툴바·트레이 select 숨김,
@@ -550,6 +552,9 @@ import { useCollabCursor } from '@/composables/useCollabCursor'
 const props = defineProps({
   embedded: { type: Boolean, default: false },
   tripId: { type: [Number, null], default: null },
+  // 공유 링크 read-only: shareToken 으로 비로그인 조회, readOnly 면 편집·collab 비활성
+  readOnly: { type: Boolean, default: false },
+  shareToken: { type: [String, null], default: null },
 })
 const emit = defineEmits(['explore', 'open-map', 'loaded'])
 
@@ -567,6 +572,8 @@ const SNAP = 30
 
 // ── UI state ──
 const sidebarOpen = ref(true)
+const addPlaceOpen = ref(false)
+function onPlaceAdded() { loadTrip() }
 
 // ── 분류 6색 ink (전 화면 공통 신호) ──
 const CAT_INK = {
@@ -578,29 +585,6 @@ function catInk(cat) { return CAT_INK[cat] || 'var(--purple-900)' }
 
 // 보관함: 한 후보가 격자에 배치된 블록 개수 (같은 장소 여러 번 배치 허용 → "배치됨 ×N")
 function blockCount(c) { return c.blocks?.length ?? 0 }
-
-// ── Day 요약 (활동·이동 합) ──
-const daySummaries = computed(() => days.value.map(d => {
-  const activityMin = d.events.reduce((s, ev) => s + (ev.height || 0), 0)
-  const transitMin = d.events.reduce((s, ev) => s + (ev.transitDurationMinutes || 0), 0)
-  const tight = activityMin + transitMin > 12 * 60
-  return {
-    label: d.label,
-    activityLabel: fmtDuration(activityMin),
-    transitMin,
-    transitLabel: fmtDuration(transitMin),
-    tight,
-  }
-}))
-
-function fmtDuration(min) {
-  if (!min) return '0분'
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  if (h && m) return `${h}시간 ${m}분`
-  if (h) return `${h}시간`
-  return `${m}분`
-}
 
 const trips = ref([])
 const collaboratingTrips = ref([])
@@ -1649,7 +1633,10 @@ async function loadTrip() {
   if (!activeTripId.value) return
   activeTripStore.set(activeTripId.value)
   try {
-    const trip = await tripApi.get(activeTripId.value)
+    // 공유 토큰이 있으면 비로그인 조회 엔드포인트로 로드
+    const trip = props.shareToken
+      ? await tripApi.getShared(props.shareToken)
+      : await tripApi.get(activeTripId.value)
     activeTrip.value = trip
     candidates.value = trip.candidates.map(c => ({
       ...c,
@@ -1686,6 +1673,7 @@ async function loadCollaboratorImages() {
 
 // ── 드래그 앤 드롭 ──
 function onCandDragStart(e, candidate) {
+  if (props.readOnly) { e.preventDefault(); return }
   if (isProcessing.value) { e.preventDefault(); return }
   dragState = { type: 'candidate', data: candidate, grabOffsetY: 0, grabRatioX: 0, grabOffsetMin: 0 }
   candidate.dragging = true
@@ -1693,6 +1681,7 @@ function onCandDragStart(e, candidate) {
 }
 
 function onEventDragStart(e, ev, day) {
+  if (props.readOnly) { e.preventDefault(); return }
   if (isProcessing.value || resizeState) { e.preventDefault(); return }
   const blockRect = e.currentTarget.getBoundingClientRect()
   const grabOffsetY = e.clientY - blockRect.top
@@ -1996,7 +1985,8 @@ let prevGrabbers = new Set()
 
 function connectCollab(tripId) {
   prevGrabbers = new Set()
-  loadCollaboratorImages()  // 협업자 명단은 일정 전환 시 1회만 조회 (loadTrip마다 호출하면 드래그·드롭마다 재조회됨)
+  const observer = !auth.user?.id   // 비로그인 = 관전 모드(구독만 수신, 전송 X)
+  if (!observer) loadCollaboratorImages()  // 협업자 명단(인증 필요)은 로그인 시에만 조회
   collab.setHandlers({
     tripEvent: handleTripEvent,
     presence: (list) => {
@@ -2012,7 +2002,7 @@ function connectCollab(tripId) {
     },
     reconnect: loadTrip,
   })
-  collab.connect(tripId)
+  collab.connect(tripId, { observer })
 }
 
 function onDocumentClick(e) {
@@ -2054,7 +2044,8 @@ watch(() => props.tripId, async (id, oldId) => {
   if (oldId != null) collab.disconnect()
   activeTripId.value = id
   await loadTrip()
-  connectCollab(id)
+  // 로그인=실시간 협업, 비로그인 공유링크=관전(observer) 연결. 둘 다 실시간 편집상태 수신
+  if (auth.user?.id || props.shareToken) connectCollab(id)
 })
 
 // PlanView 헤더의 "지도" 토글이 보드 지도 패널을 제어할 수 있도록 노출
@@ -2069,7 +2060,8 @@ onMounted(async () => {
     if (props.tripId != null) {
       activeTripId.value = props.tripId
       await loadTrip()
-      connectCollab(props.tripId)
+      // 로그인=실시간 협업, 비로그인 공유링크=관전(observer) 연결. 둘 다 실시간 편집상태 수신
+      if (auth.user?.id || props.shareToken) connectCollab(props.tripId)
     }
     if (wrapperEl.value) wrapperEl.value.scrollTop = 8 * HOUR_PX
     return

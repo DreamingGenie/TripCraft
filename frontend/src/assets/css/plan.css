@@ -65,6 +65,48 @@
   white-space: nowrap;
 }
 .plan-trip-name--empty { font-weight: 600; color: var(--gray-muted); }
+
+/* 공유 링크 조회 헤더 */
+.plan-shared-title { cursor: default; gap: var(--space-2); }
+.plan-shared-badge {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--bg-page);
+  color: var(--gray-dark);
+  border: 1px solid var(--gray-border);
+}
+.plan-shared-badge.edit { background: var(--purple-50); color: var(--purple-900); border-color: var(--purple-100); }
+
+/* 편집 링크 + 비로그인 로그인 유도 배너 */
+.plan-login-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  background: var(--purple-50);
+  border-bottom: 1px solid var(--purple-100);
+  color: var(--purple-900);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.plan-login-btn {
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #fff;
+  background: var(--purple-900);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: background .14s;
+}
+.plan-login-btn:hover { background: var(--primary-dark); }
 .plan-trip-caret { color: var(--gray-muted); flex-shrink: 0; transition: transform .16s ease; }
 .plan-trip-caret.open { transform: rotate(180deg); }
 .plan-trip-chip.open { border-color: var(--purple-100); box-shadow: var(--shadow-md); }
@@ -226,13 +268,22 @@
   letter-spacing: .02em;
 }
 
-/* 협업자 버튼 + 패널 */
-.plan-collab-menu { position: relative; display: inline-flex; }
-.plan-action-btn--collab.active {
-  color: var(--purple-900);
-  border-color: var(--purple-100);
-  background: var(--purple-50);
+/* 협업 프레즌스 아바타 (헤더 — 구 협업자 버튼 자리). 색 테두리=참여자 커서색 */
+.plan-collab-avatars { display: inline-flex; align-items: center; }
+.plan-collab-avatars .plan-avatar:not(:first-child) { margin-left: -8px; }
+.plan-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; flex-shrink: 0;
+  background: var(--purple-50); color: var(--purple-900);
+  font-size: 12px; font-weight: 700;
+  border: 2px solid var(--avatar-border, var(--purple-900));
+  box-shadow: 0 0 0 2px var(--bg-surface);
 }
+.plan-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.plan-avatar-initial { text-transform: uppercase; }
+
+/* 연결 상태 점 (ScheduleBoard standalone 툴바에서 사용) */
 .collab-status-dot {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--gray-border);
@@ -240,19 +291,6 @@
   transition: background .14s;
 }
 .collab-status-dot.connected { background: var(--color-success, #22c55e); }
-.plan-collab-overlay {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 40;
-  width: 320px;
-  max-width: 90vw;
-  background: var(--bg-surface);
-  border: 1px solid var(--gray-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgba(20,20,30,0.16));
-  overflow: hidden;
-}
 
 /* explore 모드 본문: 헤더 아래 남은 영역을 채움 */
 .plan-explore-body { flex: 1; min-height: 0; position: relative; }
@@ -482,7 +520,15 @@
   background: var(--bg-surface);
   box-shadow: var(--shadow-sm);
 }
-.plan-organize .cand-sidebar-header { padding: 16px 18px 10px; }
+/* 보관함 헤더 언더라인을 timetable-header 언더라인과 정렬 — 동일 고정 높이 */
+.plan-organize { --board-header-h: 66px; }
+.plan-organize .timetable-header { height: var(--board-header-h); }
+.plan-organize .cand-sidebar-header {
+  height: var(--board-header-h);
+  box-sizing: border-box;
+  padding: 0 18px;
+  align-items: center;
+}
 .plan-organize .cand-sidebar-title { font-size: var(--text-lg); font-weight: 700; }
 .plan-organize .cand-flat-body {
   flex: 1;
@@ -577,39 +623,61 @@
   font-weight: 650;
   cursor: pointer;
 }
-
-/* ── Day 요약 바 (활동·이동 합 → 과밀 경고) ── */
-.plan-organize .board-day-summary {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--gray-border);
-  box-shadow: var(--shadow-sm);
+.plan-organize .btn-add-place {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-top: 6px; padding: 9px;
+  font-family: inherit; font-size: var(--text-base); font-weight: 650;
+  color: var(--purple-900); background: var(--purple-50);
+  border: 1px solid var(--purple-100); border-radius: var(--radius-md); cursor: pointer;
+  transition: background .12s, border-color .12s;
 }
-.plan-organize .board-day-chip {
+.plan-organize .btn-add-place:hover { background: var(--purple-100); border-color: var(--purple-900); }
+
+/* ── 보관함 접기/펼치기 (Day 요약 바 폐지: 날짜별 활동·이동 합은 근거 부족 + 다일정 시 레이아웃 붕괴) ── */
+/* 헤더 내 접기 버튼 */
+.plan-organize .cand-collapse-btn {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--gray-muted);
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.plan-organize .cand-collapse-btn:hover { background: var(--bg-page); color: var(--purple-900); }
+/* 접힘 상태에서 보관함 펼치기 — 시간표 좌상단 코너에 떠 있는 핀 */
+.plan-organize .cand-expand-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 16;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px 6px 9px;
+  font-family: inherit;
   font-size: var(--text-sm);
-  color: var(--gray-dark);
-  background: var(--bg-page);
+  font-weight: 650;
+  color: var(--purple-900);
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-border);
   border-radius: var(--radius-full);
-  padding: 6px 14px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: box-shadow .14s, border-color .14s, transform .14s;
 }
-.plan-organize .board-day-chip-label { font-weight: 700; color: var(--purple-900); }
-.plan-organize .board-day-chip-meta { font-weight: 600; }
-.plan-organize .board-day-chip-sep { color: var(--gray-muted); }
-.plan-organize .board-day-chip.tight {
-  background: var(--amber-50);
-  color: var(--amber-600);
+.plan-organize .cand-expand-btn:hover {
+  border-color: var(--purple-100);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
-.plan-organize .board-day-chip.tight .board-day-chip-label { color: var(--amber-600); }
-.plan-organize .board-day-chip-warn {
-  font-weight: 700;
-  color: var(--amber-600);
-}
+/* 펼치기 핀의 기준 — 시간표 영역 */
+.plan-organize .timetable-main { position: relative; }
 
 /* ── 격자 이벤트 블록: 분류색 좌측 ink 바 + 큰 제목 (§6.3) ── */
 .plan-organize .event-block.event-block--cat {
