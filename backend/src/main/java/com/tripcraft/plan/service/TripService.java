@@ -25,6 +25,12 @@ public interface TripService {
 
     TripDetailResponse getTripDetail(Long tripId, Long memberId);
 
+    /** 링크 접근 레벨 설정(소유자). 공개 전환 시 토큰 생성. @return 현재 토큰(없으면 null) */
+    String setShareAccess(Long tripId, String access, Long requesterId);
+
+    /** 공유 토큰으로 일정 조회(비로그인 허용). PRIVATE/무효 토큰은 거부. */
+    TripDetailResponse getSharedTrip(String token, Long memberId);
+
     TripBlockSummaryResponse getBlocksSummary(Long tripId);
 
     Long createTrip(TripCreateRequest request, Long memberId);
