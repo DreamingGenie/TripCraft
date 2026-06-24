@@ -138,6 +138,12 @@
       @update="onShareUpdate"
     />
 
+    <!-- 편집 링크 + 비로그인: 로그인 유도 배너 -->
+    <div v-if="showLoginToEdit" class="plan-login-banner">
+      <span>✏️ 편집 가능한 공유 링크예요. <strong>로그인</strong>하면 함께 편집할 수 있어요.</span>
+      <button class="plan-login-btn" @click="goLoginToEdit">로그인</button>
+    </div>
+
   <section v-show="mode === 'explore'" id="screen-explore">
 
     <!-- 지도: 전체 배경 -->
@@ -653,6 +659,12 @@ const shareToken = ref(route.query.s || null)
 const isSharedView = computed(() => !!shareToken.value)
 const readOnly = computed(() =>
   isSharedView.value && !['OWNER', 'EDITOR'].includes(activeTripDetail.value?.myRole))
+// 편집 링크인데 비로그인 → 로그인하면 편집 가능 안내
+const showLoginToEdit = computed(() =>
+  isSharedView.value && !auth.user && activeTripDetail.value?.shareAccess === 'EDIT')
+function goLoginToEdit() {
+  router.push({ path: '/auth', query: { redirect: route.fullPath } })
+}
 const trayOpen = ref(false) // 평소 지도를 넓게: 담기/드래그 시 자동으로 열림
 const isDraggingCard = ref(false)
 const currentTrip = computed(() =>
