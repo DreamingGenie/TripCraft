@@ -16,6 +16,7 @@ export const useCollabStore = defineStore('collab', () => {
   let reconnectTimer = null
   let isReconnecting = false
   let keepaliveTimer = null
+  let observer = false   // 익명 관전 모드: 구독만(수신), 전송·keepalive·인증 프리페치 없음
 
   // 이벤트 핸들러 콜백 — ScheduleBoard에서 주입
   let onTripEvent = null
@@ -28,7 +29,8 @@ export const useCollabStore = defineStore('collab', () => {
     onReconnect = reconnect ?? null
   }
 
-  async function connect(tripId) {
+  async function connect(tripId, opts = {}) {
+    observer = !!opts.observer   // 비로그인 관전: 구독만, 전송·keepalive 없음
     // 재호출 방어: 이전 연결이 살아 있으면 정리 후 새로 연결 (클라이언트 누수·중복 구독 방지)
     if (stompClient) {
       stopKeepalive()
@@ -41,12 +43,15 @@ export const useCollabStore = defineStore('collab', () => {
   }
 
   async function _doConnect(tripId) {
-    // 핸드셰이크 전 REST 호출로 access_token 쿠키 최신화 (만료 시 http.js 자동 갱신)
-    try {
-      await tripApi.get(tripId)
-    } catch {
-      connected.value = false
-      return  // 인증 불가 또는 일정 접근 불가 → 재연결 중단
+    // 핸드셰이크 전 REST 호출로 access_token 쿠키 최신화 (만료 시 http.js 자동 갱신).
+    // observer(비로그인 관전)는 인증이 없으므로 생략 — 익명 SUBSCRIBE 는 백엔드가 share_access 로 허용.
+    if (!observer) {
+      try {
+        await tripApi.get(tripId)
+      } catch {
+        connected.value = false
+        return  // 인증 불가 또는 일정 접근 불가 → 재연결 중단
+      }
     }
 
     stompClient = new Client({
@@ -77,7 +82,7 @@ export const useCollabStore = defineStore('collab', () => {
           if (onPresence) onPresence(list)
         })
 
-        startKeepalive(tripId)
+        if (!observer) startKeepalive(tripId)  // 관전 모드는 전송 없음
 
         // 재연결인 경우에만 놓친 변경 사항 재동기화
         if (isReconnecting && onReconnect) {
@@ -129,6 +134,7 @@ export const useCollabStore = defineStore('collab', () => {
   }
 
   function sendPointer(tripId, payload) {
+    if (observer) return   // 관전 모드(비로그인)는 전송 안 함
     if (!stompClient?.connected) return
     stompClient.publish({
       destination: `/app/trip/${tripId}/pointer`,

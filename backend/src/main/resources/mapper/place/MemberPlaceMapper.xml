@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripcraft.place.mapper.MemberPlaceMapper">
+
+    <resultMap id="memberPlaceMap" type="com.tripcraft.place.domain.MemberPlace">
+        <id     column="id"         property="id"/>
+        <result column="member_id"  property="memberId"/>
+        <result column="name"       property="name"/>
+        <result column="category"   property="category"/>
+        <result column="address"    property="address"/>
+        <result column="latitude"   property="latitude"/>
+        <result column="longitude"  property="longitude"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="findByMemberId" parameterType="long" resultMap="memberPlaceMap">
+        SELECT id, member_id, name, category, address, latitude, longitude, created_at
+        FROM member_place WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" parameterType="long" resultMap="memberPlaceMap">
+        SELECT id, member_id, name, category, address, latitude, longitude, created_at
+        FROM member_place WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.tripcraft.place.domain.MemberPlace"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO member_place (member_id, name, category, address, latitude, longitude)
+        VALUES (#{memberId}, #{name}, #{category}, #{address}, #{latitude}, #{longitude})
+    </insert>
+
+    <delete id="deleteByIdAndMember">
+        DELETE FROM member_place WHERE id = #{id} AND member_id = #{memberId}
+    </delete>
+</mapper>

@@ -45,13 +45,12 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     }
 
     // ── CONNECT: 핸드셰이크에서 쿠키로 저장된 memberId로 Principal 설정 ─────
+    // 익명(비로그인)도 연결 허용 — SUBSCRIBE 는 공유(비PRIVATE) 일정만, SEND 는 차단(관전 전용)
     private void handleConnect(StompHeaderAccessor accessor) {
         Long memberId = getMemberIdFromSession(accessor);
-        if (memberId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "WebSocket 인증 실패: 로그인이 필요합니다.");
+        if (memberId != null) {
+            accessor.setUser(new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
         }
-        Principal principal = new UsernamePasswordAuthenticationToken(memberId, null, List.of());
-        accessor.setUser(principal);
     }
 
     // ── SUBSCRIBE: /topic/trip/{tripId} 구독 시 조회 권한 확인 ──────────────
@@ -62,8 +61,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         Long tripId = parseTripId(destination, 3);
         if (tripId == null) return;
 
+        // 익명(memberId null)도 공유 일정이면 구독 허용 — canView 에서 share_access 로 판정
         Long memberId = getMemberIdFromSession(accessor);
-        if (memberId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
 
         // 같은 trip의 두 번째 구독(/presence 등)은 캐시 활용
         String cacheKey = "tripAccess:" + tripId;
@@ -71,7 +70,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
+                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
+                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
@@ -96,7 +96,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
         boolean canView = tripMapper.findById(tripId)
                 .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())
+                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
+                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
                 .orElse(false);
 
         if (!canView) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Trip access denied");
