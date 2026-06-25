@@ -379,6 +379,28 @@ Table attach {
 }
 
 // =============================================
+// 마이페이지 방문 지도 표지
+// =============================================
+Table member_map_cover {
+  member_id bigint [pk, note: '회원 FK']
+  region_level varchar(10) [pk, default: 'SIDO', note: 'SIDO | SIGUNGU']
+  region_code smallint [pk, note: '지역 코드(SIDO=sido_code)']
+  image_url varchar(500) [not null, note: '지도 전용 복사본 URL']
+  host_path varchar(500) [note: '복사본 절대경로(정리용)']
+  source_post_id bigint [note: '출처 여행이야기(직접 업로드면 NULL)']
+  focus_x decimal(5,2) [not null, default: 50.00, note: 'crop 초점 X(%)']
+  focus_y decimal(5,2) [not null, default: 50.00, note: 'crop 초점 Y(%)']
+  zoom decimal(4,2) [not null, default: 1.00, note: 'crop 확대 배율(>=1)']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (source_post_id) [name: 'idx_map_cover_post']
+  }
+  note: '지역별 방문 지도 표지 사진 + crop. 출처 글 삭제와 무관하게 사진 유지'
+}
+
+// =============================================
 // 관계 (FK) — ON DELETE 정책 포함
 // =============================================
 Ref: member_token.member_id > member.id [delete: cascade]
@@ -417,6 +439,9 @@ Ref: post_bookmark.member_id > member.id [delete: cascade]
 Ref: post_bookmark.post_id   > post.id   // CASCADE 없음 (북마크 보존)
 
 Ref: notice.member_id > member.id [delete: set null]
+
+Ref: member_map_cover.member_id     > member.id [delete: cascade]
+Ref: member_map_cover.source_post_id > post.id  [delete: set null]
 
 // 논리적 관계 (DDL상 FK 제약 없음 — ERD 가독성을 위해 표기)
 Ref: sigungu.sido_code      > sido.sido_code
@@ -459,4 +484,5 @@ TableGroup "커뮤니티·첨부" {
   post_bookmark
   notice
   attach
+  member_map_cover
 }
