@@ -1,0 +1,99 @@
+# Use-Case 다이어그램 — TripCraft
+
+> 원본 시각 다이어그램: [`usecase.svg`](./usecase.svg) (UML 표기)
+> 아래는 액터별 유스케이스 정의와 Mermaid 보강 다이어그램이다.
+
+---
+
+## 1. 액터 정의
+
+| 액터 | 설명 | 권한 |
+|------|------|------|
+| **비회원 (Guest)** | 미로그인 방문자 | 관광지 조회, 커뮤니티/공지 열람, 공유 링크(VIEW) 조회 |
+| **회원 (Member)** | 로그인 사용자 | Guest 권한 + 일정 CRUD·드래그 편집, 즐겨찾기, 후보군, 게시글/댓글/좋아요/북마크, AI 챗봇, 협업 |
+| **관리자 (Admin)** | 운영자 | Member 권한 + 공지 CRUD, 게시글 관리, TourAPI 동기화 |
+| **시스템/외부 API** | 배치·연동 주체 | TourAPI 수집, ODsay/T Map 경로 계산, Kakao OAuth/검색, gms(AI) 호출 |
+
+---
+
+## 2. 유스케이스 다이어그램 (Mermaid)
+
+```mermaid
+flowchart LR
+    Guest([비회원])
+    Member([회원])
+    Admin([관리자])
+    Ext([외부 API/시스템])
+
+    subgraph 인증["인증·회원"]
+        UC1(회원가입/로그인)
+        UC2(카카오 OAuth 로그인)
+        UC3(프로필·비밀번호 수정)
+        UC4(회원 탈퇴)
+    end
+    subgraph 탐색["관광지 탐색"]
+        UC5(지역·카테고리·키워드 검색)
+        UC6(관광지 상세 조회)
+        UC7(즐겨찾기 토글)
+        UC8(AI 챗봇 질문·주변추천)
+    end
+    subgraph 일정["여행 일정"]
+        UC9(일정 생성/목록)
+        UC10(후보군 등록·도시 자동분류)
+        UC11(드래그앤드롭 타임라인 편집)
+        UC12(이동시간 자동계산·수단선택)
+        UC13(경로 지도 시각화)
+        UC14(일정 공유링크·협업 초대)
+    end
+    subgraph 커뮤["커뮤니티"]
+        UC15(게시글 작성/수정/삭제)
+        UC16(게시글 열람·조회수)
+        UC17(좋아요·북마크·댓글)
+        UC18(방문 지도)
+    end
+    subgraph 운영["운영"]
+        UC19(공지 CRUD)
+        UC20(TourAPI 동기화)
+    end
+
+    Guest --> UC1
+    Guest --> UC5
+    Guest --> UC6
+    Guest --> UC16
+    Member --> UC2
+    Member --> UC3
+    Member --> UC4
+    Member --> UC7
+    Member --> UC8
+    Member --> UC9
+    Member --> UC10
+    Member --> UC11
+    Member --> UC12
+    Member --> UC13
+    Member --> UC14
+    Member --> UC15
+    Member --> UC17
+    Member --> UC18
+    Admin --> UC19
+    Admin --> UC20
+
+    UC2 -.OAuth.-> Ext
+    UC5 -.조회.-> Ext
+    UC8 -.AI.-> Ext
+    UC12 -.경로API.-> Ext
+    UC20 -.TourAPI.-> Ext
+```
+
+---
+
+## 3. 주요 유스케이스 명세 (요약)
+
+| ID | 유스케이스 | 액터 | 사전조건 | 기본 흐름 |
+|----|-----------|------|----------|-----------|
+| UC10 | 후보군 등록 | 회원 | 활성 일정 존재 | 관광지 카드 "추가" → 후보군 등록 → 도시(시군구) 자동 그룹화 → 첫 등록 시 동일 도시 즐겨찾기 일괄 추가 |
+| UC11 | 타임라인 편집 | 회원 | 후보군 ≥ 1 | CandidateCard를 Day 타임라인으로 드래그 → PlaceBlock 생성 → 체류시간 핸들 조정 → 자동 저장 |
+| UC12 | 이동시간 계산 | 회원, 외부 | 블록 ≥ 2 | 블록 배치/이동/삭제 트리거 → 캐시 조회 → 미스 시 ODsay(대중교통)/T Map(자동차·도보) 호출 → TransitPill 삽입 |
+| UC14 | 협업·공유 | 회원 | 일정 소유 | 공유 링크 발급(VIEW/EDIT) 또는 회원 검색 후 협업자(EDITOR/VIEWER) 초대 → WebSocket 실시간 동기화 |
+| UC8 | AI 챗봇 | 회원, 외부 | 로그인 | 관광지 상세에서 질문 → 장소정보+반경3km 주변장소 컨텍스트 주입 → gms gpt-4.1 멀티턴 응답 → 언급 장소 핀 이동 |
+
+> 전체 기능 요구사항(US-xx-xx, AC)은 [`../01_requirements/요구사항정의서.md`](../01_requirements/요구사항정의서.md) 참조.
