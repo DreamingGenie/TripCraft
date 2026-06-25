@@ -1,0 +1,488 @@
+// =============================================
+// TripCraft ERD (DBML) — 제출용 메인
+// 단일 소스: docs/02_design/schema.sql (v0.5, 24 tables)
+// 사용법: https://dbdiagram.io → 좌측 에디터에 본 파일 전체 붙여넣기 → 우측 자동 레이아웃
+//         Export: PNG / PDF / SVG (제출용)
+// 관계 표기: [delete: cascade | set null | restrict] = ON DELETE 정책
+//            sido/sigungu↔attraction 은 DDL상 FK 제약은 없는 '논리적 관계'(주석 표기)
+// =============================================
+
+// ---------- ENUMs ----------
+Enum member_role {
+  USER
+  ADMIN
+}
+Enum candidate_source {
+  MANUAL
+  FAVORITE
+  CUSTOM
+}
+Enum collaborator_role {
+  EDITOR
+  VIEWER
+}
+Enum trip_share_access {
+  PRIVATE
+  VIEW
+  EDIT
+}
+
+// =============================================
+// 회원 / 인증
+// =============================================
+Table member {
+  id bigint [pk, increment, note: '회원 PK']
+  email varchar(100) [unique, note: '로그인 이메일 (소셜은 NULL 가능)']
+  nickname varchar(20) [not null, note: '닉네임 2~20자']
+  password varchar(255) [note: 'BCrypt 해시 (소셜 전용은 NULL)']
+  role member_role [not null, default: 'USER']
+  social_provider varchar(20) [note: '소셜 제공자 (kakao 등)']
+  social_id varchar(100) [note: '소셜 사용자 고유 ID']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (social_provider, social_id) [unique, name: 'uq_member_social']
+  }
+  note: '회원. 탈퇴 시 하드 딜리트 — 앱 레이어에서 연관 데이터 순서대로 삭제'
+}
+
+Table member_token {
+  id bigint [pk, increment]
+  member_id bigint [not null, note: '회원 FK']
+  refresh_token varchar(500) [not null]
+  expires_at datetime [not null, note: '발급 시 +7일']
+  created_at timestamp [not null]
+  note: 'JWT Refresh Token. 로그아웃 시 DELETE로 무효화'
+}
+
+// =============================================
+// 지역 참조 (TourAPI areaCode2)
+// =============================================
+Table sido {
+  sido_code tinyint [pk, note: '1=서울 … 39=제주']
+  name varchar(50) [not null, note: '공식명 (동기화 갱신)']
+  alias varchar(50) [note: '표시용 짧은 이름']
+}
+
+Table sigungu {
+  sido_code tinyint [not null]
+  sigungu_code tinyint [not null]
+  name varchar(50) [not null]
+  alias varchar(50)
+
+  indexes {
+    (sido_code, sigungu_code) [pk]
+  }
+  note: 'PK=(sido_code, sigungu_code). sido와는 논리적 관계(DDL상 FK 제약 없음)'
+}
+
+// =============================================
+// 관광지 (TourAPI)
+// =============================================
+Table attraction {
+  id bigint [pk, increment, note: '내부 PK']
+  content_id varchar(20) [not null, unique, note: 'TourAPI contentid']
+  content_type_id tinyint [not null, note: '12관광지 14문화 28레포츠 32숙박 38쇼핑 39음식점']
+  title varchar(200) [not null]
+  sido_code tinyint [not null, note: '논리 FK → sido']
+  sigungu_code tinyint [not null, note: '논리 FK → sigungu']
+  addr1 varchar(300)
+  addr2 varchar(100)
+  zipcode varchar(10)
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  tel varchar(50)
+  first_image varchar(500)
+  first_image2 varchar(500)
+  mlevel tinyint
+  cat1 varchar(10)
+  cat2 varchar(10)
+  cat3 varchar(10)
+  l_dong_regn_cd varchar(20)
+  l_dong_signgu_cd varchar(20)
+  lcls_systm1 varchar(200)
+  lcls_systm2 varchar(200)
+  lcls_systm3 varchar(200)
+  cpyrht_div_cd varchar(10)
+  api_created_at datetime
+  api_modified_at datetime [note: '증분 배치 기준']
+  synced_at timestamp [not null]
+  note: 'areaBasedList2 필드. 상세는 attraction_detail_* 참조'
+}
+
+Table attraction_detail_common {
+  content_id varchar(20) [pk, note: 'FK → attraction.content_id']
+  overview text
+  homepage varchar(500)
+  telname varchar(100)
+  synced_at timestamp [not null]
+  note: 'detailCommon2 추가 필드'
+}
+
+Table attraction_detail_intro {
+  content_id varchar(20) [pk, note: 'FK → attraction.content_id']
+  content_type_id tinyint [not null]
+  intro_data json [note: 'contenttypeid별 소개 JSON']
+  synced_at timestamp [not null]
+  note: 'detailIntro2 응답 전체 JSON'
+}
+
+Table attraction_detail_image {
+  id bigint [pk, increment]
+  content_id varchar(20) [not null, note: 'FK → attraction.content_id']
+  serialnum varchar(10)
+  originimgurl varchar(500)
+  smallimageurl varchar(500)
+  imgname varchar(200)
+  cpyrht_div_cd varchar(10)
+  note: 'detailImage2 이미지 목록'
+}
+
+Table attraction_detail_info {
+  id bigint [pk, increment]
+  content_id varchar(20) [not null, note: 'FK → attraction.content_id']
+  serialnum varchar(10)
+  fldgubun varchar(10)
+  infoname varchar(200)
+  infotext text
+  subcontentid varchar(20)
+  subdetailalt varchar(200)
+  subdetailimg varchar(500)
+  subdetailoverview text
+  subname varchar(200)
+  subnum varchar(10)
+  room_data json [note: '숙박 객실 정보 JSON']
+  note: 'detailInfo2 이용 안내. 숙박 객실은 room_data'
+}
+
+Table favorite {
+  id bigint [pk, increment]
+  member_id bigint [not null, note: '회원 FK']
+  attraction_id bigint [not null, note: '관광지 FK']
+  created_at timestamp [not null]
+
+  indexes {
+    (member_id, attraction_id) [unique, name: 'uq_favorite']
+  }
+  note: '즐겨찾기'
+}
+
+// =============================================
+// 여행 일정 / 협업
+// =============================================
+Table trip {
+  id bigint [pk, increment]
+  member_id bigint [not null, note: '소유 회원 FK']
+  title varchar(30) [not null]
+  start_date date [not null]
+  end_date date [not null]
+  member_count tinyint [not null, default: 1]
+  default_transit_mode varchar(20) [not null, default: 'PUBLIC_TRANSIT', note: 'PUBLIC_TRANSIT·DRIVING·WALKING']
+  is_public "tinyint(1)" [not null, default: 0]
+  share_access trip_share_access [not null, default: 'PRIVATE']
+  share_token char(22) [unique, note: '공유 링크 토큰. NULL=미생성']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  note: '여행 일정. Day 탭은 기간 범위 런타임 계산'
+}
+
+Table trip_candidate {
+  id bigint [pk, increment]
+  trip_id bigint [not null, note: '일정 FK']
+  attraction_id bigint [note: '관광지 FK (커스텀이면 NULL)']
+  city_code tinyint [note: '도시 분류 (커스텀이면 NULL)']
+  source candidate_source [not null, default: 'MANUAL']
+  place_name varchar(100) [note: '커스텀 장소명']
+  place_category varchar(20)
+  place_address varchar(255)
+  place_lat decimal(10,7)
+  place_lng decimal(10,7)
+  added_at timestamp [not null]
+
+  indexes {
+    (trip_id, attraction_id) [unique, name: 'uq_candidate']
+    (trip_id, place_lat, place_lng) [unique, name: 'uq_candidate_place']
+  }
+  note: '일정 후보군. trip_block 존재 시 삭제 불가(RESTRICT)'
+}
+
+Table member_place {
+  id bigint [pk, increment]
+  member_id bigint [not null, note: '소유 회원 FK']
+  name varchar(100) [not null]
+  category varchar(20) [not null]
+  address varchar(255)
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  created_at timestamp [not null]
+
+  indexes {
+    (member_id, latitude, longitude) [unique, name: 'uq_member_place']
+  }
+  note: '회원 개인 커스텀 장소(재사용)'
+}
+
+Table trip_collaborator {
+  id bigint [pk, increment]
+  trip_id bigint [not null]
+  member_id bigint [not null]
+  role collaborator_role [not null, default: 'EDITOR']
+  invited_at timestamp [not null]
+
+  indexes {
+    (trip_id, member_id) [unique, name: 'uq_collaborator']
+  }
+  note: '일정 협업자. 소유자와 별도. EDITOR(조회+편집)/VIEWER(조회만)'
+}
+
+Table trip_block {
+  id bigint [pk, increment]
+  candidate_id bigint [not null, note: '후보군 FK']
+  trip_date date [not null, note: 'trip 기간 범위 TRIGGER 검증']
+  display_order tinyint [not null]
+  start_time time [note: 'NULL=미확정']
+  duration_minutes smallint [not null, default: 60]
+  transport_preference tinyint [not null, default: 0, note: '0대중교통 1지하철 2버스 3자동차']
+  memo text
+  transit_duration_minutes smallint [note: '이전→이 블록 이동 시간(분)']
+  transit_mode varchar(100) [note: '이동 수단 목록 (콤마 구분)']
+  transit_option_index int [note: '선택 경로 인덱스']
+  version int [not null, default: 0, note: '낙관적 락 버전']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  note: '타임라인 확정 블록. transit_* 비정규화 저장'
+}
+
+// =============================================
+// 이동 캐시 (외부 API) — FK 없는 독립 캐시
+// =============================================
+Table transit_cache {
+  id bigint [pk, increment]
+  route_key varchar(160) [unique, note: '좌표 기반 캐시 키']
+  from_attraction_id bigint [note: '(미사용, 좌표키로 전환)']
+  to_attraction_id bigint [note: '(미사용, 좌표키로 전환)']
+  departure_hour tinyint [not null]
+  request_mode varchar(20) [not null, default: 'PUBLIC_TRANSIT']
+  duration_minutes smallint [not null]
+  transport_mode varchar(100) [not null]
+  transfer_count tinyint [note: '환승 횟수(대중교통)']
+  fare int [note: 'ODsay 요금']
+  taxi_fare int [note: 'T Map 택시 요금']
+  total_distance_m int
+  total_walk_m int
+  path_detail json [note: 'ODsay path[0] JSON']
+  route_coords mediumtext [note: 'T Map 경로 좌표 JSON']
+  cached_at timestamp [not null]
+  note: 'ODsay 대중교통·T Map 자동차/도보 응답 캐시'
+}
+
+Table lane_polyline {
+  id bigint [pk, increment]
+  map_object_key varchar(250) [not null, unique, note: 'ODsay info.mapObj']
+  route_coords mediumtext [note: '파싱 좌표 JSON']
+  raw_response mediumtext [note: 'loadLane 원본 JSON']
+  created_at datetime [not null]
+  note: 'ODsay loadLane 노선 폴리라인 캐시 (영구 보관)'
+}
+
+// =============================================
+// 시스템 설정
+// =============================================
+Table system_config {
+  config_key varchar(60) [pk]
+  config_value varchar(200) [not null]
+  description varchar(200)
+  updated_at timestamp [not null]
+  note: '관리자 시스템 설정 (캐시 레벨·러시아워 경계 등)'
+}
+
+// =============================================
+// 커뮤니티
+// =============================================
+Table post {
+  id bigint [pk, increment]
+  member_id bigint [note: '작성자 FK (탈퇴 시 NULL)']
+  trip_id bigint [note: '공유 일정 FK (삭제 시 NULL)']
+  title varchar(100) [not null]
+  content text
+  view_count int [not null, default: 0]
+  like_count int [not null, default: 0, note: 'post_like 집계 캐시']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at datetime [note: 'NULL=정상, non-NULL=소프트 딜리트']
+  note: '일정 공유 게시글. trip 삭제 시 게시글 보존'
+}
+
+Table post_like {
+  id bigint [pk, increment]
+  post_id bigint [not null]
+  member_id bigint [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (post_id, member_id) [unique, name: 'uq_post_like']
+  }
+  note: '게시글 좋아요 (회원당 1회)'
+}
+
+Table post_comment {
+  id bigint [pk, increment]
+  post_id bigint [not null]
+  member_id bigint [note: '작성자 FK (탈퇴 시 NULL)']
+  parent_id bigint [note: '부모 댓글 FK (NULL=최상위, 1단계 대댓글)']
+  content varchar(1000) [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  note: '게시글 댓글·대댓글. 부모 삭제 시 CASCADE'
+}
+
+Table post_bookmark {
+  member_id bigint [not null]
+  post_id bigint [not null]
+  created_at datetime [not null]
+
+  indexes {
+    (member_id, post_id) [pk]
+  }
+  note: 'post_id에 CASCADE 없음 — 소프트 딜리트 시 북마크 보존'
+}
+
+Table notice {
+  id bigint [pk, increment]
+  member_id bigint [note: '작성 관리자 FK (삭제 시 NULL)']
+  title varchar(100) [not null]
+  content text [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  note: '관리자 공지. 최신 5건 사이드바 표시'
+}
+
+// =============================================
+// 첨부파일 (FK 없는 메타데이터 — target/target_id로 다형 참조)
+// =============================================
+Table attach {
+  id bigint [pk, increment]
+  name varchar(255) [not null, note: '저장 파일명 UUID.ext']
+  host_name varchar(255) [note: '원본 파일명']
+  size bigint [not null, default: 0]
+  mimetype varchar(100)
+  host_path varchar(500) [note: '서버 절대 경로']
+  target varchar(20) [not null, note: 'profile | post | post_draft']
+  target_id bigint [not null, default: 0]
+  created_at datetime [not null]
+
+  indexes {
+    (target, target_id) [name: 'idx_attach_target']
+  }
+  note: '파일 첨부 메타. target/target_id로 member·post 다형 참조(FK 제약 없음)'
+}
+
+// =============================================
+// 마이페이지 방문 지도 표지
+// =============================================
+Table member_map_cover {
+  member_id bigint [pk, note: '회원 FK']
+  region_level varchar(10) [pk, default: 'SIDO', note: 'SIDO | SIGUNGU']
+  region_code smallint [pk, note: '지역 코드(SIDO=sido_code)']
+  image_url varchar(500) [not null, note: '지도 전용 복사본 URL']
+  host_path varchar(500) [note: '복사본 절대경로(정리용)']
+  source_post_id bigint [note: '출처 여행이야기(직접 업로드면 NULL)']
+  focus_x decimal(5,2) [not null, default: 50.00, note: 'crop 초점 X(%)']
+  focus_y decimal(5,2) [not null, default: 50.00, note: 'crop 초점 Y(%)']
+  zoom decimal(4,2) [not null, default: 1.00, note: 'crop 확대 배율(>=1)']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (source_post_id) [name: 'idx_map_cover_post']
+  }
+  note: '지역별 방문 지도 표지 사진 + crop. 출처 글 삭제와 무관하게 사진 유지'
+}
+
+// =============================================
+// 관계 (FK) — ON DELETE 정책 포함
+// =============================================
+Ref: member_token.member_id > member.id [delete: cascade]
+
+Ref: attraction_detail_common.content_id - attraction.content_id [delete: cascade]
+Ref: attraction_detail_intro.content_id  - attraction.content_id [delete: cascade]
+Ref: attraction_detail_image.content_id  > attraction.content_id [delete: cascade]
+Ref: attraction_detail_info.content_id   > attraction.content_id [delete: cascade]
+
+Ref: favorite.member_id     > member.id     [delete: cascade]
+Ref: favorite.attraction_id > attraction.id [delete: cascade]
+
+Ref: trip.member_id > member.id [delete: cascade]
+
+Ref: trip_candidate.trip_id       > trip.id       [delete: cascade]
+Ref: trip_candidate.attraction_id > attraction.id [delete: cascade]
+
+Ref: member_place.member_id > member.id [delete: cascade]
+
+Ref: trip_collaborator.trip_id   > trip.id   [delete: cascade]
+Ref: trip_collaborator.member_id > member.id [delete: cascade]
+
+Ref: trip_block.candidate_id > trip_candidate.id [delete: restrict]
+
+Ref: post.member_id > member.id [delete: set null]
+Ref: post.trip_id   > trip.id   [delete: set null]
+
+Ref: post_like.post_id   > post.id   [delete: cascade]
+Ref: post_like.member_id > member.id [delete: cascade]
+
+Ref: post_comment.post_id   > post.id         [delete: cascade]
+Ref: post_comment.member_id > member.id        [delete: set null]
+Ref: post_comment.parent_id > post_comment.id  [delete: cascade]
+
+Ref: post_bookmark.member_id > member.id [delete: cascade]
+Ref: post_bookmark.post_id   > post.id   // CASCADE 없음 (북마크 보존)
+
+Ref: notice.member_id > member.id [delete: set null]
+
+Ref: member_map_cover.member_id     > member.id [delete: cascade]
+Ref: member_map_cover.source_post_id > post.id  [delete: set null]
+
+// 논리적 관계 (DDL상 FK 제약 없음 — ERD 가독성을 위해 표기)
+Ref: sigungu.sido_code      > sido.sido_code
+Ref: attraction.sido_code   > sido.sido_code
+Ref: attraction.sigungu_code > sigungu.sigungu_code
+
+// =============================================
+// 도메인 그룹 (레이아웃 가독성)
+// =============================================
+TableGroup "회원·인증" {
+  member
+  member_token
+}
+TableGroup "관광지·지역" {
+  sido
+  sigungu
+  attraction
+  attraction_detail_common
+  attraction_detail_intro
+  attraction_detail_image
+  attraction_detail_info
+  favorite
+}
+TableGroup "여행·협업" {
+  trip
+  trip_candidate
+  trip_block
+  trip_collaborator
+  member_place
+}
+TableGroup "이동·시스템" {
+  transit_cache
+  lane_polyline
+  system_config
+}
+TableGroup "커뮤니티·첨부" {
+  post
+  post_like
+  post_comment
+  post_bookmark
+  notice
+  attach
+  member_map_cover
+}
