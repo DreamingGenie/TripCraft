@@ -184,9 +184,14 @@ public class TripServiceImpl implements TripService {
             = new java.util.concurrent.ConcurrentHashMap<>();
 
     private void broadcast(Long tripId, TripEvent event) {
-        long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
-                           .incrementAndGet();
-        messaging.convertAndSend("/topic/trip/" + tripId, event.withSeq(seq));
+        // 반드시 커밋 이후에 전송한다. 커밋 전에 보내면 수신측이 즉시 loadTrip()(별도 트랜잭션)으로
+        // 재조회할 때 아직 커밋되지 않은 변경을 못 봐서 '한 템포 늦게' 반영되는 문제가 생긴다.
+        // seq도 afterCommit 안에서 부여 → seq 순서 == 커밋 순서 == 전송 순서(동시 편집 시 역전 방지).
+        runAfterCommit(() -> {
+            long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
+                               .incrementAndGet();
+            messaging.convertAndSend("/topic/trip/" + tripId, event.withSeq(seq));
+        });
     }
 
     // ── 협업자 관리 ────────────────────────────────────────────────────────────
