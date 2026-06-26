@@ -84,6 +84,7 @@ SLIDES = [
          ["드래그앤드롭 복잡도", "vuedraggable 활용"],
          ["동시 편집 충돌", "version 낙관적 락으로 후행 저장 거부·재동기화"],
          ["2인 일정 지연", "주 1회 동기화·우선순위 재조정"]]},
+    {"type": "divider", "num": "03", "title": "시장 분석"},
     # 15
     {"type": "table", "title": "경쟁 서비스 비교",
      "lead": "탐색·길찾기는 잘하지만 **여러 장소를 하루 동선으로 엮고 이동시간 자동 반영 + 일행과 함께 편집**하는 흐름은 비어 있다.",
@@ -225,29 +226,91 @@ SLIDES = [
          "후보군→블록 **RESTRICT**(모달 확인 UX)",
          "글 **소프트 딜리트** + 북마크 보존"]}},
     # 44
-    {"type": "bullets", "title": "기대 효과", "items": [
+    {"type": "bullets", "sec": "8", "title": "기대 효과", "items": [
         "**여행 준비 시간 단축** — 탐색·동선·이동시간을 한 화면에서, 앱 전환 비용 제거",
         "**현실적인 일정** — 구간별 실제 이동시간·수단으로 무리 없는 동선",
         "**함께 만드는 여행** — 실시간 협업·공유로 일행과 합의된 일정",
         "**경험의 축적** — 여행 이야기·방문 지도로 기록 자산화",
         "**확장성** — 도메인 중심 설계 + 캐시 전략으로 기능·트래픽 확장 용이"]},
     # 45
-    {"type": "placeholder", "title": "개발 후기 — 팀", "boxes": ["팀 사진\n[사진 삽입]"],
+    {"type": "placeholder", "sec": "9", "title": "개발 후기 — 팀", "boxes": ["팀 사진\n[사진 삽입]"],
      "note": "팀 한 줄 소감을 사진 아래에 추가하세요."},
     # 46
     {"type": "twocol", "title": "개발 후기 — 개인 회고",
      "left": {"head": "전진", "items": ["[회고 작성]", "배운 점 · 어려웠던 점 · 다음에 시도할 것"]},
-     "right": {"head": "송정기", "items": ["[회고 작성]", "배운 점 · 어려웠던 점 · 다음에 시도할 것"]}},
-    # 47
-    {"type": "bullets", "title": "부록 A. AI 사용 보고서", "items": [
-        "기획·문서·코드 보조에 AI 활용 — 산출물 초안·다이어그램·리뷰",
-        "상세: ai-report/AI사용보고서.md"]},
-    # 48
-    {"type": "diagram", "title": "부록 B①. ER 다이어그램", "img": "er",
+     "right": {"head": "송정기", "items": [
+         "**배운 점** — 외부 API를 '쓰는 것'과 그것으로 '제품을 만드는 것'은 다르다. 경로 합성·다층 캐시로 제약 안에서 안정화하는 법을 체감.",
+         "**어려웠던 점** — 무캐시일 때만 간헐 발생하는 rate limit 버그. 재현이 까다로워 같은 좌표 반복 호출로 원인 규명.",
+         "**다음 시도** — 외부 의존 로직에 관측 지표(로깅·캐시 적중률) 내장, in-memory 캐시를 DB/Redis로 승격."]}},
+    {"type": "divider", "num": "A", "title": "부록 A. AI 사용 보고서"},
+    # 부록 A ①
+    {"type": "twocol", "title": "활용 도구 & 원칙",
+     "left": {"head": "활용 도구", "items": [
+         "**Claude Code**(CLI 에이전트) — 코드 생성·리팩터링·디버깅, 문서 작성, 코드베이스 탐색",
+         "**AI 챗봇**(서비스 기능) — 제품 내 관광지 Q&A, Spring AI + gms(gpt-4.1)"]},
+     "right": {"head": "원칙", "items": [
+         "AI 산출물은 **반드시 사람이 리뷰·검증** 후 반영(빌드·테스트 통과)",
+         "보안·권한은 서버 검증 직접 점검, API 키는 환경변수 분리",
+         "설계 결정(스키마·삭제정책·캐시)은 팀 합의 후 구현 위임"]}},
+    # 48 — 부록 A ②
+    {"type": "table", "title": "기능별 활용",
+     "headers": ["영역", "AI 활용 내용"], "widths": [1.2, 4], "rows": [
+         ["DB 설계", "ERD/스키마 초안 검토, FK 삭제 정책 트레이드오프 정리, 마이그레이션 SQL"],
+         ["백엔드", "MyBatis 매퍼·DTO·Service 보일러플레이트, 공통 응답 패턴, 외부 API 클라이언트 연동"],
+         ["이동시간 캐시", "좌표 기반 캐시 키·모드별 캐시 설계 리뷰, 정밀도 단계 로직 정리"],
+         ["프론트엔드", "Vue 3 컴포넌트(드래그·모달·에디터) 스캐폴딩, Pinia 스토어, 라우터 가드"],
+         ["실시간 협업", "WebSocket(STOMP) 구독/발행 구조, 낙관적 락 충돌 처리 설계 논의"],
+         ["AI 챗봇", "Spring AI ChatClient·ChatMemory 설정, 주변 추천 프롬프트·컨텍스트 주입"],
+         ["문서화", "요구사항·WBS·Mermaid 다이어그램·발표자료 초안 및 코드 정합성 점검"]]},
+    # 49 — 부록 A ③
+    {"type": "bullets", "title": "대표 프롬프트 유형", "items": [
+        "**설계 검토형** — \"trip_block↔trip_candidate FK를 RESTRICT vs CASCADE로 둘 때 UX·정합성 차이를 정리해줘.\"",
+        "**구현 위임형** — \"ODsay 응답을 좌표 route_key로 캐싱하고 미스일 때만 호출하는 TransitService를 모드별 독립 캐시로 작성해줘.\"",
+        "**디버깅형** — \"프로필 이미지 조회 N+1 원인과 수정안을 매퍼 쿼리 기준으로 제시해줘.\"",
+        "**리팩터링형** — \"죽은 transit 엔드포인트/메서드를 찾아 정리하고 자동차 옵션을 단일화해줘.\"",
+        "**문서화형** — \"schema.sql 기준 Mermaid ER을 만들고 모든 FK 삭제 정책을 라벨에 표기해줘.\""]},
+    # 50 — 부록 A ④
+    {"type": "twocol", "title": "효과 · 한계",
+     "left": {"head": "효과", "items": [
+         "**반복 작업 가속** — 매퍼·DTO·컴포넌트 보일러플레이트 시간 단축",
+         "**설계 품질** — 삭제 정책·캐시 전략 트레이드오프 빠르게 비교·문서화",
+         "**탐색 효율** — 대규모 코드베이스에서 관련 파일·엔드포인트 신속 파악",
+         "**문서 정합성** — 코드 기준 다이어그램·명세 생성으로 문서-구현 괴리 최소화"]},
+     "right": {"head": "한계 → 대응", "items": [
+         "외부 API 응답 불확실 → 실제 호출 결과로 검증·매핑 보정",
+         "컨텍스트 한계 일관성 누락 → 사람이 도메인·권한 최종 점검",
+         "그럴듯하나 틀린 코드 → 빌드·테스트·코드리뷰 게이트 필수",
+         "보안 민감 로직 → 그대로 신뢰 않고 직접 검증·일괄 보안 점검"]}},
+    {"type": "divider", "num": "B", "title": "부록 B. 설계 산출물"},
+    # 부록 B①
+    {"type": "diagram", "title": "ER 다이어그램", "img": "er",
      "note": "핵심 관계만 표기. 도메인별 상세 ERD·컬럼·삭제정책은 설계문서/04 참조."},
-    # 49
-    {"type": "diagram", "title": "부록 B②. 클래스 · 유스케이스 · API", "img": "cls",
-     "note": "API 명세 = REST 약 72개 + WebSocket(STOMP) 채널. 도메인 모델·유스케이스 상세는 설계문서/02·03 참조."},
+    # 부록 B②. 클래스 다이어그램
+    {"type": "diagram", "title": "클래스 다이어그램 (발췌)", "img": "cls",
+     "note": "Controller → Service → Mapper/Client 계층(이동·일정 도메인 발췌). 전체 도메인 모델은 설계문서/03 참조."},
+    # 부록 B③. 유스케이스 다이어그램
+    {"type": "diagram", "title": "유스케이스 다이어그램 (발췌)", "img": "usecase",
+     "note": "회원 중심 핵심 유스케이스. 비회원·관리자·외부 API 포함 전체는 설계문서/02 참조."},
+    # 부록 B④. API 명세 — 공통 규약
+    {"type": "bullets", "title": "API 명세 — 공통 규약", "items": [
+        "**공통 응답** — `ApiResponse { success, data, message, errorCode }` (NON_NULL 직렬화)",
+        "**인증** — JWT **HttpOnly 쿠키**, JwtAuthenticationFilter 검증, 만료 시 `POST /api/auth/refresh` 재발급",
+        "**권한 레벨** — 공개 / 인증 / 인증*(내 데이터) / ADMIN (`SecurityConfig` 기준)",
+        "**에러** — GlobalExceptionHandler → 401·403·400·409·500, `errorCode`로 구분"],
+     "note": "예) GET /api/transit → { durationMinutes:38, transportMode:\"SUBWAY,BUS\", transferCount:1, fare:1500, label:\"추천\" }"},
+    # 부록 B⑤. API 엔드포인트 카탈로그
+    {"type": "table", "title": "API 엔드포인트 카탈로그",
+     "lead": "REST 약 **72개** + WebSocket(STOMP) 실시간 협업 채널.",
+     "headers": ["도메인", "수", "대표 엔드포인트"], "widths": [1.7, 0.5, 4.3], "rows": [
+         ["인증·회원", "14", "auth/signup·login·kakao·refresh, members 닉네임/비번/프로필·탈퇴"],
+         ["관광지·AI 챗봇", "4", "attractions/regions·검색·{id}, {id}/chat"],
+         ["장소·내 장소", "4", "places/search, my-places CRUD"],
+         ["여행 일정", "20", "trips CRUD·공유·복제, 협업자, 후보군, 타임라인 블록"],
+         ["이동 시간", "11", "transit·by-coords·detail·route-segments·select (ODsay·T Map)"],
+         ["커뮤니티", "13", "posts·comments·likes·bookmarks"],
+         ["공지·이미지·관리자", "6", "notices, images/upload, admin/attractions/sync"],
+         ["실시간(WebSocket)", "STOMP", "/ws, SEND /app/trip/{id}/pointer, SUB /topic/trip/{id}·/presence"]],
+     "note": "권한: 대부분 인증, 공개(관광지·게시글 조회·공유 미리보기), ADMIN(/admin, 공지 CUD)."},
     # 50
     {"type": "closing", "sub": "TripCraft — 계획부터 공유까지 함께하는 여행 플래너 · 전진 · 송정기"},
 ]

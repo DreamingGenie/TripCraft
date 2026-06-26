@@ -363,7 +363,21 @@ BUILDERS = {
 
 from slides_data import SLIDES  # noqa: E402
 
+# 목차번호 자동 부여: 디바이더(또는 sec 키)가 섹션을 열고, 이후 콘텐츠 슬라이드 제목에 "N-n" 접두.
+NUMBERED = {"bullets", "table", "cards", "diagram", "ascii", "twocol", "placeholder"}
+cur_sec = None
+sub = 0
 for d in SLIDES:
+    if d["type"] == "divider":
+        num = d["num"]
+        cur_sec = str(int(num)) if num.isdigit() else num
+        sub = 0
+    elif d.get("sec"):
+        cur_sec = d["sec"]
+        sub = 0
+    if d["type"] in NUMBERED and cur_sec:
+        sub += 1
+        d["title"] = f"{cur_sec}-{sub}  " + d["title"]
     BUILDERS[d["type"]](d)
 
 out = HERE / "발표.pptx"
