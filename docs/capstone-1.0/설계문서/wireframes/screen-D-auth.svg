@@ -1,0 +1,35 @@
+<svg viewBox="0 0 1000 720" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'Segoe UI', Roboto, sans-serif" role="img" aria-label="화면 D — 로그인/회원가입 와이어프레임">
+  <style>
+    .bg{fill:#F5F4F0} .surface{fill:#FFFFFF} .bd{fill:none;stroke:#D3D1C7;stroke-width:1}
+    .tx{fill:#2C2C2A;font-size:13px} .mut{fill:#888780;font-size:12px}
+    .lbl{fill:#5F5E5A;font-size:11px;font-weight:700}
+    .btn{fill:#534AB7} .btntx{fill:#FFFFFF;font-size:13px;font-weight:600}
+    .tabon{fill:#534AB7} .tabontx{fill:#FFFFFF;font-size:13px;font-weight:600}
+    .taboff{fill:#EEEDFE} .tabofftx{fill:#534AB7;font-size:13px}
+    .kakao{fill:#FEE500} .kakaotx{fill:#191600;font-size:13px;font-weight:600}
+    .cap{fill:#2C2C2A;font-size:14px;font-weight:700}
+  </style>
+  <rect class="bg" x="0" y="0" width="1000" height="720"/>
+  <text class="cap" x="24" y="30">«화면 D» 로그인 / 회원가입 — AuthView</text>
+  <!-- centered card -->
+  <rect class="surface" x="330" y="120" width="340" height="470" rx="12"/><rect class="bd" x="330" y="120" width="340" height="470" rx="12"/>
+  <text x="500" y="170" text-anchor="middle" fill="#534AB7" font-size="22" font-weight="700">TripCraft</text>
+  <text x="500" y="194" text-anchor="middle" class="mut">여행을 설계하는 가장 스마트한 방법</text>
+  <!-- tabs -->
+  <rect class="tabon" x="362" y="216" width="138" height="34" rx="6"/><text class="tabontx" x="412" y="238" text-anchor="middle">로그인</text>
+  <rect class="taboff" x="500" y="216" width="138" height="34" rx="6"/><text class="tabofftx" x="569" y="238" text-anchor="middle">회원가입</text>
+  <!-- fields -->
+  <text class="lbl" x="362" y="288">이메일</text>
+  <rect class="surface" x="362" y="296" width="276" height="36" rx="6"/><rect class="bd" x="362" y="296" width="276" height="36" rx="6"/>
+  <text class="mut" x="376" y="319">you@example.com</text>
+  <text class="lbl" x="362" y="358">비밀번호</text>
+  <rect class="surface" x="362" y="366" width="276" height="36" rx="6"/><rect class="bd" x="362" y="366" width="276" height="36" rx="6"/>
+  <text class="mut" x="376" y="389">••••••••</text>
+  <!-- login button -->
+  <rect class="btn" x="362" y="424" width="276" height="40" rx="6"/><text class="btntx" x="500" y="449" text-anchor="middle">로그인</text>
+  <!-- divider -->
+  <line x1="362" y1="490" x2="490" y2="490" stroke="#D3D1C7"/><text class="mut" x="500" y="494" text-anchor="middle">또는</text><line x1="510" y1="490" x2="638" y2="490" stroke="#D3D1C7"/>
+  <!-- kakao -->
+  <rect class="kakao" x="362" y="510" width="276" height="40" rx="6"/><text class="kakaotx" x="500" y="535" text-anchor="middle">💬  카카오로 시작하기</text>
+  <text class="mut" x="500" y="576" text-anchor="middle">계정이 없으신가요? 회원가입</text>
+</svg>

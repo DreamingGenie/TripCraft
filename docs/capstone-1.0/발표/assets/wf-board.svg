@@ -1,0 +1,53 @@
+<svg viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, &#39;Segoe UI&#39;, Roboto, sans-serif" role="img" aria-label="화면 B — 내 일정 작업실 와이어프레임">
+  
+
+  
+  <rect class="bg" x="0" y="0" width="1280" height="800"></rect>
+  <text class="cap" x="24" y="30">«화면 B» 내 일정 작업실 — PlanView / ScheduleBoard (드래그앤드롭 + 실시간 협업)</text>
+  
+  <rect class="surface" x="24" y="44" width="1232" height="48" rx="6"></rect><rect class="bd" x="24" y="44" width="1232" height="48" rx="6"></rect>
+  <rect class="surface" x="40" y="56" width="180" height="26" rx="6"></rect><rect class="bd" x="40" y="56" width="180" height="26" rx="6"></rect>
+  <text class="tx" x="52" y="73">제주 3박4일 ▾</text>
+  <text class="mut" x="240" y="73">3박4일 · 2명</text>
+  
+  <circle cx="980" cy="68" r="12" fill="#e74c3c"></circle><circle cx="1004" cy="68" r="12" fill="#3498db"></circle>
+  <text class="mut" x="1024" y="72">협업 중</text>
+  <rect class="pill" x="1080" y="55" width="74" height="28" rx="6"></rect><text class="pilltx" x="1092" y="73" font-size="11">📢 공유하기</text>
+  <rect class="pill" x="1162" y="55" width="80" height="28" rx="6"></rect><text class="pilltx" x="1174" y="73" font-size="11">👥 협업자</text>
+  
+  <rect class="surface" x="24" y="104" width="240" height="672" rx="6"></rect><rect class="bd" x="24" y="104" width="240" height="672" rx="6"></rect>
+  <text class="lbl" x="40" y="130">후보군 (도시별)</text>
+  <text class="mut" x="40" y="152">▾ 제주시</text>
+  <rect class="teal" x="40" y="160" width="208" height="40" rx="6"></rect><text class="tealtx" x="52" y="178">성산일출봉</text><text class="mut" x="52" y="192">관광지 · 드래그하여 배치</text>
+  <rect class="pink" x="40" y="208" width="208" height="40" rx="6"></rect><text class="pinktx" x="52" y="226">흑돼지 거리</text><text class="mut" x="52" y="240">음식점</text>
+  <rect class="blue" x="40" y="256" width="208" height="40" rx="6"></rect><text class="bluetx" x="52" y="274">제주 호텔</text><text class="mut" x="52" y="288">숙박</text>
+  <text class="mut" x="40" y="320">▾ 서귀포시</text>
+  <rect class="teal" x="40" y="328" width="208" height="40" rx="6"></rect><text class="tealtx" x="52" y="346">천지연폭포</text><text class="mut" x="52" y="360">관광지</text>
+  <rect class="bd" x="40" y="720" width="208" height="40" rx="6" stroke-dasharray="5 3"></rect>
+  <text class="mut" x="74" y="744">🗑 여기로 끌어 삭제</text>
+  
+  <rect class="surface" x="276" y="104" width="600" height="672" rx="6"></rect><rect class="bd" x="276" y="104" width="600" height="672" rx="6"></rect>
+  <text class="tx" x="300" y="130" font-weight="700">Day 1 (월)</text><text class="mut" x="430" y="130">Day 2</text><text class="mut" x="540" y="130">Day 3</text><text class="mut" x="650" y="130">Day 4</text>
+  
+  <text class="mut" x="290" y="172">09</text><line class="grid" x1="312" y1="166" x2="856" y2="166"></line>
+  <text class="mut" x="290" y="232">11</text><line class="grid" x1="312" y1="226" x2="856" y2="226"></line>
+  <text class="mut" x="290" y="292">13</text><line class="grid" x1="312" y1="286" x2="856" y2="286"></line>
+  <text class="mut" x="290" y="412">15</text><line class="grid" x1="312" y1="406" x2="856" y2="406"></line>
+  <text class="mut" x="290" y="532">17</text><line class="grid" x1="312" y1="526" x2="856" y2="526"></line>
+  <text class="mut" x="290" y="652">19</text><line class="grid" x1="312" y1="646" x2="856" y2="646"></line>
+  
+  <rect class="teal" x="322" y="170" width="220" height="50" rx="6"></rect><text class="tealtx" x="336" y="190">09:00 성산일출봉</text><text class="mut" x="336" y="208">체류 90분</text>
+  
+  <rect class="pill" x="360" y="228" width="140" height="22" rx="11"></rect><text class="pilltx" x="372" y="243">🚌 대중교통 25분 ▾</text>
+  <rect class="pink" x="322" y="290" width="220" height="44" rx="6"></rect><text class="pinktx" x="336" y="310">12:30 흑돼지 거리</text><text class="mut" x="336" y="326">체류 60분</text>
+  <rect class="pill" x="360" y="342" width="140" height="22" rx="11"></rect><text class="pilltx" x="372" y="357">🚗 자동차 18분 ▾</text>
+  
+  <rect class="blue" x="322" y="410" width="220" height="50" rx="6" opacity="0.85" stroke-dasharray="5 3"></rect><text class="bluetx" x="336" y="430">15:00 제주 호텔 (이동 중)</text>
+  <path d="M620 360 l0 22 l6 -6 l5 11 l4 -2 l-5 -11 l9 0 z" fill="#3498db"></path>
+  <text x="632" y="356" fill="#3498db" font-size="10" font-weight="600">전진</text>
+  
+  <rect x="888" y="104" width="368" height="672" rx="6" fill="#E9EEF2"></rect><rect class="bd" x="888" y="104" width="368" height="672" rx="6"></rect>
+  <text class="mut" x="906" y="130">경로 지도 패널 — 구간·도보·역마커</text>
+  <circle cx="1000" cy="300" r="8" fill="#0F6E56"></circle><circle cx="1120" cy="430" r="8" fill="#993556"></circle><circle cx="1050" cy="560" r="8" fill="#185FA5"></circle>
+  <path d="M1000 300 L1120 430 L1050 560" fill="none" stroke="#534AB7" stroke-width="3" stroke-dasharray="2 6" stroke-linecap="round"></path>
+</svg>
