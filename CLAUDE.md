@@ -24,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - MyBatis는 `#{}` 바인딩만 사용. `${}` 사용 금지 (SQL Injection)
 - 권한 검증은 반드시 서버에서 수행. 클라이언트 권한만으로 처리 금지
 - API 공통 응답 형식: `{ "success": true/false, "data": {}, "message": null, "errorCode": null }`
-- 코드 작성 전 `docs/03_dev/conventions.md` 참조
+- 코드 작성 전 `docs/conventions.md` 참조
 
 ## 저장소 · 개발 모델
 
@@ -54,10 +54,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 기능 중심으로 묶는 이유: 파일 중심으로 나열하면 나중에 "이 파일이 왜 바뀌었는지"를 역추적해야 하지만,
 기능 중심으로 묶으면 변경의 의도와 범위를 한눈에 파악할 수 있다.
 
-## docs 업데이트 정책
+## docs 정책
 
-- `docs/03_dev/conventions.md`, `docs/01_planning/requirements.md` — 결정 사항 변경 즉시 업데이트 (승인 후)
-- 나머지 docs (`wbs.md`, `wireframe_spec.md` 등) — 제출 전 일괄 정리
+- **Living 문서**(`docs/*.md`, `docs/features/`, `docs/sql/`) — 코드 변경에 맞춰 유지보수. `docs/conventions.md` 등 결정 사항 변경 즉시 업데이트(승인 후).
+- **동결 아카이브**(`docs/capstone-1.0/`) — 캡스톤 제출 상태(as-submitted) 보존. **수정 금지.**
+- 변경 이력은 루트 `CHANGELOG.md`(Keep a Changelog) + GitHub Releases.
 
 ## 기능별 컨텍스트 (필요할 때 읽을 것)
 
