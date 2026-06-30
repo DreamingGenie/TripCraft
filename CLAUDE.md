@@ -26,9 +26,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - API 공통 응답 형식: `{ "success": true/false, "data": {}, "message": null, "errorCode": null }`
 - 코드 작성 전 `docs/03_dev/conventions.md` 참조
 
+## 저장소 · 개발 모델
+
+- **원격**: origin = GitHub `DreamingGenie/TripCraft` (SSAFY GitLab 미러 종료). **Public** 포트폴리오 저장소.
+- **개발 모델**: 캡스톤(2인) 종료 후 **1인 추가 개발** 단계. `master` 단일 소스(코드+문서)를 기준으로
+  **trunk-based** — 작업은 짧은 `feature/*` 브랜치에서 하고 `master`로 병합. (팀 시절 `main←develop` GitFlow 폐기)
+- **버전 경계**: `v1.0-capstone` 태그 = 팀 캡스톤 최종 제출본 = 1인 개발 분기점. 히스토리는 rewrite 금지(기여 이력 보존).
+
 ## Git 컨벤션
 
-브랜치: `main` ← PR from `develop` ← `feature/{도메인-기능명}` / `fix/{이슈명}` / `docs/{내용}`
+브랜치: `master` ← `feature/{도메인-기능명}` / `fix/{이슈명}` / `docs/{내용}`
 
 커밋: Conventional Commits — `feat(member): JWT refresh token 갱신 로직 구현`
 
