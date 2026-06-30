@@ -1,0 +1,67 @@
+<svg viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, &#39;Segoe UI&#39;, Roboto, sans-serif" role="img" aria-label="화면 C — 커뮤니티 와이어프레임">
+  
+
+  
+  <rect class="bg" x="0" y="0" width="1280" height="800"></rect>
+  <text class="cap" x="24" y="30">«화면 C» 커뮤니티 — CommunityView (여행 이야기)</text>
+  <rect class="hdr" x="24" y="44" width="1232" height="48" rx="6"></rect>
+  <text class="hdrtx" x="44" y="74">TripCraft</text>
+  <text class="hdrtx" x="930" y="74" font-weight="400" font-size="13">여행 작업실 · 여행 이야기 · 마이페이지</text>
+  
+  <rect class="chip" x="24" y="108" width="62" height="28" rx="14"></rect><text class="chiptx" x="40" y="126">최신순</text>
+  <rect class="surface" x="94" y="108" width="62" height="28" rx="14"></rect><rect class="bd" x="94" y="108" width="62" height="28" rx="14"></rect><text class="mut" x="110" y="126">인기순</text>
+  <rect class="surface" x="170" y="108" width="320" height="28" rx="6"></rect><rect class="bd" x="170" y="108" width="320" height="28" rx="6"></rect><text class="mut" x="182" y="126">게시글 검색…</text>
+  <rect class="btn" x="780" y="108" width="96" height="28" rx="6"></rect><text class="btntx" x="800" y="126">✎ 글쓰기</text>
+  
+  <g>
+    
+    <g>
+      <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+      <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+      <text class="tx" x="40" y="334" font-weight="600">제주 가족여행 후기</text>
+      <text class="mut" x="40" y="356">홍길동 · 2026.06.20</text>
+      <text class="mut" x="40" y="420">♥ 24   💬 8   🔖</text>
+    </g>
+    <g transform="translate(286,0)">
+      <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+      <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+      <text class="tx" x="40" y="334" font-weight="600">부산 2박3일 코스</text>
+      <text class="mut" x="40" y="356">김여행 · 2026.06.18</text>
+      <text class="mut" x="40" y="420">♥ 51   💬 14   🔖</text>
+    </g>
+    <g transform="translate(572,0)">
+      <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+      <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+      <text class="tx" x="40" y="334" font-weight="600">서울 맛집 투어</text>
+      <text class="mut" x="40" y="356">이맛집 · 2026.06.15</text>
+      <text class="mut" x="40" y="420">♥ 33   💬 5   🔖</text>
+    </g>
+  </g>
+  <g transform="translate(0,306)">
+    <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+    <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+    <text class="tx" x="40" y="334" font-weight="600">강릉 바다 여행</text><text class="mut" x="40" y="356">박파도 · 2026.06.12</text><text class="mut" x="40" y="420">♥ 19   💬 3   🔖</text>
+  </g>
+  <g transform="translate(286,306)">
+    <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+    <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+    <text class="tx" x="40" y="334" font-weight="600">경주 역사 탐방</text><text class="mut" x="40" y="356">최신라 · 2026.06.10</text><text class="mut" x="40" y="420">♥ 42   💬 11   🔖</text>
+  </g>
+  <g transform="translate(572,306)">
+    <rect class="surface" x="24" y="156" width="270" height="290" rx="8"></rect><rect class="bd" x="24" y="156" width="270" height="290" rx="8"></rect>
+    <rect x="24" y="156" width="270" height="150" rx="8" fill="#E9EEF2"></rect>
+    <text class="tx" x="40" y="334" font-weight="600">전주 한옥 1박</text><text class="mut" x="40" y="356">정한옥 · 2026.06.08</text><text class="mut" x="40" y="420">♥ 28   💬 6   🔖</text>
+  </g>
+  
+  <rect class="surface" x="908" y="156" width="348" height="180" rx="8"></rect><rect class="bd" x="908" y="156" width="348" height="180" rx="8"></rect>
+  <rect class="amber" x="908" y="156" width="348" height="34" rx="8"></rect><text class="ambtx" x="926" y="178">📢 공지사항</text>
+  <text class="tx" x="926" y="214">· 서비스 업데이트 안내</text>
+  <text class="tx" x="926" y="240">· 커뮤니티 이용 규칙</text>
+  <text class="tx" x="926" y="266">· 신규 지역 데이터 추가</text>
+  <rect class="surface" x="908" y="356" width="348" height="240" rx="8"></rect><rect class="bd" x="908" y="356" width="348" height="240" rx="8"></rect>
+  <text class="lbl" x="926" y="384">🔥 인기 게시글</text>
+  <text class="tx" x="926" y="416">1. 부산 2박3일 코스</text>
+  <text class="tx" x="926" y="446">2. 경주 역사 탐방</text>
+  <text class="tx" x="926" y="476">3. 서울 맛집 투어</text>
+  <text class="tx" x="926" y="506">4. 제주 가족여행 후기</text>
+</svg>
