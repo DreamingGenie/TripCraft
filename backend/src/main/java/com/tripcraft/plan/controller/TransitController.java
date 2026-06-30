@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.service.TransitService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
+@Tag(name = "이동 시간", description = "ODsay·T Map 기반 이동시간·경로 (관광지 id / 좌표)")
 @RestController
 @RequestMapping("/api/transit")
 @RequiredArgsConstructor
@@ -18,6 +21,7 @@ public class TransitController {
 
     private final TransitService transitService;
 
+    @Operation(summary = "두 관광지 간 이동시간", description = "mode=PUBLIC_TRANSIT/DRIVING/WALKING")
     @GetMapping
     public ResponseEntity<ApiResponse<TransitResponse>> getTransitTime(
             @RequestParam(name = "fromId") Long fromId,
@@ -31,6 +35,7 @@ public class TransitController {
     }
 
     // 좌표 기반 이동시간(커스텀 장소). 한쪽이라도 attraction id 가 없을 때 사용.
+    @Operation(summary = "좌표 기반 이동시간", description = "커스텀 장소(관광지 id 없음)용")
     @GetMapping("/by-coords")
     public ResponseEntity<ApiResponse<TransitResponse>> getTransitByCoords(
             @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
@@ -45,6 +50,7 @@ public class TransitController {
     }
 
     // 좌표 기반 대중교통 경로 단계(커스텀 장소). attraction /detail 과 동일 응답 구조.
+    @Operation(summary = "좌표 기반 경로 단계 상세")
     @GetMapping("/by-coords/detail")
     public ResponseEntity<ApiResponse<JsonNode>> getTransitDetailByCoords(
             @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
@@ -58,6 +64,7 @@ public class TransitController {
     }
 
     // 좌표 기반 자동차 단일 옵션(커스텀 장소). 프론트가 optionIndex 별로 1개씩 조회.
+    @Operation(summary = "좌표 기반 자동차 옵션")
     @GetMapping("/by-coords/driving-options")
     public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOptionByCoords(
             @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
@@ -71,6 +78,7 @@ public class TransitController {
                         .map(List::of).orElse(List.of())));
     }
 
+    @Operation(summary = "대중교통 경로 선택", description = "pathIndex로 경로 확정")
     @PostMapping("/select")
     public ResponseEntity<ApiResponse<TransitResponse>> selectPath(
             @RequestParam(name = "fromId") Long fromId,
@@ -84,6 +92,7 @@ public class TransitController {
     }
 
     // 자동차 단일 옵션. 프론트가 optionIndex(추천·최단·무료·최소) 별로 1개씩 조회.
+    @Operation(summary = "자동차 옵션 조회", description = "optionIndex: 추천·최단·무료·최소")
     @GetMapping("/driving-options")
     public ResponseEntity<ApiResponse<List<TransitResponse>>> getDrivingOption(
             @RequestParam(name = "fromId") Long fromId,
@@ -95,6 +104,7 @@ public class TransitController {
                         .map(List::of).orElse(List.of())));
     }
 
+    @Operation(summary = "자동차 옵션 적용")
     @PostMapping("/select-driving")
     public ResponseEntity<ApiResponse<Void>> applyDrivingOption(
             @RequestParam(name = "fromId") Long fromId,
@@ -105,6 +115,7 @@ public class TransitController {
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
+    @Operation(summary = "대중교통 경로 단계 상세")
     @GetMapping("/detail")
     public ResponseEntity<ApiResponse<JsonNode>> getPathDetail(
             @RequestParam(name = "fromId") Long fromId,
@@ -117,6 +128,7 @@ public class TransitController {
     }
 
     // 통합 경로 구간(어트랙션) — 구간별 색/도보/역마커용
+    @Operation(summary = "경로 구간 조회", description = "구간별 색·도보·역마커용")
     @GetMapping("/route-segments")
     public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getRouteSegments(
             @RequestParam(name = "fromId") Long fromId,
@@ -126,6 +138,7 @@ public class TransitController {
     }
 
     // 통합 경로 구간(커스텀 좌표)
+    @Operation(summary = "좌표 기반 경로 구간")
     @GetMapping("/by-coords/route-segments")
     public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getRouteSegmentsByCoords(
             @RequestParam("fromLat") double fromLat, @RequestParam("fromLng") double fromLng,
@@ -136,6 +149,7 @@ public class TransitController {
                 java.math.BigDecimal.valueOf(toLat), java.math.BigDecimal.valueOf(toLng), hour)));
     }
 
+    @Operation(summary = "도보 경로 좌표")
     @GetMapping("/walking-coords")
     public ResponseEntity<ApiResponse<List<double[]>>> getWalkingCoords(
             @RequestParam double startLat, @RequestParam double startLng,

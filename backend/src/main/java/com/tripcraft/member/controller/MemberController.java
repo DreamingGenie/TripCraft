@@ -17,6 +17,8 @@ import com.tripcraft.member.mapper.MemberMapper;
 import com.tripcraft.member.service.MemberMapService;
 import com.tripcraft.member.service.MemberService;
 import com.tripcraft.plan.mapper.TripMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -40,6 +42,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "회원", description = "프로필·비밀번호·방문 지도·회원 검색·탈퇴")
 @RestController
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
@@ -56,6 +59,7 @@ public class MemberController {
     private final MemberService memberService;
     private final MemberMapService memberMapService;
 
+    @Operation(summary = "닉네임 변경", description = "중복 검사 포함")
     @PatchMapping("/me/nickname")
     public ResponseEntity<ApiResponse<Void>> updateNickname(
             @Valid @RequestBody UpdateNicknameRequest request,
@@ -69,6 +73,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "비밀번호 변경", description = "현재 비밀번호 확인")
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @Valid @RequestBody UpdatePasswordRequest request,
@@ -82,6 +87,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "프로필 이미지 URL 조회")
     @GetMapping("/me/profile-image")
     public ResponseEntity<ApiResponse<String>> getProfileImage(
             @AuthenticationPrincipal Long memberId) {
@@ -90,6 +96,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok(url));
     }
 
+    @Operation(summary = "프로필 이미지 업로드", description = "기존 이미지 교체")
     @PostMapping("/me/profile-image")
     public ResponseEntity<ApiResponse<String>> uploadProfileImage(
             @RequestParam("file") MultipartFile file,
@@ -117,6 +124,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok(fileStorageService.toUrl(PROFILE_DIR, filename)));
     }
 
+    @Operation(summary = "프로필 이미지 삭제")
     @DeleteMapping("/me/profile-image")
     public ResponseEntity<ApiResponse<Void>> deleteProfileImage(
             @AuthenticationPrincipal Long memberId) {
@@ -128,6 +136,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "방문 시도 코드 목록", description = "내 지도용")
     @GetMapping("/me/visited-regions")
     public ResponseEntity<ApiResponse<List<Integer>>> getVisitedRegions(
             @AuthenticationPrincipal Long memberId) {
@@ -137,6 +146,7 @@ public class MemberController {
     // === 방문 지도 (후기 사진 기반) ===
 
     /** 시도별 방문/예정 상태 + 표지 사진 + crop + 후기 수 (지도 1회 로드). */
+    @Operation(summary = "방문 지도 조회", description = "시도별 방문/예정 상태·표지·후기 수 일괄")
     @GetMapping("/me/map")
     public ResponseEntity<ApiResponse<List<RegionMapItem>>> getMap(
             @AuthenticationPrincipal Long memberId) {
@@ -144,6 +154,7 @@ public class MemberController {
     }
 
     /** 한 시도에서 표지로 고를 수 있는 여행이야기(글) 목록(날짜·사진 수 포함). */
+    @Operation(summary = "지역 여행이야기 목록", description = "표지 선택용 글 목록")
     @GetMapping("/me/map/regions/{sidoCode}/stories")
     public ResponseEntity<ApiResponse<List<RegionStoryItem>>> getRegionStories(
             @PathVariable("sidoCode") int sidoCode,
@@ -152,6 +163,7 @@ public class MemberController {
     }
 
     /** 한 글의 사진(커버·본문) 목록. */
+    @Operation(summary = "글 사진 목록", description = "표지 후보 사진(커버·본문)")
     @GetMapping("/me/map/regions/{sidoCode}/posts/{postId}/images")
     public ResponseEntity<ApiResponse<List<RegionImageItem>>> getPostImages(
             @PathVariable("sidoCode") int sidoCode,
@@ -161,6 +173,7 @@ public class MemberController {
     }
 
     /** 후보 사진을 지도 전용으로 복사해 표지로 지정. */
+    @Operation(summary = "지역 표지 지정(사진 선택)")
     @PutMapping("/me/map/cover")
     public ResponseEntity<ApiResponse<Void>> setRegionCover(
             @Valid @RequestBody CoverImageRequest request,
@@ -170,6 +183,7 @@ public class MemberController {
     }
 
     /** 새 사진을 업로드해 표지로 지정(직접 업로드). */
+    @Operation(summary = "지역 표지 지정(직접 업로드)")
     @PostMapping("/me/map/cover/upload")
     public ResponseEntity<ApiResponse<Void>> uploadRegionCover(
             @RequestParam("regionCode") int regionCode,
@@ -180,6 +194,7 @@ public class MemberController {
     }
 
     /** 표지 crop(초점/확대)만 갱신. */
+    @Operation(summary = "지역 표지 crop 갱신")
     @PatchMapping("/me/map/cover/crop")
     public ResponseEntity<ApiResponse<Void>> updateRegionCrop(
             @Valid @RequestBody CoverCropRequest request,
@@ -189,6 +204,7 @@ public class MemberController {
     }
 
     /** 지역 표지 해제 → 기본값(최신 후기)으로 복귀. */
+    @Operation(summary = "지역 표지 해제", description = "기본값(최신 후기)으로 복귀")
     @DeleteMapping("/me/map/cover/{sidoCode}")
     public ResponseEntity<ApiResponse<Void>> resetRegionCover(
             @PathVariable("sidoCode") int sidoCode,
@@ -197,6 +213,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "회원 검색", description = "협업자 초대용 닉네임·이메일 검색")
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchMembers(
             @RequestParam("q") String q) {
@@ -215,6 +232,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
+    @Operation(summary = "회원 탈퇴", description = "비밀번호 확인 + 하드 딜리트")
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> withdraw(
             @Valid @RequestBody WithdrawRequest request,
