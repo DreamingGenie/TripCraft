@@ -4,6 +4,8 @@ import com.tripcraft.global.attach.domain.Attach;
 import com.tripcraft.global.attach.mapper.AttachMapper;
 import com.tripcraft.global.response.ApiResponse;
 import com.tripcraft.global.storage.FileStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.util.List;
 
+@Tag(name = "이미지", description = "게시글 이미지·대표사진 업로드(draft) 관리")
 @Slf4j
 @RestController
 @RequestMapping("/api/images")
@@ -31,6 +34,7 @@ public class ImageController {
     private final AttachMapper attachMapper;
     private final FileStorageService fileStorageService;
 
+    @Operation(summary = "이미지 업로드", description = "게시글 본문/대표사진(type=cover) draft 업로드")
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<String>> upload(
             @RequestParam("file") MultipartFile file,
@@ -67,6 +71,7 @@ public class ImageController {
         return ResponseEntity.ok(ApiResponse.ok(fileStorageService.toUrl(SUB_DIR, filename)));
     }
 
+    @Operation(summary = "임시 대표사진 정리", description = "확정되지 않은 cover draft 삭제")
     @DeleteMapping("/cover-draft")
     public ResponseEntity<ApiResponse<Void>> deleteCover(@AuthenticationPrincipal Long memberId) {
         if (memberId == null) {

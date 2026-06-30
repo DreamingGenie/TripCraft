@@ -11,6 +11,8 @@ import com.tripcraft.plan.dto.TripCreateRequest;
 import com.tripcraft.plan.dto.TripDetailResponse;
 import com.tripcraft.plan.dto.TripSummary;
 import com.tripcraft.plan.service.TripService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "여행 일정", description = "일정·협업자·후보군·타임라인 블록·공유")
 @RestController
 @RequestMapping("/api/trips")
 @RequiredArgsConstructor
@@ -35,18 +38,21 @@ public class TripController {
 
     private final TripService tripService;
 
+    @Operation(summary = "내 일정 목록")
     @GetMapping
     public ResponseEntity<ApiResponse<List<TripSummary>>> getMyTrips(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getMyTrips(memberId)));
     }
 
+    @Operation(summary = "내가 협업자인 일정 목록")
     @GetMapping("/collaborating")
     public ResponseEntity<ApiResponse<List<TripSummary>>> getCollaboratingTrips(
             @AuthenticationPrincipal Long memberId) {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getCollaboratingTrips(memberId)));
     }
 
+    @Operation(summary = "협업자 목록")
     @GetMapping("/{id}/collaborators")
     public ResponseEntity<ApiResponse<List<CollaboratorItem>>> getCollaborators(
             @PathVariable("id") Long id,
@@ -54,6 +60,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getCollaborators(id, memberId)));
     }
 
+    @Operation(summary = "협업자 초대", description = "role=EDITOR|VIEWER")
     @PostMapping("/{id}/collaborators")
     public ResponseEntity<ApiResponse<Void>> inviteCollaborator(
             @PathVariable("id") Long id,
@@ -65,6 +72,7 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok());
     }
 
+    @Operation(summary = "협업자 제거")
     @DeleteMapping("/{id}/collaborators/{targetMemberId}")
     public ResponseEntity<ApiResponse<Void>> removeCollaborator(
             @PathVariable("id") Long id,
@@ -74,6 +82,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "일정 생성")
     @PostMapping
     public ResponseEntity<ApiResponse<Long>> createTrip(
             @RequestBody TripCreateRequest request,
@@ -82,6 +91,7 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok(id));
     }
 
+    @Operation(summary = "일정 상세 조회")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TripDetailResponse>> getTrip(
             @PathVariable("id") Long id,
@@ -90,6 +100,7 @@ public class TripController {
     }
 
     // 링크 접근 레벨 설정 (소유자) → {access, token}
+    @Operation(summary = "공유 링크 접근레벨 설정", description = "→ {access, token}")
     @PutMapping("/{id}/share")
     public ResponseEntity<ApiResponse<Map<String, String>>> setShare(
             @PathVariable("id") Long id,
@@ -101,6 +112,7 @@ public class TripController {
     }
 
     // 공유 토큰으로 일정 조회 (비로그인 허용 — SecurityConfig permitAll)
+    @Operation(summary = "공유 토큰으로 일정 조회", description = "비로그인 허용")
     @GetMapping("/shared/{token}")
     public ResponseEntity<ApiResponse<TripDetailResponse>> getShared(
             @PathVariable("token") String token,
@@ -108,6 +120,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok(tripService.getSharedTrip(token, memberId)));
     }
 
+    @Operation(summary = "일정 삭제")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(
             @PathVariable("id") Long id,
@@ -116,6 +129,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "관광지 후보 추가")
     @PostMapping("/{id}/candidates")
     public ResponseEntity<ApiResponse<Long>> addCandidate(
             @PathVariable("id") Long id,
@@ -126,6 +140,7 @@ public class TripController {
     }
 
     // 커스텀 장소 직접 추가
+    @Operation(summary = "커스텀 장소 후보 추가")
     @PostMapping("/{id}/candidates/custom")
     public ResponseEntity<ApiResponse<Long>> addCustomCandidate(
             @PathVariable("id") Long id,
@@ -135,6 +150,7 @@ public class TripController {
     }
 
     // 내 장소에서 보관함으로 추가
+    @Operation(summary = "내 장소에서 후보 추가")
     @PostMapping("/{id}/candidates/from-place/{placeId}")
     public ResponseEntity<ApiResponse<Long>> addCandidateFromMyPlace(
             @PathVariable("id") Long id,
@@ -143,6 +159,7 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok(tripService.addCandidateFromMyPlace(id, placeId, memberId)));
     }
 
+    @Operation(summary = "후보 삭제", description = "연결된 블록이 있으면 RESTRICT")
     @DeleteMapping("/{id}/candidates/{candidateId}")
     public ResponseEntity<ApiResponse<Void>> removeCandidate(
             @PathVariable("id") Long id,
@@ -152,6 +169,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "블록 배치", description = "이동시간 자동 계산")
     @PostMapping("/{id}/blocks")
     public ResponseEntity<ApiResponse<Long>> placeBlock(
             @PathVariable("id") Long id,
@@ -161,6 +179,7 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok(blockId));
     }
 
+    @Operation(summary = "블록 수정", description = "시간·순서·메모 (낙관적 락)")
     @PutMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<ApiResponse<Void>> updateBlock(
             @PathVariable("id") Long id,
@@ -171,6 +190,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "블록 삭제")
     @DeleteMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<ApiResponse<Void>> removeBlock(
             @PathVariable("id") Long id,
@@ -180,6 +200,7 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "블록 요약 조회", description = "공유 미리보기용 (공개)")
     @GetMapping("/{id}/blocks-summary")
     public ResponseEntity<ApiResponse<TripBlockSummaryResponse>> getBlocksSummary(
             @PathVariable("id") Long id) {
@@ -187,6 +208,7 @@ public class TripController {
     }
 
     /** 공유된 일정 가져오기 — 시작일 기준으로 날짜 재계산 후 내 일정으로 복제 */
+    @Operation(summary = "공유 일정 복제", description = "시작일 기준 날짜 재계산 후 내 일정으로 복제")
     @PostMapping("/{tripId}/copy")
     public ResponseEntity<ApiResponse<Long>> copyTrip(
             @PathVariable("tripId") Long tripId,
@@ -196,6 +218,7 @@ public class TripController {
         return ResponseEntity.status(201).body(ApiResponse.ok(newTripId));
     }
 
+    @Operation(summary = "기본 이동수단 변경")
     @PatchMapping("/{tripId}/default-transit-mode")
     public ResponseEntity<ApiResponse<Void>> updateDefaultTransitMode(
             @PathVariable("tripId") Long tripId,
