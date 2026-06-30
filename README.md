@@ -72,8 +72,9 @@ cd frontend && npm install && npm run dev
 
 | 문서 | 내용 |
 |------|------|
-| [architecture.md](docs/architecture.md) | 시스템 구성·핵심 기술 결정 |
-| [api.md](docs/api.md) | REST + WebSocket API 명세 |
+| [architecture.md](docs/architecture.md) | 시스템 구성·도메인 지도·횡단 관심사 |
+| [api.md](docs/api.md) | REST + WebSocket API 명세 (Swagger UI: `/swagger-ui.html`) |
+| [frontend.md](docs/frontend.md) | 프론트엔드 아키텍처 (Vue·Pinia·라우팅·실시간 클라이언트) |
 | [database.md](docs/database.md) · [database.dbml](docs/database.dbml) | ERD(Mermaid/DBML)·스키마 |
 | [setup.md](docs/setup.md) | 실행·배포 가이드 |
 | [conventions.md](docs/conventions.md) | 개발 컨벤션 |

@@ -1,6 +1,11 @@
 # API 명세서
 
-> REST 약 72개 + WebSocket(STOMP) 실시간 협업 채널.
+> REST 약 80개 + WebSocket(STOMP) 실시간 협업 채널. 16개 컨트롤러 기준.
+
+> **Swagger UI (인터랙티브 탐색)** — 백엔드 실행 후 `http://localhost:8080/swagger-ui.html` 접속.
+> 컨트롤러는 `@Tag`로 그룹화돼 있고 OpenAPI 스펙은 `/v3/api-docs`에서 제공된다.
+> 인증은 `access_token` HttpOnly 쿠키 기반이라, 먼저 `POST /api/auth/login`을 실행해 로그인하면
+> 이후 "Try it out" 호출에 브라우저가 쿠키를 자동 전송한다. 본 문서는 그 위의 사람이 읽는 명세다.
 
 ---
 
@@ -65,6 +70,17 @@
 | GET | `/api/members/me/visited-regions` | 인증 | 방문 시도 코드 목록(내 지도) | — |
 | GET | `/api/members/search?q=` | 인증 | 협업자 초대용 회원 검색(닉네임·이메일) | query `q` |
 | DELETE | `/api/members/me` | 인증 | 회원 탈퇴(비밀번호 확인, 하드 딜리트) | `WithdrawRequest` |
+
+#### 방문 지도 (후기 사진 기반)
+| Method | Path | 권한 | 설명 | 요청 |
+|--------|------|------|------|------|
+| GET | `/api/members/me/map` | 인증 | 시도별 방문/예정·표지·후기 수 일괄 조회 | — |
+| GET | `/api/members/me/map/regions/{sidoCode}/stories` | 인증 | 표지 선택용 여행이야기(글) 목록 | path |
+| GET | `/api/members/me/map/regions/{sidoCode}/posts/{postId}/images` | 인증 | 글 사진(커버·본문) 목록 | path |
+| PUT | `/api/members/me/map/cover` | 인증 | 지역 표지 지정(후보 사진 선택) | `CoverImageRequest` |
+| POST | `/api/members/me/map/cover/upload` | 인증 | 지역 표지 지정(직접 업로드) | `multipart: regionCode,file` |
+| PATCH | `/api/members/me/map/cover/crop` | 인증 | 표지 crop(초점/확대) 갱신 | `CoverCropRequest` |
+| DELETE | `/api/members/me/map/cover/{sidoCode}` | 인증 | 지역 표지 해제(기본값 복귀) | path |
 
 ### 2-3. 관광지 (`/api/attractions`)
 | Method | Path | 권한 | 설명 | 요청 |
