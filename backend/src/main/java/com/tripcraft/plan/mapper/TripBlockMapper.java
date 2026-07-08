@@ -42,6 +42,9 @@ public interface TripBlockMapper {
      */
     int updateWithVersion(TripBlock block);
 
+    /** memo 컬럼만 갱신(version·위치·transit 컬럼 미변경). grab 잠금이 동시 쓰기를 차단하므로 낙관적 락 생략. */
+    void updateMemoById(@Param("id") Long id, @Param("memo") String memo);
+
     /** transit 컬럼만 갱신(version·위치 컬럼 미변경). 재계산이 사용자 편집을 클로버하지 않게. */
     void updateTransitById(@Param("id") Long id,
                            @Param("transitDurationMinutes") Integer transitDurationMinutes,

@@ -79,6 +79,13 @@
         WHERE id = #{id} AND version = #{version}
     </update>
 
+    <!-- memo 전용 갱신: version·위치·transit 컬럼 미변경 (grab 잠금이 동시 쓰기 차단, 낙관적 락 생략) -->
+    <update id="updateMemoById">
+        UPDATE trip_block
+        SET memo = #{memo}
+        WHERE id = #{id}
+    </update>
+
     <!-- transit 전용 갱신: version·위치 컬럼 미변경 (재계산이 사용자 편집을 덮어쓰지 않게) -->
     <update id="updateTransitById">
         UPDATE trip_block
