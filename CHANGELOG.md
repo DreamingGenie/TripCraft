@@ -6,11 +6,18 @@
 ## [Unreleased]
 
 ### 추가
+- **일정 블록 메모 실시간 공유**(개선 01) — 일정 블록에 최대 100자 메모, 협업자에게 STOMP 실시간 반영. `PATCH /api/trips/{id}/blocks/{blockId}/memo`, `BLOCK_MEMO_UPDATED` 이벤트, idle(≈600ms)+blur 자동 저장, grab 잠금 재사용(version 미변경)
 - 개선 계획 문서(`docs/improvements/`) 신설 — 01 일정 블록 메모 실시간 공유, 02 대량 장소 확보 + 대용량 처리 성능 벤치마크
+- **테스트 기반 구축** — 백엔드 서비스 단위테스트(`TripServiceImplTest`: 메모·grab·시간겹침·낙관적 락·권한, Mockito) + Testcontainers(MySQL 8) 통합테스트 골격(`AbstractIntegrationTest`, `@Tag("integration")`). 기본 `./gradlew test`는 Docker 없이 단위테스트만 실행, `integrationTest` 태스크로 컨테이너 테스트 분리
+- 개발 일지 폴더(`docs/logs/`) 신설 — 1인 개발 단계의 날짜별 내러티브 작업 일지(동결 아카이브 `docs/capstone-1.0/logs/`의 관행을 Living 문서로 계승)
 
 ### 변경
 - 문서 체계 재편: Living 문서(`docs/*`) + 캡스톤 동결 아카이브(`docs/capstone-1.0/`) 분리, 중복 산출물 정리
 - 저장소 GitHub 단일화(Public), 1인 trunk-based 개발 모델로 전환
+
+### 수정
+- deploy 자산의 스키마 경로 교정 — `docs/02_design/schema.sql`(구 문서 구조) → `docs/sql/schema.sql`. `deploy/docker-compose.yml`·`deploy/local/mysql.Dockerfile`의 mysql initdb 가 스키마를 찾지 못하던 문제 해결
+- `JWT_SECRET` 예시값을 유효한 base64 로 교정 — `JwtTokenProvider`가 `Decoders.BASE64.decode`로 해석하는데 기존 예시(`-` 포함)가 base64 파싱에 실패해 백엔드가 기동 crash-loop 하던 문제. 예시 파일 2종 + 테스트 프로파일 반영
 
 ---
 

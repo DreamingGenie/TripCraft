@@ -190,6 +190,17 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+    @Operation(summary = "블록 메모 저장", description = "최대 100자 · 실시간 브로드캐스트 (grab 소유자만)")
+    @PatchMapping("/{id}/blocks/{blockId}/memo")
+    public ResponseEntity<ApiResponse<Void>> updateBlockMemo(
+            @PathVariable("id") Long id,
+            @PathVariable("blockId") Long blockId,
+            @RequestBody com.tripcraft.plan.dto.BlockMemoUpdateRequest request,
+            @AuthenticationPrincipal Long memberId) {
+        tripService.updateBlockMemo(id, blockId, request, memberId);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
     @Operation(summary = "블록 삭제")
     @DeleteMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<ApiResponse<Void>> removeBlock(

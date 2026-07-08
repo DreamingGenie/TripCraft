@@ -1,0 +1,38 @@
+# 테스트 프로파일 — 외부 의존성 없이 컨텍스트가 로드되도록 모든 시크릿 플레이스홀더에 더미 값 주입.
+# DB 접속(spring.datasource.*)은 AbstractIntegrationTest 의 @DynamicPropertySource 가 Testcontainers 로 덮어쓴다.
+# 실제 외부 호출은 없다(키는 빈 auto-config 통과용).
+
+spring:
+  ai:
+    openai:
+      api-key: test-dummy-openai-key
+  batch:
+    job:
+      enabled: false
+
+# jjwt HS256 서명 키 — JwtTokenProvider 가 Decoders.BASE64.decode 로 해석하므로
+# 반드시 유효한 base64(디코딩 시 32바이트 이상)여야 한다. 아래는 48바이트 base64 더미.
+jwt:
+  secret: dGVzdC1kdW1teS1qd3Qtc2VjcmV0LWZvci10cmlwY3JhZnQtdW5pdC10ZXN0cy1vbmx5LTEyMzQ1Ng==
+
+tour-api:
+  service-key: test-dummy-tour-key
+
+odsay:
+  api-key: test-dummy-odsay-key
+
+tmap:
+  api-key: test-dummy-tmap-key
+
+kakao:
+  client-id: ""
+  client-secret: ""
+  redirect-uri: ""
+  admin-key: ""
+
+upload:
+  dir: ${java.io.tmpdir}/tripcraft-test-uploads
+
+logging:
+  level:
+    com.tripcraft: INFO

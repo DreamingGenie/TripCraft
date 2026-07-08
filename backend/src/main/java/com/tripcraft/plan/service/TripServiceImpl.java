@@ -267,7 +267,7 @@ public class TripServiceImpl implements TripService {
                 Collectors.mapping(b -> new BlockItem(b.getId(), b.getCandidateId(),
                     b.getTripDate(), b.getDisplayOrder(), b.getStartTime(), b.getDurationMinutes(),
                     b.getTransitDurationMinutes(), b.getTransitMode(), b.getTransitOptionIndex(),
-                    b.getVersion()),
+                    b.getVersion(), b.getMemo()),
                     Collectors.toList())));
 
         Map<Integer, String> sidoLabels = regionService.sidoLabelMap();
@@ -493,6 +493,27 @@ public class TripServiceImpl implements TripService {
         broadcast(tripId, TripEvent.of("BLOCK_MOVED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "tripDate", req.getTripDate(),
                        "displayOrder", req.getDisplayOrder())));
+    }
+
+    @Override
+    @Transactional
+    public void updateBlockMemo(Long tripId, Long blockId,
+                                com.tripcraft.plan.dto.BlockMemoUpdateRequest req, Long memberId) {
+        assertCanEdit(tripId, memberId);
+        assertNotGrabbedByOther(tripId, blockId, memberId);  // 서버 게이트: grab 비소유자 편집 거부
+        // 블록이 이 일정 소속인지 확인(다른 일정 블록 id 위조 방어)
+        Long ownerTripId = blockMapper.findTripIdByBlockId(blockId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!ownerTripId.equals(tripId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 일정의 블록입니다.");
+
+        String memo = req.getMemo();
+        if (memo != null && memo.codePointCount(0, memo.length()) > 100)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "메모는 100자를 넘을 수 없어요");
+
+        blockMapper.updateMemoById(blockId, memo);  // version 미변경
+        broadcast(tripId, TripEvent.of("BLOCK_MEMO_UPDATED", memberId, nickname(memberId),
+                Map.of("blockId", blockId, "memo", memo != null ? memo : "")));
     }
 
     @Override
