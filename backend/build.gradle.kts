@@ -43,7 +43,7 @@ dependencies {
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("org.springframework.batch:spring-batch-test")
 	// Testcontainers — 실제 MySQL 8 컨테이너 기반 통합/매퍼 테스트(@Tag("integration"))
-	testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
+	testImplementation(platform("org.testcontainers:testcontainers-bom:1.21.3"))
 	testImplementation("org.testcontainers:junit-jupiter")
 	testImplementation("org.testcontainers:mysql")
 	testCompileOnly("org.projectlombok:lombok")

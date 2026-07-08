@@ -56,6 +56,19 @@ npm install
 npm run dev                # http://localhost:5173
 ```
 
+### 3-4. 테스트
+```bash
+cd backend
+./gradlew test             # 서비스 단위테스트(Mockito) — Docker 불필요, 항상 실행되는 회귀 안전망
+./gradlew integrationTest  # Testcontainers(MySQL 8) 통합테스트 — Docker 필요, @Tag("integration")
+```
+- 기본 `test`는 `integration` 태그를 제외하므로 Docker 없이도 green. 회귀 검증은 이걸 쓴다.
+- `integrationTest`(컨테이너 기반)는 **Docker 설정에 의존**한다. Docker Desktop 최신 엔진(API 1.5x)에서는
+  Testcontainers가 쓰는 docker-java가 named pipe 통신에 실패(`400 BadRequest`)할 수 있다. 이 경우
+  **Settings → General → "Expose daemon on tcp://localhost:2375 without TLS"** 를 켜고
+  `DOCKER_HOST=tcp://localhost:2375 ./gradlew integrationTest` 로 우회한다(로컬 개발 PC 한정).
+  docker CLI(`docker compose`)는 이 이슈의 영향을 받지 않는다.
+
 ---
 
 ## 4. 운영 배포 (Docker)
