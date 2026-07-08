@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 추가
+- **일정 블록 메모 실시간 공유**(개선 01) — 일정 블록에 최대 100자 메모, 협업자에게 STOMP 실시간 반영. `PATCH /api/trips/{id}/blocks/{blockId}/memo`, `BLOCK_MEMO_UPDATED` 이벤트, idle(≈600ms)+blur 자동 저장, grab 잠금 재사용(version 미변경)
 - 개선 계획 문서(`docs/improvements/`) 신설 — 01 일정 블록 메모 실시간 공유, 02 대량 장소 확보 + 대용량 처리 성능 벤치마크
 
 ### 변경
