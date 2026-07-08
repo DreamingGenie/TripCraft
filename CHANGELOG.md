@@ -5,6 +5,9 @@
 
 ## [Unreleased]
 
+### 추가
+- 개선 계획 문서(`docs/improvements/`) 신설 — 01 일정 블록 메모 실시간 공유, 02 대량 장소 확보 + 대용량 처리 성능 벤치마크
+
 ### 변경
 - 문서 체계 재편: Living 문서(`docs/*`) + 캡스톤 동결 아카이브(`docs/capstone-1.0/`) 분리, 중복 산출물 정리
 - 저장소 GitHub 단일화(Public), 1인 trunk-based 개발 모델로 전환
