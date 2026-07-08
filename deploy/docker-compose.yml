@@ -14,7 +14,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       # 최초 기동 시 순서대로 자동 적용: 01 통합 스키마(마이그 다 반영된 정본) → 02 관광지 데이터 시드
-      - ../docs/02_design/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../docs/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./seed/02-attraction-seed.sql.gz:/docker-entrypoint-initdb.d/02-attraction-seed.sql.gz:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
