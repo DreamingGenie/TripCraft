@@ -296,6 +296,21 @@
                      @dragend="onDragEnd">
                   <span class="event-name">{{ ev.name }}</span>
                   <span class="event-time">{{ ev.timeLabel }}</span>
+                  <textarea v-if="!readOnly"
+                            class="event-memo"
+                            :class="{ 'event-memo--locked': collab.isGrabbedByOther(ev.id, myMemberId) }"
+                            :value="ev.memo"
+                            :readonly="collab.isGrabbedByOther(ev.id, myMemberId)"
+                            maxlength="100"
+                            rows="1"
+                            placeholder="메모 추가…"
+                            draggable="false"
+                            @mousedown.stop
+                            @dragstart.stop.prevent
+                            @focus="onMemoFocus(ev)"
+                            @input="onMemoInput(ev, $event)"
+                            @blur="onMemoBlur(ev)"></textarea>
+                  <span v-else-if="ev.memo" class="event-memo event-memo--ro">{{ ev.memo }}</span>
                   <span v-if="isProcessing && ev.id === processingEvId" class="event-spinner"></span>
                   <button v-if="!readOnly" class="event-del" :title="embedded ? '보관함으로 빼기' : '삭제'"
                           @click.stop="removeEvent(d, ev)">✕</button>
@@ -767,6 +782,13 @@ let panelResizeStartWidth = 0
 let dragState = null
 let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 grab 잠금을 명시 해제하기 위해 보관
 
+// ── 블록 메모 실시간 편집 상태 ──
+// persist(PATCH)와 broadcast는 서버가 처리. 프론트는 저장 트리거만 통제: idle(≈600ms) + blur flush.
+let memoEditingBlockId = null   // 현재 내가 편집 중인 블록 id(수신 이벤트가 내 입력을 덮지 않게)
+let memoDebounceTimer = null    // idle 디바운스 타이머
+let memoPending = null          // { blockId, memo } — 아직 서버에 안 보낸 마지막 값(flush 대상)
+const MEMO_IDLE_MS = 600
+
 // 적응형 전송 게이트(AIMD): 활동이 전송보다 빠르면(혼잡) 간격을 늘려 백로그를 막고,
 // 한가하면 줄여 더 부드럽게. 커서·ghost 전송 공통으로 사용.
 let sendInterval = collabConfig.cursorThrottleMs
@@ -914,6 +936,7 @@ function buildEvent(b, cand) {
     transitDurationMinutes: b.transitDurationMinutes ?? null,
     transitMode: b.transitMode ?? null,
     transitOptionIndex: b.transitOptionIndex ?? null,
+    memo: b.memo ?? '',
   }
 }
 
@@ -2155,6 +2178,51 @@ function grabberColor(blockId) {
   return grabberId ? collab.colorMap[grabberId] : undefined
 }
 
+// ── 블록 메모 편집 ──
+// 포커스 = 해당 블록 grab(서버 게이트) → 다른 사용자는 읽기전용. blur = 해제 + flush.
+function onMemoFocus(ev) {
+  memoEditingBlockId = ev.id
+  if (activeTripId.value) {
+    grabbedBlockId = ev.id  // blur/드래그 종료 경로에서 명시 해제되도록 공유
+    collab.sendPointer(activeTripId.value, {
+      zone: 'timetable', interaction: 'grab', targetBlockId: ev.id,
+      nickname: auth.user?.nickname ?? '',
+    })
+  }
+}
+
+// per-keystroke 전송 금지 — idle(≈600ms) 디바운스로만 저장·브로드캐스트.
+function onMemoInput(ev, e) {
+  ev.memo = e.target.value
+  memoPending = { blockId: ev.id, memo: ev.memo }
+  clearTimeout(memoDebounceTimer)
+  memoDebounceTimer = setTimeout(flushMemo, MEMO_IDLE_MS)
+}
+
+function onMemoBlur(ev) {
+  flushMemo()               // 남은 변경 즉시 저장
+  memoEditingBlockId = null
+  if (activeTripId.value) { // grab 해제(잠금 즉시 반납)
+    collab.sendPointer(activeTripId.value, {
+      zone: 'other', interaction: '', targetBlockId: ev.id,
+      nickname: auth.user?.nickname ?? '',
+    })
+  }
+  grabbedBlockId = null
+}
+
+async function flushMemo() {
+  clearTimeout(memoDebounceTimer)
+  const pending = memoPending
+  if (!pending || !activeTripId.value) return
+  memoPending = null
+  try {
+    await tripApi.updateBlockMemo(activeTripId.value, pending.blockId, pending.memo)
+  } catch (e) {
+    console.warn('[memo] 저장 실패', e)
+  }
+}
+
 // ── 실시간 협업 이벤트 핸들러 ──
 function handleTripEvent(event) {
   const myId = auth.user?.id
@@ -2175,7 +2243,21 @@ function handleTripEvent(event) {
     case 'TRANSIT_RECALCULATED':
       applyTransitUpdate(event.payload)
       break
+    case 'BLOCK_MEMO_UPDATED':
+      applyMemoUpdate(event.payload)
+      break
   }
+}
+
+// 메모 실시간 반영 — 전체 재조회 대신 해당 블록 memo만 갱신(다른 편집 방해 X).
+// 단, 내가 지금 편집 중인 블록이면 무시(내 입력이 튀는 것 방지 — grab으로 동시편집은 이미 차단됨).
+function applyMemoUpdate(payload) {
+  if (!payload || payload.blockId == null) return
+  if (payload.blockId === memoEditingBlockId) return
+  days.value.forEach(day => {
+    const ev = day.events?.find(e => e.id === payload.blockId)
+    if (ev) ev.memo = payload.memo ?? ''
+  })
 }
 
 function applyTransitUpdate(payload) {

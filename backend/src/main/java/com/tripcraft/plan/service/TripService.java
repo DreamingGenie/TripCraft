@@ -49,6 +49,12 @@ public interface TripService {
 
     void updateBlock(Long tripId, Long blockId, BlockUpdateRequest request, Long memberId);
 
+    /**
+     * 블록 메모 저장(최대 100 코드포인트) + BLOCK_MEMO_UPDATED 실시간 브로드캐스트.
+     * version 미변경(이동·리사이즈 낙관적 락과 독립). grab 소유자만 편집 가능.
+     */
+    void updateBlockMemo(Long tripId, Long blockId, com.tripcraft.plan.dto.BlockMemoUpdateRequest request, Long memberId);
+
     void removeBlock(Long tripId, Long blockId, Long memberId);
 
     void updateDefaultTransitMode(Long tripId, String mode, Long memberId);

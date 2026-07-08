@@ -59,6 +59,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Living 문서**(`docs/*.md`, `docs/features/`, `docs/sql/`) — 코드 변경에 맞춰 유지보수. `docs/conventions.md` 등 결정 사항 변경 즉시 업데이트(승인 후).
 - **동결 아카이브**(`docs/capstone-1.0/`) — 캡스톤 제출 상태(as-submitted) 보존. **수정 금지.**
 - 변경 이력은 루트 `CHANGELOG.md`(Keep a Changelog) + GitHub Releases.
+- **개발 일지**(`docs/logs/YYYY-MM-DD.md`) — 비자명한 결정·디버깅·설계 트레이드오프가 있는 세션의 서술형 기록. CHANGELOG(무엇)와 역할 분담(로그=왜/어떻게), 의미 있는 세션에만 작성. 동결 아카이브 `docs/capstone-1.0/logs/`의 계승.
 
 ## 기능별 컨텍스트 (필요할 때 읽을 것)
 
