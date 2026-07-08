@@ -1,0 +1,8 @@
+{
+  // 공유 에디터 설정 — 개인 취향/시크릿 없음. 프론트엔드 기준.
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "eslint.workingDirectories": ["frontend"],
+  "files.eol": "\n",
+  "[vue]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+}
