@@ -18,6 +18,11 @@ import org.testcontainers.utility.MountableFile;
  * <p>스키마는 저장소 정본 {@code docs/sql/schema.sql} 을 컨테이너 initdb 로 그대로 올린다
  * (테스트 리소스로 복제하지 않아 드리프트 없음). 테스트 실행 작업 디렉터리는 {@code backend/} 이므로
  * 상대경로 {@code ../docs/sql/schema.sql} 로 해석된다.
+ *
+ * <p><b>알려진 제약(Docker Desktop 최신 엔진)</b>: Docker 엔진 API 1.5x 에서는 Testcontainers 가 쓰는
+ * docker-java 가 Windows named pipe 통신에 실패(`400 BadRequest`)할 수 있다. 이때는 Docker Desktop 의
+ * "Expose daemon on tcp://localhost:2375 without TLS" 를 켜고 {@code DOCKER_HOST=tcp://localhost:2375}
+ * 로 실행한다(자세한 내용 {@code docs/setup.md} §3-4). docker CLI 는 영향받지 않는다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
