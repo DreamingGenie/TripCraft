@@ -10,9 +10,10 @@ spring:
     job:
       enabled: false
 
-# jjwt HS256 서명 키는 256bit(32바이트) 이상이어야 함 → 충분히 긴 더미.
+# jjwt HS256 서명 키 — JwtTokenProvider 가 Decoders.BASE64.decode 로 해석하므로
+# 반드시 유효한 base64(디코딩 시 32바이트 이상)여야 한다. 아래는 48바이트 base64 더미.
 jwt:
-  secret: test-dummy-jwt-secret-please-ignore-0123456789abcdef
+  secret: dGVzdC1kdW1teS1qd3Qtc2VjcmV0LWZvci10cmlwY3JhZnQtdW5pdC10ZXN0cy1vbmx5LTEyMzQ1Ng==
 
 tour-api:
   service-key: test-dummy-tour-key
