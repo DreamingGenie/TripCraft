@@ -1,0 +1,10 @@
+{
+  // 프론트엔드(Vue 3 + Vite) 개발 권장 확장. 팀/2대 PC 재현용 — 시크릿 없음.
+  "recommendations": [
+    "Vue.volar",                    // Vue 3 언어 지원 (Volar)
+    "dbaeumer.vscode-eslint",       // ESLint
+    "esbenp.prettier-vscode",       // Prettier 포맷터
+    "christian-kohler.path-intellisense", // 경로 자동완성
+    "mikestead.dotenv"              // .env 문법 하이라이트
+  ]
+}

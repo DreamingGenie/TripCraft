@@ -19,9 +19,19 @@ frontend/dist/
 
 .omc
 .claude/worktrees/
-.vscode/
 frontend/pnpm-lock.yaml
 frontend/pnpm-workspace.yaml
+
+# IDE — 개인 메타데이터는 무시, 공유 실행구성(.run/)·VSCode 공유 3파일만 추적
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# Gradle 빌드 산출물
+backend/build/
+backend/.gradle/
 
 # 로그 파일
 *.log

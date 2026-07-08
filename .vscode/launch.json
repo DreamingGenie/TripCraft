@@ -1,0 +1,14 @@
+{
+  // 프론트엔드 디버깅용. 먼저 터미널에서 `cd frontend && npm run dev`로 Vite(:5173)를 띄운 뒤 실행한다.
+  // 시크릿 없음 — URL·경로만 참조.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Frontend: Vite (Chrome)",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend/src"
+    }
+  ]
+}
