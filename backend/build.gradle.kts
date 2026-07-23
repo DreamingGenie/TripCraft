@@ -42,6 +42,10 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("org.springframework.batch:spring-batch-test")
+	// Testcontainers — 실제 MySQL 8 컨테이너 기반 통합/매퍼 테스트(@Tag("integration"))
+	testImplementation(platform("org.testcontainers:testcontainers-bom:1.21.3"))
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:mysql")
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")
@@ -57,6 +61,19 @@ tasks.withType<JavaCompile> {
 	options.compilerArgs.add("-parameters")
 }
 
-tasks.withType<Test> {
-	useJUnitPlatform()
+// 기본 `test` = 순수 단위테스트만(Docker 불필요) → integration 태그 제외해 항상 green.
+tasks.test {
+	useJUnitPlatform {
+		excludeTags("integration")
+	}
+}
+
+// `integrationTest` = Testcontainers(실 MySQL) 기반 @Tag("integration") 테스트. Docker 필요.
+tasks.register<Test>("integrationTest") {
+	description = "Testcontainers 기반 통합/매퍼 테스트 (Docker 필요)"
+	group = "verification"
+	useJUnitPlatform {
+		includeTags("integration")
+	}
+	shouldRunAfter(tasks.test)
 }

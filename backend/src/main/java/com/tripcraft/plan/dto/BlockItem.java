@@ -20,4 +20,5 @@ public class BlockItem {
     private String transitMode;
     private Integer transitOptionIndex;
     private Integer version;
+    private String memo;
 }

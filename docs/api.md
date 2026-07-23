@@ -135,7 +135,8 @@
 | Method | Path | 권한 | 설명 | 요청 |
 |--------|------|------|------|------|
 | POST | `/api/trips/{id}/blocks` | 인증 | 블록 배치(이동시간 자동 계산) | `BlockCreateRequest` |
-| PUT | `/api/trips/{id}/blocks/{blockId}` | 인증 | 블록 수정(시간·순서·메모, 낙관적 락) | `BlockUpdateRequest` |
+| PUT | `/api/trips/{id}/blocks/{blockId}` | 인증 | 블록 수정(시간·순서, 낙관적 락) | `BlockUpdateRequest` |
+| PATCH | `/api/trips/{id}/blocks/{blockId}/memo` | 인증 | 블록 메모 저장(≤100자, 실시간 브로드캐스트, grab 소유자만, version 미변경) | `BlockMemoUpdateRequest` |
 | DELETE | `/api/trips/{id}/blocks/{blockId}` | 인증 | 블록 삭제 | path |
 
 ### 2-7. 이동 시간 (`/api/transit`) — ODsay·T Map
