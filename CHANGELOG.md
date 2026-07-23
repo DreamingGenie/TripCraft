@@ -10,6 +10,7 @@
 - 개선 계획 문서(`docs/improvements/`) 신설 — 01 일정 블록 메모 실시간 공유, 02 대량 장소 확보 + 대용량 처리 성능 벤치마크
 - **테스트 기반 구축** — 백엔드 서비스 단위테스트(`TripServiceImplTest`: 메모·grab·시간겹침·낙관적 락·권한, Mockito) + Testcontainers(MySQL 8) 통합테스트 골격(`AbstractIntegrationTest`, `@Tag("integration")`). 기본 `./gradlew test`는 Docker 없이 단위테스트만 실행, `integrationTest` 태스크로 컨테이너 테스트 분리
 - 개발 일지 폴더(`docs/logs/`) 신설 — 1인 개발 단계의 날짜별 내러티브 작업 일지(동결 아카이브 `docs/capstone-1.0/logs/`의 관행을 Living 문서로 계승)
+- 트러블슈팅 기록 문서(`docs/troubleshooting.md`) 신설 — fix/perf 커밋을 도메인별 증상·원인·해결로 정리
 
 ### 변경
 - 문서 체계 재편: Living 문서(`docs/*`) + 캡스톤 동결 아카이브(`docs/capstone-1.0/`) 분리, 중복 산출물 정리
