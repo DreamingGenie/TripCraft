@@ -1,6 +1,6 @@
 # 개선 01 — 일정 블록 메모 실시간 공유
 
-> 상태: 📝 계획중 · 최종 갱신: 2026-07-08
+> 상태: ✅ 완료(v1 idle/blur 자동 저장) · 최종 갱신: 2026-07-08
 
 ## 1. 배경 / 목표
 
@@ -107,21 +107,22 @@ Google Docs처럼 **타이핑하는 글자를 거의 실시간으로** 남에게
 ## 5. 구현 체크리스트
 
 **백엔드**
-- [ ] `plan/dto/BlockMemoUpdateRequest.java` 신설(`memo`).
-- [ ] `TripController`에 `PATCH /{tripId}/blocks/{blockId}/memo` 핸들러(권한 + grab 소유자 + 길이 검증).
-- [ ] `TripBlockMapper.updateMemoById` + XML(`UPDATE trip_block SET memo=#{memo} WHERE id=#{id}`, `#{}`만).
-- [ ] `TripServiceImpl`에 메모 저장 + `BLOCK_MEMO_UPDATED` 브로드캐스트(seq 스탬프).
-- [ ] `TripEvent.java` type 주석에 `BLOCK_MEMO_UPDATED` 추가.
+- [x] `plan/dto/BlockMemoUpdateRequest.java` 신설(`memo`).
+- [x] `TripController`에 `PATCH /{tripId}/blocks/{blockId}/memo` 핸들러(권한 + grab 소유자 + 길이 검증).
+- [x] `TripBlockMapper.updateMemoById` + XML(`UPDATE trip_block SET memo=#{memo} WHERE id=#{id}`, `#{}`만).
+- [x] `TripServiceImpl`에 메모 저장 + `BLOCK_MEMO_UPDATED` 브로드캐스트(`broadcast()`가 afterCommit seq 스탬프).
+- [x] `TripEvent.java` type 주석에 `BLOCK_MEMO_UPDATED` 추가.
+- [x] `BlockItem` DTO에 `memo` 추가 → 초기 로드 시 메모 표시.
 
 **프론트엔드**
-- [ ] `ScheduleBoard.vue` 블록에 메모 입력 UI(포커스 시 grab, blur 시 해제·flush).
-- [ ] 디바운스(≈600ms) 유틸 + blur flush로 `api/trip.js` PATCH 호출.
-- [ ] `stores/collab.js`에 `BLOCK_MEMO_UPDATED` 수신 핸들러(자기 편집 블록은 무시).
-- [ ] 100자 maxlength + 잔여 글자 표시.
+- [x] `ScheduleBoard.vue` 블록에 메모 입력 UI(포커스 시 grab presence, blur 시 해제·flush).
+- [x] 디바운스(≈600ms) + blur flush로 `api/trip.js` `updateBlockMemo` PATCH 호출.
+- [x] `ScheduleBoard.vue handleTripEvent`에 `BLOCK_MEMO_UPDATED` 수신 핸들러(내가 편집 중인 블록은 무시).
+- [x] 100자 `maxlength`. (잔여 글자 표시는 후속 — maxlength로 하드 컷)
 
 **문서·이력**
-- [ ] `docs/api.md`에 신규 엔드포인트 반영, `README.md` 상태 갱신.
-- [ ] `CHANGELOG.md [Unreleased]`에 항목 추가.
+- [x] `docs/api.md`에 신규 엔드포인트 반영.
+- [x] `CHANGELOG.md [Unreleased]`에 항목 추가.
 
 ## 6. 검증 방법
 

@@ -3,7 +3,7 @@ package com.tripcraft.plan.dto;
 import java.time.LocalDateTime;
 
 public record TripEvent(
-        String type,           // BLOCK_ADDED | BLOCK_MOVED | BLOCK_DELETED |
+        String type,           // BLOCK_ADDED | BLOCK_MOVED | BLOCK_DELETED | BLOCK_MEMO_UPDATED |
                                // CANDIDATE_ADDED | CANDIDATE_REMOVED | TRANSIT_RECALCULATED
         Long actorId,
         String actorNickname,
