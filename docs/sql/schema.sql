@@ -12,6 +12,9 @@
 --            post에 deleted_at 추가 (소프트 딜리트)
 --            post_bookmark 테이블 신설
 --            → migration_comment_parent.sql 참조
+-- v0.6 변경: attraction에 source(TOURAPI|KAKAO)·external_id 추가 (개선 02 카카오 로컬 대량 수집)
+--            content_id NULL 허용(카카오 행), UNIQUE (source, external_id) 추가
+--            → migration_kakao_source.sql 참조
 -- =============================================
 -- 결정 사항 요약
 --   - member: 하드 딜리트. 탈퇴 시 앱 레이어에서 trip_block → trip_candidate → trip 순서대로 삭제 후 member 삭제
@@ -187,7 +190,9 @@ INSERT INTO sigungu (sido_code, sigungu_code, name) VALUES
 -- ---------------------------------------------
 CREATE TABLE attraction (
     id               BIGINT        NOT NULL AUTO_INCREMENT COMMENT '내부 PK',
-    content_id       VARCHAR(20)   NOT NULL COMMENT 'TourAPI contentid (숫자 문자열)',
+    source           ENUM('TOURAPI','KAKAO') NOT NULL DEFAULT 'TOURAPI' COMMENT '출처: 한국관광공사 TourAPI | 카카오 로컬',
+    external_id      VARCHAR(30)   NULL     COMMENT '카카오 place id (source=KAKAO). TOURAPI 행은 NULL',
+    content_id       VARCHAR(20)   NULL     COMMENT 'TourAPI contentid (숫자 문자열). source=KAKAO 행은 NULL',
     content_type_id  TINYINT       NOT NULL COMMENT '12:관광지 14:문화시설 28:레포츠 32:숙박 38:쇼핑 39:음식점',
     title            VARCHAR(200)  NOT NULL COMMENT '장소명',
     sido_code        TINYINT       NOT NULL COMMENT '시도 코드 (1=서울 6=부산 등, 최대 33)',
@@ -217,6 +222,7 @@ CREATE TABLE attraction (
                                             COMMENT '마지막 DB 동기화 시각',
     PRIMARY KEY (id),
     UNIQUE KEY uq_attraction_content_id (content_id),
+    UNIQUE KEY uq_attraction_source_ext (source, external_id),
     INDEX idx_sido         (sido_code),
     INDEX idx_sigungu      (sigungu_code),
     INDEX idx_content_type (content_type_id),

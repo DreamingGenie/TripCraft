@@ -11,6 +11,10 @@ import java.time.LocalDateTime;
 public class Attraction {
 
     private Long id;
+    /** 출처: TOURAPI(한국관광공사) | KAKAO(카카오 로컬). 기본 TOURAPI. */
+    private String source = "TOURAPI";
+    /** 외부 장소 ID. source=KAKAO일 때 카카오 place id, TOURAPI는 null. */
+    private String externalId;
     private String contentId;
     private Integer contentTypeId;
     private String title;
