@@ -56,7 +56,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## docs 정책
 
-- **Living 문서**(`docs/*.md`, `docs/features/`, `docs/sql/`) — 코드 변경에 맞춰 유지보수. `docs/conventions.md` 등 결정 사항 변경 즉시 업데이트(승인 후).
+- **인덱스**: `docs/README.md`가 문서 진입점. 성격별 분류(시스템/기능/기술심화/운영/개선/이력/아카이브)의 정본.
+- **Living 문서**(`docs/*.md`, `docs/features/`, `docs/tech-notes/`, `docs/sql/`) — 코드 변경에 맞춰 유지보수. `docs/conventions.md` 등 결정 사항 변경 즉시 업데이트(승인 후).
+- **기술 심화·학습 노트**(`docs/tech-notes/`) — 구현에서 익힌 개념·주의점의 재사용 가능한 정리(커밋 대상). 커밋하지 않는 개인 스크래치 메모(gitignore `notes/`)와 구분.
 - **동결 아카이브**(`docs/capstone-1.0/`) — 캡스톤 제출 상태(as-submitted) 보존. **수정 금지.**
 - 변경 이력은 루트 `CHANGELOG.md`(Keep a Changelog) + GitHub Releases.
 - **개발 일지**(`docs/logs/YYYY-MM-DD.md`) — 비자명한 결정·디버깅·설계 트레이드오프가 있는 세션의 서술형 기록. CHANGELOG(무엇)와 역할 분담(로그=왜/어떻게), 의미 있는 세션에만 작성. 동결 아카이브 `docs/capstone-1.0/logs/`의 계승.

@@ -39,5 +39,6 @@ backend/.gradle/
 # 업로드 파일 (로컬 저장소 — 운영환경에서는 별도 볼륨 마운트)
 backend/uploads/
 
-# 개인 학습 노트 (커밋 제외)
+# 개인 스크래치 메모 (커밋 제외) — 커밋하는 기술 학습 문서는 docs/tech-notes/ 에 둘 것.
+# 'notes' 디렉터리명만 무시하므로 docs/tech-notes/ 는 정상 추적된다.
 notes/
