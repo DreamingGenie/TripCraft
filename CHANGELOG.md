@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 추가
+- **카카오 로컬 API 대량 장소 수집**(개선 02 Phase A) — 카카오 로컬 category 검색으로 장소 대량 확보. 전국 bounding box를 rect 격자로 순회하고 45건 상한 셀은 quadtree로 세분화. 결과는 `attraction` 테이블에 `source='KAKAO'`로 업서트. 관리자 API `POST /api/admin/attractions/sync/kakao`(전체)·`/sync/kakao/partial?categoryGroupCode=`(부분). 스키마 v0.6: `attraction`에 `source`·`external_id` 추가, `content_id` NULL 허용, `UNIQUE(source, external_id)` (`migration_kakao_source.sql`)
 - **일정 블록 메모 실시간 공유**(개선 01) — 일정 블록에 최대 100자 메모, 협업자에게 STOMP 실시간 반영. `PATCH /api/trips/{id}/blocks/{blockId}/memo`, `BLOCK_MEMO_UPDATED` 이벤트, idle(≈600ms)+blur 자동 저장, grab 잠금 재사용(version 미변경)
 - 개선 계획 문서(`docs/improvements/`) 신설 — 01 일정 블록 메모 실시간 공유, 02 대량 장소 확보 + 대용량 처리 성능 벤치마크
 - **테스트 기반 구축** — 백엔드 서비스 단위테스트(`TripServiceImplTest`: 메모·grab·시간겹침·낙관적 락·권한, Mockito) + Testcontainers(MySQL 8) 통합테스트 골격(`AbstractIntegrationTest`, `@Tag("integration")`). 기본 `./gradlew test`는 Docker 없이 단위테스트만 실행, `integrationTest` 태스크로 컨테이너 테스트 분리

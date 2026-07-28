@@ -1,6 +1,22 @@
 # 개선 02 — 대량 장소 확보 + 대용량 데이터 처리 연습
 
-> 상태: 📝 계획중 · 최종 갱신: 2026-07-08
+> 상태: 🔨 구현중 (Phase A 완료) · 최종 갱신: 2026-07-29
+
+## 진행 현황
+
+| Phase | 범위 | 상태 |
+|---|---|---|
+| **A** | 카카오 로컬 API 수집(§2.1·2.4) + 최소 스키마 확장(§2.3 컬럼분) | ✅ 구현 완료 |
+| B | 중단·재개 체크포인트 `crawl_progress`(§2.2) | ⏸ 후속 |
+| C | 좌표·상호명 중복 병합 정책(§2.3 병합분) | ⏸ 후속 |
+| D | 네이버맵 크롤링 학습 부록(§3) | ⏸ 후속 |
+| E | 3레벨 성능 벤치마크(§4) | ⏸ 후속 |
+
+**Phase A 구현물**: `attraction`에 `source`(TOURAPI|KAKAO)·`external_id` 추가, `content_id` NULL 허용,
+`UNIQUE(source, external_id)` (`docs/sql/migration_kakao_source.sql`, 스키마 v0.6).
+`KakaoLocalClient`(헤더 인증 전용 RestClient) · `KakaoLocalCallLimiter`(쿼터) ·
+`KakaoRegionResolver`(address_name→시도/시군구 코드) · `KakaoLocalSyncServiceImpl`(rect 격자+quadtree).
+트리거: `POST /api/admin/attractions/sync/kakao`, `/sync/kakao/partial?categoryGroupCode=`.
 
 ## 1. 목표 / 데이터 소스 평가
 
