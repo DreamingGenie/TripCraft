@@ -18,6 +18,7 @@
 ## 하위 산출물
 
 - [`benchmarks/`](benchmarks/) — 개선 02의 성능 측정 결과(최적화 전/후 수치)를 누적하는 폴더.
+- [카카오 로컬 수집기 학습 노트](kakao-local-collector-study.md) — Phase A 기능·기술 분석 + 학습 로드맵 + 사용 시 주의점.
 
 ## 관련 문서
 
