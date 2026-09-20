@@ -121,12 +121,13 @@ STOMP over WebSocket 기반 동시 편집. 트랜잭션 타이밍·낙관적 락
 
 ### 3.5 [perf] 프로필 이미지 N+1 쿼리
 
-- **증상**: 게시글 목록 10개를 부르면 프로필 이미지 조회로 DB 읽기가 11회 발생.
-- **원인**: 프로필 이미지를 **상관 서브쿼리**로 행마다 조회(N+1).
-- **해결**: 상관 서브쿼리를 **파생 테이블 LEFT JOIN**으로 교체 → 목록 조회가 1회로 감소. `profileImageSubquery` fragment를 `profileImageCol` + `profileImageJoin`으로 분리해 목록/상세/마이페이지 쿼리에 공통 적용.
+- **증상**: 게시글 목록 10개를 부르면 프로필 이미지 서브쿼리가 행마다 실행돼 **엔진 내부 실행이 11회**(메인 1 + 서브쿼리 10)가 된다. ⚠ 왕복이 11회라는 뜻이 아니다 — SQL 문장은 하나라 **클라이언트↔DB 왕복은 1회**다.
+- **원인**: 프로필 이미지를 **상관 서브쿼리**로 행마다 조회(N+1). MySQL은 이를 `DEPENDENT SUBQUERY`로 처리하고 JOIN으로 자동 변환하지 않는다.
+- **해결**: 상관 서브쿼리를 **파생 테이블 LEFT JOIN**으로 교체 → attach를 한 번만 읽는다. `profileImageSubquery` fragment를 `profileImageCol` + `profileImageJoin`으로 분리해 목록/상세/마이페이지 쿼리에 공통 적용.
 - **커밋**: [`c3c01a4`](https://github.com/DreamingGenie/TripCraft/commit/c3c01a4)
-- **참고**: 기술 노트 `docs/03_dev/perf_n1_profile_image.md`(당시 경로).
-- **교훈**: 목록 API에서 행별 부가정보는 서브쿼리보다 **JOIN 한 번**으로 모으는 것이 N+1을 없앤다.
+- **참고**: 기술 노트 [`docs/features/perf-profile-image.md`](features/perf-profile-image.md).
+- **교훈**: 목록 API에서 행별 부가정보는 서브쿼리보다 **JOIN 한 번**으로 모으는 편이 반복 실행을 없앤다. 다만 **비용의 단위를 정확히 불러야 한다** — 여기서 줄인 것은 왕복 수가 아니라 행마다 반복되던 내부 실행이고, 그 차이는 `EXPLAIN`으로 확인할 일이지 짐작할 일이 아니다.
+- ⚠ **남은 위험**: 교체한 파생 테이블에는 기존 서브쿼리의 `LIMIT 1`이 없다. 한 회원에게 `target='profile'` 행이 둘 이상이면 게시글 행이 증식한다(현재는 앱 레이어가 중복 삽입 전에 삭제한다는 전제에 의존). 기술 노트 §방법 2 참조.
 
 ### 3.6 일정 공유 경고 팝업 UX·동작 버그
 
