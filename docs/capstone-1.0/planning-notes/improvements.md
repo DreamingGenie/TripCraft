@@ -36,7 +36,7 @@
 
 - **위치**: `backend/.../plan/controller/TripPresenceController.java:53` (`handlePointer`) ↔ `global/security/JwtChannelInterceptor.java` (`handleSend`, 세션 속성 `tripAccess:{tripId}` 캐시)
 - **왜 부채인가**: 커서 throttle·keepalive로 호출이 잦은 `handlePointer`에서 매번 DB 권한 조회를 제거하고 SEND 프레임 단계의 1회 검증+세션 캐시에 의존. 부하는 줄었으나, **세션 수명 동안 권한 회수(협업자 삭제·역할 강등)가 즉시 반영되지 않는 창**이 생김.
-- **미진행 사유**: `refactor(collab) b3590d9`에서 부하 절감을 우선해 도입한 의도적 설계. 캐시 무효화 경로는 별도 검증 미완.
+- **미진행 사유**: `refactor(collab) 5230285`에서 부하 절감을 우선해 도입한 의도적 설계. 캐시 무효화 경로는 별도 검증 미완.
 - **개선 방향**: 협업자 삭제/역할 변경 시 해당 세션 캐시 무효화 또는 강제 재구독(disconnect) 트리거. 최소한 만료 권한 윈도우의 허용 범위를 명문화.
 - **우선순위**: 중간 (보안·정합성 관점)
 
