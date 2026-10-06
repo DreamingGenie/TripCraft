@@ -90,7 +90,7 @@ cp ../frontend/.env.production.example ../frontend/.env.production   # VITE_* (�
 
 채울 값 (모두 **`tripcraft.<내도메인>.com`** 로 통일):
 - `deploy/.env` — `DOMAIN`, `DB_*`/`MYSQL_ROOT_PASSWORD`(강한 값), `APP_PORT=8095`.
-- `deploy/backend-secrets.env` — `JWT_SECRET`(`openssl rand -base64 48`), `TOUR/ODSAY/TMAP/GMS` 키, `KAKAO_*`, `KAKAO_REDIRECT_URI=https://tripcraft.<내도메인>.com/auth/kakao/callback`.
+- `deploy/backend-secrets.env` — `JWT_SECRET`(`openssl rand -base64 48`), `TOUR/ODSAY/TMAP/GMS` 키, `GMS_BASE_URL`(OpenAI 호환 엔드포인트 — 비면 백엔드 기동 실패), `KAKAO_*`, `KAKAO_REDIRECT_URI=https://tripcraft.<내도메인>.com/auth/kakao/callback`.
 - `frontend/.env.production` — `VITE_NAVER_MAP_CLIENT_ID`, `VITE_KAKAO_REST_KEY`, `VITE_KAKAO_REDIRECT_URI`, `VITE_KAKAO_LOGOUT_REDIRECT_URI` (도메인 반영, **빌드 시점 인라인**이라 값 바꾸면 재빌드 필요).
 - ⚠ 세 파일 전부 **git 커밋 금지**(gitignore 확인).
 
