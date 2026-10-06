@@ -6,6 +6,7 @@ spring:
   ai:
     openai:
       api-key: test-dummy-openai-key
+      base-url: http://localhost
   batch:
     job:
       enabled: false

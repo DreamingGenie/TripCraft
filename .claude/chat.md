@@ -33,7 +33,7 @@ POST /api/attractions/{id}/chat   { message, conversationId? }
 - 의존성: `spring-ai-starter-model-openai` + BOM `spring-ai-bom:1.0.6` (build.gradle.kts)
 - `application.yml`: `spring.ai.openai.api-key=${GMS_KEY}`, `base-url=${GMS_BASE_URL}`, `chat.options.model=gpt-4.1`
 - 프록시가 경로를 그대로 포워딩하므로 Spring AI 기본 `/v1/chat/completions` 사용 가능
-- 키는 `.env`의 `GMS_KEY` (spring-dotenv 로드). 없으면 기동 실패.
+- 키·base-url은 `.env`의 `GMS_KEY`·`GMS_BASE_URL` (spring-dotenv 로드). 없으면 기동 실패.
 
 ## 멀티턴
 
