@@ -15,6 +15,8 @@
 ### 변경
 - 문서 체계 재편: Living 문서(`docs/*`) + 캡스톤 동결 아카이브(`docs/capstone-1.0/`) 분리, 중복 산출물 정리
 - 저장소 GitHub 단일화(Public), 1인 trunk-based 개발 모델로 전환
+- AI 챗봇 엔드포인트를 환경변수 `GMS_BASE_URL`로 분리 — `application.yml`의 base-url 하드코딩 제거. 기존 환경은 `.env`·`backend-secrets.env`에 값 추가 필요
+- 공개 전환 전 저장소 이력 1회 재작성(2026-10-06) — 교육 기관 식별 문자열 정리. 작성자·날짜는 보존, 이전 커밋 SHA는 모두 변경됨
 
 ### 수정
 - deploy 자산의 스키마 경로 교정 — `docs/02_design/schema.sql`(구 문서 구조) → `docs/sql/schema.sql`. `deploy/docker-compose.yml`·`deploy/local/mysql.Dockerfile`의 mysql initdb 가 스키마를 찾지 못하던 문제 해결

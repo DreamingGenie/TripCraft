@@ -96,6 +96,7 @@ docker compose up -d       # app nginx(:8095) + backend(:8080) + mysql
 | `TMAP_API_KEY` | [SK open API](https://openapi.sk.com) 앱 등록 → appKey | 도보·자동차 경로 |
 | `KAKAO_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` / `_ADMIN_KEY` | Kakao Developers 앱 → REST 키 / 보안 / Redirect URI / Admin 키 | 소셜 로그인 |
 | `GMS_KEY` | gms(OpenAI 호환 프록시) | AI 챗봇 |
+| `GMS_BASE_URL` | 사용하는 OpenAI 호환 엔드포인트의 base-url | AI 챗봇. 비어 있으면 기동 실패 |
 
 **개선 작업별 최소 키 세트**
 - **개선 01(블록 메모 실시간)**: 신규 키 불필요. 앱 구동 최소 세트 = `DB_*` + `JWT_SECRET`. (프론트 지도까지 보려면 `VITE_NAVER_MAP_CLIENT_ID`.) WebSocket은 same-origin `/ws`라 별도 키 없음.
