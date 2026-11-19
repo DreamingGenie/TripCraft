@@ -64,9 +64,9 @@
 
 ## 5. 캐싱 · 외부 호출 보호
 
-- **이동시간 다층 캐시**: `transit_cache`(DB)·`lane_polyline`(DB)·in-memory 좌표/경로 캐시. 성공 결과만 캐시.
+- **이동시간 다층 캐시**: `transit_cache`(DB)·`lane_polyline`(DB)·in-memory 좌표/경로 캐시. 실패를 저장하지 않는 것은 in-memory 층뿐이다 — DB `transit_cache`는 경로를 못 받은 결과도 `NONE`으로 저장하고 만료가 없어 재시도되지 않는다.
 - **TourAPI 일일 한도**: `TourApiCallLimiter`가 `system_config`로 호출량을 추적·차단.
-- 정밀도 설정: `transit_cache_level`(1~5)로 시간대 캐시 키 정규화.
+- 정밀도 설정: `system_config`에 `transit_cache_level`(1~5) 시드 값만 있고 코드는 읽지 않는다(미구현). 캐시 키 `departure_hour`는 정규화 없이 그대로 비교한다.
 
 ## 6. 배포
 
@@ -81,9 +81,9 @@ STOMP in-memory broker → 백엔드 단일 인스턴스. 상세는 [setup.md](s
 
 | # | 주제 | 한 줄 요약 | 심화 |
 |---|------|-----------|------|
-| 1 | 멀티모달 이동시간 | 외부 API 4종 합성 + 성공만 저장하는 다층 캐시 | [features/transit-routing.md](features/transit-routing.md) |
+| 1 | 멀티모달 이동시간 | 외부 API 4종 합성 + DB·in-memory 다층 캐시 | [features/transit-routing.md](features/transit-routing.md) |
 | 2 | 실시간 협업 동시성 | 낙관적 락 + grab 게이트 + 행 직렬화로 동시 편집 유실 방지 | [features/realtime-collab.md](features/realtime-collab.md) |
-| 3 | 외부 데이터 동기화 | TourAPI 배치·증분(modifiedtime) + 일일 호출 한도 | [features/external-data-sync.md](features/external-data-sync.md) |
+| 3 | 외부 데이터 동기화 | TourAPI 일일 전량 재수집 배치(UPSERT) + 일일 호출 한도 | [features/external-data-sync.md](features/external-data-sync.md) |
 | 4 | 목록 조회 성능 | 프로필 이미지 N+1 → 파생 테이블 LEFT JOIN | [features/perf-profile-image.md](features/perf-profile-image.md) |
 | 5 | 이미지 생명주기 | 다형 `attach` + draft 승격 + 고아 정리 | [features/image-lifecycle.md](features/image-lifecycle.md) |
 | 6 | 인증·보안 | 무상태 쿠키 JWT + STOMP 프레임 권한·세대 캐시 | [features/auth-security.md](features/auth-security.md) |

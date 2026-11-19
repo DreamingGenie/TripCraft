@@ -26,10 +26,11 @@
 > 정기 배치는 `JobParameters`에 `runDate`(당일)를 넣어 매일 **새 Job 인스턴스**로 실행한다 — Spring Batch가
 > 동일 파라미터의 성공 Job을 재실행하지 않기 때문. 참조 데이터 동기화가 실패해도 관광지 배치는 계속 진행한다(독립 try).
 
-## 3. 증분 동기화
+## 3. 변경 반영 — 전량 재수집 + UPSERT
 
-각 행에 `api_modified_at`(TourAPI `modifiedtime`)·`api_created_at`을 저장하고 `idx_api_modified` 인덱스로
-변경분만 갱신할 수 있게 한다. 시도·시군구 참조(`sido`/`sigungu`)는 `areaCode2`로 동기화하되
+정기 배치는 매일 지역 × 콘텐츠 타입 전체를 다시 받아 `ON DUPLICATE KEY UPDATE`로 덮어쓴다.
+각 행에 `api_modified_at`(TourAPI `modifiedtime`)·`api_created_at`을 저장하고 `idx_api_modified` 인덱스도 두었지만,
+수정 시각을 조회 조건이나 비교에 쓰는 코드는 없다 — 변경분만 받는 증분 동기화는 구현하지 않았다. 시도·시군구 참조(`sido`/`sigungu`)는 `areaCode2`로 동기화하되
 사람이 지정한 표시용 `alias`는 보존한다(`ReferenceDataSyncServiceImpl`).
 
 ## 4. 호출 한도 — `TourApiCallLimiter`
