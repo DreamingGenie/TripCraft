@@ -789,7 +789,7 @@ let memoDebounceTimer = null    // idle 디바운스 타이머
 let memoPending = null          // { blockId, memo } — 아직 서버에 안 보낸 마지막 값(flush 대상)
 const MEMO_IDLE_MS = 600
 
-// 적응형 전송 게이트(AIMD): 활동이 전송보다 빠르면(혼잡) 간격을 늘려 백로그를 막고,
+// 적응형 전송 게이트(가산 증감 — 혼잡 시 +12ms, 회복 시 -8ms): 활동이 전송보다 빠르면(혼잡) 간격을 늘려 백로그를 막고,
 // 한가하면 줄여 더 부드럽게. 커서·ghost 전송 공통으로 사용.
 let sendInterval = collabConfig.cursorThrottleMs
 let lastGateTs = 0
