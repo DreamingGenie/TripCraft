@@ -7,26 +7,30 @@
 
 ## 1. Git 브랜치 전략
 
-**GitHub Flow** 방식을 기반으로 단순화하여 사용합니다.
+> **정본은 루트 [`CLAUDE.md`](../CLAUDE.md)의 "저장소·개발 모델".** 이 문서는 그 요약이며 충돌 시 CLAUDE.md 우선.
+
+캡스톤(2인) 종료 후 **1인 추가 개발** 단계로, **trunk-based** 방식을 쓴다.
+`master` 단일 소스(코드+문서)를 기준으로, 짧은 `feature/*`·`fix/*`·`docs/*` 브랜치에서 작업하고 `master`로 병합한다.
+(팀 시절의 `main←develop` GitFlow는 **폐기**했다.)
 
 ```
-main
-└── develop
-    ├── feature/attraction-api          # 기능 개발
-    ├── feature/plan-dragdrop
-    ├── fix/member-login-error          # 버그 수정
-    └── docs/add-erd                    # 문서 작업
+master
+├── feature/attraction-api          # 기능 개발
+├── feature/plan-dragdrop
+├── fix/member-login-error          # 버그 수정
+└── docs/add-erd                    # 문서 작업
 ```
 
 ### 브랜치 규칙
 
 | 브랜치 | 용도 | 병합 대상 |
 |--------|------|---------|
-| `main` | 릴리즈 버전 (배포 가능 상태) | PR from `develop` |
-| `develop` | 통합 개발 브랜치 | PR from `feature/*`, `fix/*` |
-| `feature/{기능명}` | 단위 기능 개발 | → `develop` |
-| `fix/{이슈명}` | 버그 수정 | → `develop` |
-| `docs/{내용}` | 문서 작업 | → `develop` |
+| `master` | 단일 소스(배포 가능 상태 + 문서) | PR from `feature/*`, `fix/*`, `docs/*` |
+| `feature/{기능명}` | 단위 기능 개발 | → `master` |
+| `fix/{이슈명}` | 버그 수정 | → `master` |
+| `docs/{내용}` | 문서 작업 | → `master` |
+
+> **버전 경계**: `v1.0-capstone` 태그 = 팀 캡스톤 최종 제출본 = 1인 개발 분기점. 히스토리 rewrite 금지.
 
 ### 브랜치 이름 규칙
 
@@ -93,8 +97,8 @@ test(attraction): AttractionService 단위 테스트 작성
 
 ### PR 생성 기준
 
-- `feature/*` 브랜치의 작업이 완료되면 `develop`으로 PR 생성
-- PR 제목은 커밋 타입 형식과 동일하게 작성
+- `feature/*`·`fix/*`·`docs/*` 브랜치의 작업이 완료되면 `master`로 PR 생성
+- PR 제목은 커밋 타입 형식과 동일하게 작성 (본문 구조는 CLAUDE.md "MR 설명 컨벤션" 참조)
 
 ### PR 템플릿
 
@@ -114,8 +118,7 @@ Closes #이슈번호 (있는 경우)
 
 ### 리뷰 규칙
 
-- 상대방이 최소 1회 리뷰 후 Merge
-- `main` 브랜치 직접 Push 금지
+- `master` 직접 Push 지양 — `feature/*` 브랜치 → PR 경유 (1인 개발이라 셀프 머지 허용하되 이력 보존)
 - Merge 전 빌드·테스트 통과 확인
 
 ---
@@ -235,12 +238,14 @@ DELETE /api/trip-plans/{id}       # 일정 삭제
 
 ---
 
-## 7. 주간 동기화 규칙
+## 7. 기록 규칙 (1인 개발 단계)
 
-- **주 1회** (매주 월요일 또는 금요일) 진행상황 공유
-- 각자 작업 브랜치 상태, 블로커(막히는 것), 다음 주 목표 공유
-- 주요 설계 변경(DB 스키마, API 명세, 아키텍처)은 반드시 상대방과 사전 합의 후 진행
+> 팀 시절의 "주간 동기화 규칙"은 캡스톤 종료로 폐기. 1인 개발에선 아래 기록 관행으로 대체한다.
+
+- 의미 있는 세션(비자명한 결정·디버깅·설계 트레이드오프)은 개발 일지([`logs/`](logs/))에 서술형으로 남긴다.
+- 변경 이력은 루트 `CHANGELOG.md`(Keep a Changelog) + GitHub Releases.
+- 주요 설계 변경(DB 스키마, API 명세, 아키텍처)은 관련 Living 문서를 **변경과 동시에** 갱신한다.
 
 ---
 
-*본 문서는 팀 합의에 따라 언제든지 수정될 수 있습니다.*
+*본 문서는 Living 문서다. 정책 정본은 루트 `CLAUDE.md`이며, 충돌 시 CLAUDE.md를 우선한다.*
