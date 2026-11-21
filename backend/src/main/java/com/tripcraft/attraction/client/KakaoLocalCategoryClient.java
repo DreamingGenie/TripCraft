@@ -71,6 +71,11 @@ public class KakaoLocalCategoryClient {
         try {
             String response = kakaoRestClient.get().uri(URI.create(url)).retrieve().body(String.class);
             return parseCategory(response);
+        } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized
+                 | org.springframework.web.client.HttpClientErrorException.Forbidden e) {
+            // 인증·권한 거부는 다시 불러도 같다 — 빈 결과로 삼키면 "데이터 없음"과 구분되지 않아
+            // 전국 격자를 끝까지 헛돌고 성공으로 끝난다(실제로 겪음). 수집을 멈추게 위로 던진다.
+            throw new KakaoLocalApiDeniedException(e.getStatusCode() + " " + e.getResponseBodyAsString());
         } catch (Exception e) {
             log.warn("카카오 category 검색 실패 code={} rect={} page={}: {}",
                 categoryGroupCode, rect, page, e.getMessage());

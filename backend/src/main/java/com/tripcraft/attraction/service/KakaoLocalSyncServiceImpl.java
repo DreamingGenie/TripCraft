@@ -1,5 +1,6 @@
 package com.tripcraft.attraction.service;
 
+import com.tripcraft.attraction.client.KakaoLocalApiDeniedException;
 import com.tripcraft.attraction.client.KakaoLocalCallLimiter;
 import com.tripcraft.attraction.client.KakaoLocalCategoryClient;
 import com.tripcraft.attraction.client.dto.KakaoCategoryPage;
@@ -49,9 +50,13 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
         Context ctx = new Context();
         long start = System.currentTimeMillis();
         regionResolver.refresh();
-        for (String category : SUPPORTED_CATEGORIES) {
-            if (ctx.quotaHit) break;
-            collectCategory(category, ctx);
+        try {
+            for (String category : SUPPORTED_CATEGORIES) {
+                if (ctx.quotaHit) break;
+                collectCategory(category, ctx);
+            }
+        } catch (KakaoLocalApiDeniedException e) {
+            throw denied(ctx, e);
         }
         flush(ctx);
         return result(ctx, start);
@@ -67,9 +72,23 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
         Context ctx = new Context();
         long start = System.currentTimeMillis();
         regionResolver.refresh();
-        collectCategory(code, ctx);
+        try {
+            collectCategory(code, ctx);
+        } catch (KakaoLocalApiDeniedException e) {
+            throw denied(ctx, e);
+        }
         flush(ctx);
         return result(ctx, start);
+    }
+
+    /** 인증·권한 거부로 수집을 중단한다. 그때까지 모은 것은 저장하고, 실패를 성공 응답으로 감추지 않는다. */
+    private ResponseStatusException denied(Context ctx, KakaoLocalApiDeniedException e) {
+        flush(ctx);
+        log.error("카카오 수집 중단 — API 가 요청을 거부했다(saved={} apiCalls={}): {}",
+            ctx.saved, ctx.apiCalls, e.getMessage());
+        return new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+            "카카오 로컬 API가 요청을 거부했습니다. API 키와 카카오 개발자 콘솔의 카카오맵 사용 설정을 확인하세요: "
+                + e.getMessage());
     }
 
     private void collectCategory(String category, Context ctx) {
@@ -82,8 +101,8 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
                     Math.min(lat + INITIAL_STEP, MAX_LAT), category, contentTypeId, 0, ctx);
             }
         }
-        log.info("카카오 수집 종료 category={} saved={} skipped={} apiCalls={}",
-            category, ctx.saved, ctx.skipped, ctx.apiCalls);
+        log.info("카카오 수집 종료 category={} saved={} skipped={} apiCalls={} cappedCells={}",
+            category, ctx.saved, ctx.skipped, ctx.apiCalls, ctx.cappedCells);
     }
 
     /** 한 rect 셀을 조회하고, 45건 상한(capped)에 걸리면 4분할해 재귀 조회한다. */
@@ -109,6 +128,9 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
             collectCell(midLng, minLat, maxLng, midLat, category, contentTypeId, depth + 1, ctx);
             collectCell(minLng, midLat, midLng, maxLat, category, contentTypeId, depth + 1, ctx);
             collectCell(midLng, midLat, maxLng, maxLat, category, contentTypeId, depth + 1, ctx);
+        } else if (!reachedEnd) {
+            // 최대 깊이에서도 45건 상한에 걸린 셀 — 46번째 이후 장소는 수집되지 않는다(누락 규모 파악용).
+            ctx.cappedCells++;
         }
     }
 
@@ -166,6 +188,7 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
         int saved = 0;
         int skipped = 0;
         int apiCalls = 0;
+        int cappedCells = 0;  // 최대 깊이에서도 상한에 걸려 일부가 누락된 셀 수
         boolean quotaHit = false;
     }
 }
