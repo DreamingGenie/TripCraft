@@ -27,6 +27,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     private final TripCollaboratorMapper tripCollaboratorMapper;
     private final TripAccessVersion accessVersion;
 
+    /** 공유 링크로 들어온 클라이언트가 SUBSCRIBE 프레임에 싣는 공유 토큰 헤더. */
+    public static final String SHARE_TOKEN_HEADER = "share-token";
+
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor =
@@ -46,7 +49,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     }
 
     // ── CONNECT: 핸드셰이크에서 쿠키로 저장된 memberId로 Principal 설정 ─────
-    // 익명(비로그인)도 연결 허용 — SUBSCRIBE 는 공유(비PRIVATE) 일정만, SEND 는 차단(관전 전용)
+    // 익명(비로그인)도 연결 허용 — SUBSCRIBE 는 공유 토큰을 제시한 공유 일정만, SEND 는 차단(관전 전용)
     private void handleConnect(StompHeaderAccessor accessor) {
         Long memberId = getMemberIdFromSession(accessor);
         if (memberId != null) {
@@ -63,7 +66,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         Long tripId = parseTripId(destination, 3);
         if (tripId == null) return;
 
-        // 익명(memberId null)도 공유 일정이면 구독 허용 — canView 에서 share_access 로 판정
+        // 소유자·협업자가 아니면(익명 포함) 공유 일정이라도 공유 링크 토큰을 제시해야 구독할 수 있다.
+        String presented = accessor.getFirstNativeHeader(SHARE_TOKEN_HEADER);
+        if (presented != null) accessor.getSessionAttributes().put(shareTokenKey(tripId), presented);
         Long memberId = getMemberIdFromSession(accessor);
 
         // 같은 trip의 두 번째 구독(/presence 등)은 캐시 활용. 단, 접근 권한 세대가 바뀌면 재검증.
@@ -72,11 +77,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         Object cached = accessor.getSessionAttributes().get(cacheKey);
         if (cached instanceof Integer c && c == gen) return;
 
-        boolean canView = tripMapper.findById(tripId)
-                .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
-                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
-                .orElse(false);
+        boolean canView = canAccess(tripId, memberId, accessor);
 
         if (!canView) {
             log.warn("협업 WS 구독 거부(권한 없음) tripId={} memberId={}", tripId, memberId);
@@ -106,11 +107,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         Object cached = accessor.getSessionAttributes().get(cacheKey);
         if (cached instanceof Integer c && c == gen) return;
 
-        boolean canView = tripMapper.findById(tripId)
-                .map(trip -> trip.getMemberId().equals(memberId)
-                        || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent()
-                        || (trip.getShareAccess() != null && !"PRIVATE".equals(trip.getShareAccess())))
-                .orElse(false);
+        boolean canView = canAccess(tripId, memberId, accessor);
 
         if (!canView) {
             log.warn("협업 WS 발행 거부(권한 없음) tripId={} memberId={}", tripId, memberId);
@@ -121,6 +118,28 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
+
+    /**
+     * 소유자·협업자는 통과. 그 외(익명 포함)는 일정이 공유 상태(비PRIVATE)이고, 이 세션이 구독 때 제시한
+     * 공유 토큰이 일정의 현재 토큰과 같을 때만 통과 — 일정 id 만 알아서는 실시간 채널을 볼 수 없다.
+     */
+    private boolean canAccess(Long tripId, Long memberId, StompHeaderAccessor accessor) {
+        return tripMapper.findById(tripId).map(trip -> {
+            if (memberId != null && (trip.getMemberId().equals(memberId)
+                    || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())) return true;
+            if (trip.getShareAccess() == null || "PRIVATE".equals(trip.getShareAccess())) return false;
+            Object presented = accessor.getSessionAttributes().get(shareTokenKey(tripId));
+            return trip.getShareToken() != null && presented instanceof String token
+                    && java.security.MessageDigest.isEqual(
+                            trip.getShareToken().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }).orElse(false);
+    }
+
+    private static String shareTokenKey(Long tripId) {
+        return "tripShareToken:" + tripId;
+    }
+
     private Long getMemberIdFromSession(StompHeaderAccessor accessor) {
         if (accessor.getSessionAttributes() == null) return null;
         Object id = accessor.getSessionAttributes().get(JwtHandshakeInterceptor.MEMBER_ID_ATTR);

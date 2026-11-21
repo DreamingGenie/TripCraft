@@ -2313,7 +2313,7 @@ function connectCollab(tripId) {
     },
     reconnect: loadTrip,
   })
-  collab.connect(tripId, { observer })
+  collab.connect(tripId, { observer, shareToken: props.shareToken })
 }
 
 function onDocumentClick(e) {
