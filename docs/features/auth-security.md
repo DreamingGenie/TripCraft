@@ -24,7 +24,7 @@ REST는 무상태 쿠키 JWT로, WebSocket(STOMP) 협업 채널은 프레임 단
 
 ## 3. 인가 — `SecurityConfig`
 
-- **무상태**(`SessionCreationPolicy.STATELESS`), CSRF 비활성, CORS `allowCredentials=true`. CSRF를 끈 근거는 인증 쿠키의 `SameSite=Lax`(교차 사이트 POST에 쿠키가 실리지 않음, 2026-11-21 추가)와 허용 origin 제한이다. **허용 origin은 `CORS_ALLOWED_ORIGINS`로 지정해야 하며 미설정 시 개발 편의상 전체 허용이다** — 초기 문서의 "동일 오리진 전제"는 설정이 강제하지 않던 전제였다. WebSocket 엔드포인트(`/ws`)도 같은 설정값을 쓴다.
+- **무상태**(`SessionCreationPolicy.STATELESS`), CSRF 비활성, CORS `allowCredentials=true`. CSRF를 끈 근거는 인증 쿠키의 `SameSite=Lax`(교차 사이트 POST에 쿠키가 실리지 않음, 2026-11-21 추가)와 허용 origin 제한이다. **허용 origin은 `CORS_ALLOWED_ORIGINS`(콤마 구분)로 지정하며, HTTP API와 WebSocket에 함께 적용된다. 미설정 시 개발 편의상 전체 허용이다** — 설정하면 그 밖의 origin은 사전 요청에서 403으로 거부된다(`CorsOriginIntegrationTest`) — 초기 문서의 "동일 오리진 전제"는 설정이 강제하지 않던 전제였다. WebSocket 엔드포인트(`/ws`)도 같은 설정값을 쓴다.
 - 경로 규칙(요약):
   - **공개(permitAll)**: `POST /api/auth/{login,signup,refresh,logout,kakao}`, `GET /api/{attractions,posts,notices}/**`,
     `GET /api/trips/*/blocks-summary`, `GET /api/trips/shared/**`, `GET /uploads/**`, `/ws/**`, Swagger, `/error`.

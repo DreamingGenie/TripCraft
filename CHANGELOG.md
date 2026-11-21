@@ -20,12 +20,14 @@
 - **이동시간 재계산을 요청 스레드 밖으로 분리** — 편집 응답·DB 커넥션이 외부 이동시간 API를 기다리지 않는다. 일정별 순서 큐(`TripTaskQueue`)에서 실행하고 결과는 `TRANSIT_RECALCULATED`로 편집자 본인을 포함한 참가자에게 전달. 계산에 실패한 블록은 `failedBlockIds`로 알린다
 
 ### 보안
+- HTTP API의 CORS 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 이전에는 임의 origin + 자격증명 허용으로 고정돼 있었다. 미설정 시 기존처럼 전체 허용이므로 **운영 환경에는 값을 넣어야 한다**
 - 권한을 잃은 세션의 실시간 구독을 서버가 끊음 — 협업자 제거·공유 해제 뒤에도 이미 맺은 구독으로 편집 이벤트를 계속 받던 문제. 구독 자격을 기억해 두었다가 변경이 커밋되면 다시 판정해 STOMP `ERROR`로 연결 종료(`TripSubscriptionGuard`)
 - 실시간 채널 구독에 공유 링크 토큰 요구 — 소유자·협업자가 아니면(익명 포함) 공유 일정이라도 `share-token` 헤더가 일정의 토큰과 일치해야 구독된다. 이전에는 일정 id만으로 구독 가능했다
 - 인증 쿠키에 `SameSite=Lax` 지정
 - WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 
 ### 수정
+- **관광지 동기화 배치가 저장 실패 한 건으로 중단되던 문제** — 청크 UPSERT가 DB 오류로 실패하면 Step 전체가 FAILED로 끝나 그 뒤 지역이 수집되지 않았다. 쓰기 실패는 문제 행만 건너뛰도록 fault tolerant skip 적용(한도 100건). Processor javadoc의 "Skip" 표기를 실제 동작(filter)으로 정정
 - **글 목록·협업자 목록의 프로필 이미지 조인이 행을 늘리던 문제** — 프로필 이미지 행이 둘 이상이면 같은 글·협업자가 그 수만큼 나왔다. 회원당 최신 1장만 붙이도록 조인 조건 수정
 - **글 목록 정렬 인덱스 추가**(`idx_post_created_at`, `idx_post_popular`) — 목록 조회마다 전체 행을 정렬하던 것을 인덱스 스캔으로. 게시글 50,000건 기준 최신순 13.1ms → 0.06ms(`docs/features/perf-profile-image.md` 2026-11-21 실측). 기존 DB는 `docs/sql/migration_post_list_index_v1.sql` 적용 필요
 - **블록 메모 덮어쓰기 방지** — grab 게이트는 다른 사람이 잡고 있을 때만 막아, 아무도 잡지 않은 순간에는 나중 저장이 앞선 저장을 덮어쓸 수 있었다. 편집 시작 때 본 메모(`baseMemo`)와 현재 메모가 다르면 409로 거부하는 조건부 갱신 추가(`version`은 그대로 미변경). blur 시 저장 완료 뒤에 grab을 반납하도록 순서 수정

@@ -33,7 +33,8 @@ public class TourApiItemProcessor implements ItemProcessor<TourApiItem, Attracti
      * TourApiItem을 Attraction 도메인 객체로 변환합니다.
      *
      * @param item TourAPI 응답 아이템
-     * @return 변환된 Attraction, 변환 실패 시 {@code null} (해당 아이템 Skip)
+     * @return 변환된 Attraction, 변환 실패 시 {@code null} — Spring Batch 는 null 을 "걸러냄(filter)"으로 처리한다
+     *         (Writer 에 넘기지 않고 filterCount 에 집계. skip 과는 다른 경로다)
      */
     @Override
     public Attraction process(TourApiItem item) {

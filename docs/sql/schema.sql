@@ -15,7 +15,7 @@
 -- =============================================
 -- 결정 사항 요약
 --   - member: 하드 딜리트. 탈퇴 시 앱 레이어에서 trip_block → trip_candidate → trip 순서대로 삭제 후 member 삭제
---   - attraction: TourAPI 필드 그대로 저장. api_modified_at 기반 증분 배치 동기화
+--   - attraction: TourAPI 필드 그대로 저장. 매일 전량 재수집 + UPSERT(api_modified_at 은 저장만 하고 증분 기준으로는 아직 쓰지 않는다)
 --   - transit_cache: (from, to, departure_hour, request_mode) 키. ODsay·T Map 응답 모드별 캐시
 --   - trip_block: transit_duration_minutes/transit_mode 비정규화 저장 (블록 배치 시 자동 계산)
 --   - trip: default_transit_mode로 신규 블록 배치 시 기본 이동수단 결정
@@ -211,7 +211,7 @@ CREATE TABLE attraction (
     lcls_systm3      VARCHAR(200)  NULL     COMMENT '분류체계3',
     cpyrht_div_cd    VARCHAR(10)   NULL     COMMENT '저작권 구분 코드',
     api_created_at   DATETIME      NULL     COMMENT 'TourAPI createdtime 변환 저장',
-    api_modified_at  DATETIME      NULL     COMMENT 'TourAPI modifiedtime — 증분 배치 기준',
+    api_modified_at  DATETIME      NULL     COMMENT 'TourAPI modifiedtime (증분 동기화 미구현 — 현재는 매일 전량 재수집)',
     synced_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
                                             ON UPDATE CURRENT_TIMESTAMP
                                             COMMENT '마지막 DB 동기화 시각',

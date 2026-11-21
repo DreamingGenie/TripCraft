@@ -106,7 +106,7 @@ Table attraction {
   lcls_systm3 varchar(200)
   cpyrht_div_cd varchar(10)
   api_created_at datetime
-  api_modified_at datetime [note: '증분 배치 기준']
+  api_modified_at datetime [note: 'TourAPI 수정시각 (증분 동기화 미구현 — 매일 전량 재수집)']
   synced_at timestamp [not null]
   note: 'areaBasedList2 필드. 상세는 attraction_detail_* 참조'
 }

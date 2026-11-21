@@ -82,7 +82,7 @@ erDiagram
         decimal latitude
         decimal longitude
         varchar first_image
-        datetime api_modified_at "증분 동기화 기준"
+        datetime api_modified_at "TourAPI 수정시각(증분 미구현)"
         timestamp synced_at
     }
     ATTRACTION_DETAIL_COMMON {
@@ -258,5 +258,5 @@ erDiagram
 - **`post.like_count`**: `post_like` 집계를 캐시 컬럼으로 유지 — 목록 조회 시 COUNT 회피.
 - **`transit_cache`**: `(좌표 route_key, departure_hour, request_mode)` 키로 ODsay·T Map 응답 캐시. 모드별 독립 캐시(UNIQUE).
 - **`lane_polyline`**: ODsay 노선 형상은 거의 안 바뀌므로 `map_object_key` 단위 영구 캐시.
-- **`attraction`**: TourAPI `api_modified_at` 기준 증분 배치 동기화. 상세(`detail_*`)는 지연 적재.
+- **`attraction`**: 매일 전량 재수집 + UPSERT 배치 동기화(`api_modified_at`은 저장만 하고 증분 기준으로는 아직 쓰지 않는다). 상세(`detail_*`)는 지연 적재.
 ```

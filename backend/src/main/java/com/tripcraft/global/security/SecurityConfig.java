@@ -70,10 +70,15 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /** 허용 origin(콤마 구분). 미설정 시 개발 편의상 전체 허용 — 운영은 CORS_ALLOWED_ORIGINS 로 지정. WebSocket(/ws)도 같은 값을 쓴다. */
+    @org.springframework.beans.factory.annotation.Value("${cors.allowed-origins:*}")
+    private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        // 허용 origin 은 설정값(콤마 구분). 자격증명(쿠키)을 허용하므로 운영에서는 정확한 origin 을 지정한다.
+        config.setAllowedOriginPatterns(List.of(allowedOrigins.trim().split("\\s*,\\s*")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
