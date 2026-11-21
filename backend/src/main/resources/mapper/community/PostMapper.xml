@@ -21,10 +21,13 @@
         CONCAT('/uploads/profile/', pa.name) AS authorProfileImageUrl
     </sql>
 
-    <!-- 공통: 작성자 프로필 이미지 — LEFT JOIN (alias pa, member m 이후에 추가) -->
+    <!-- 공통: 작성자 프로필 이미지 — LEFT JOIN (alias pa, member m 이후에 추가)
+         회원당 최신 1장만 붙인다. 조건 없이 target_id 로만 조인하면 프로필 행이 둘 이상일 때
+         글 행이 그 수만큼 늘어난다(실측 10 → 20). 행마다 idx_attach_target 조회 1회. -->
     <sql id="profileImageJoin">
-        LEFT JOIN (SELECT target_id, name FROM attach WHERE target = 'profile') pa
-                  ON pa.target_id = m.id
+        LEFT JOIN attach pa
+               ON pa.id = (SELECT MAX(pa2.id) FROM attach pa2
+                           WHERE pa2.target = 'profile' AND pa2.target_id = m.id)
     </sql>
 
     <!-- 공통: 대표사진(cover) — SELECT 컬럼 (alias p, JOIN post p 필요)
