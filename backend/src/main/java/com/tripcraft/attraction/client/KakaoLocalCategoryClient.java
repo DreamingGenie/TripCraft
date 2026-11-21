@@ -26,7 +26,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class KakaoLocalClient {
+public class KakaoLocalCategoryClient {
 
     private static final String CATEGORY_URL = "https://dapi.kakao.com/v2/local/search/category.json";
     private static final int PAGE_SIZE = 15;      // 카카오 최대 15
@@ -37,7 +37,7 @@ public class KakaoLocalClient {
     private final RestClient kakaoRestClient;
     private final boolean configured;
 
-    public KakaoLocalClient(ObjectMapper objectMapper,
+    public KakaoLocalCategoryClient(ObjectMapper objectMapper,
                             KakaoLocalCallLimiter limiter,
                             @Value("${kakao.local-api-key:}") String apiKey) {
         this.objectMapper = objectMapper;

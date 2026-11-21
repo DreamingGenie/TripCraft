@@ -1,7 +1,7 @@
 package com.tripcraft.attraction.service;
 
 import com.tripcraft.attraction.client.KakaoLocalCallLimiter;
-import com.tripcraft.attraction.client.KakaoLocalClient;
+import com.tripcraft.attraction.client.KakaoLocalCategoryClient;
 import com.tripcraft.attraction.client.dto.KakaoCategoryPage;
 import com.tripcraft.attraction.client.dto.KakaoPlaceItem;
 import com.tripcraft.attraction.domain.Attraction;
@@ -23,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
 
-    private final KakaoLocalClient kakaoLocalClient;
+    private final KakaoLocalCategoryClient kakaoLocalCategoryClient;
     private final KakaoLocalCallLimiter limiter;
     private final KakaoRegionResolver regionResolver;
     private final AttractionMapper attractionMapper;
@@ -95,7 +95,7 @@ public class KakaoLocalSyncServiceImpl implements KakaoLocalSyncService {
         boolean reachedEnd = false;
         for (int page = 1; page <= 3; page++) {
             if (limiter.remainingToday() <= 0) { ctx.quotaHit = true; return; }
-            KakaoCategoryPage result = kakaoLocalClient.searchCategory(category, rect, page);
+            KakaoCategoryPage result = kakaoLocalCategoryClient.searchCategory(category, rect, page);
             ctx.apiCalls++;
             processItems(result.items(), contentTypeId, ctx);
             if (result.isEnd()) { reachedEnd = true; break; }

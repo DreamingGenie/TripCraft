@@ -1,6 +1,6 @@
 package com.tripcraft.attraction.controller;
 
-import com.tripcraft.attraction.client.KakaoLocalClient;
+import com.tripcraft.attraction.client.KakaoLocalCategoryClient;
 import com.tripcraft.attraction.service.KakaoLocalSyncService;
 import com.tripcraft.attraction.service.ReferenceDataSyncService;
 import com.tripcraft.attraction.service.TourApiSyncService;
@@ -26,7 +26,7 @@ public class AttractionSyncController {
     private final TourApiSyncService syncService;
     private final ReferenceDataSyncService referenceDataSyncService;
     private final KakaoLocalSyncService kakaoLocalSyncService;
-    private final KakaoLocalClient kakaoLocalClient;
+    private final KakaoLocalCategoryClient kakaoLocalCategoryClient;
 
     /** 시도·시군구 참조 데이터 동기화 (TourAPI areaCode2 → sido/sigungu, name 갱신·alias 보존) */
     @Operation(summary = "시도·시군구 참조 동기화", description = "TourAPI areaCode2 → sido/sigungu 갱신(alias 보존)")
@@ -96,7 +96,7 @@ public class AttractionSyncController {
     }
 
     private void requireKakaoConfigured() {
-        if (!kakaoLocalClient.isConfigured()) {
+        if (!kakaoLocalCategoryClient.isConfigured()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "KAKAO_LOCAL_API_KEY 미설정 — 카카오 수집 불가");
         }

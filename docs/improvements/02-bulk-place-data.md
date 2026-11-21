@@ -14,7 +14,7 @@
 
 **Phase A 구현물**: `attraction`에 `source`(TOURAPI|KAKAO)·`external_id` 추가, `content_id` NULL 허용,
 `UNIQUE(source, external_id)` (`docs/sql/migration_kakao_source.sql`, 스키마 v0.6).
-`KakaoLocalClient`(헤더 인증 전용 RestClient) · `KakaoLocalCallLimiter`(쿼터) ·
+`KakaoLocalCategoryClient`(헤더 인증 전용 RestClient) · `KakaoLocalCallLimiter`(쿼터) ·
 `KakaoRegionResolver`(address_name→시도/시군구 코드) · `KakaoLocalSyncServiceImpl`(rect 격자+quadtree).
 트리거: `POST /api/admin/attractions/sync/kakao`, `/sync/kakao/partial?categoryGroupCode=`.
 
@@ -39,7 +39,7 @@
 
 ### 2.1 수집 컴포넌트
 
-- `client/KakaoLocalClient.java` — Spring `RestClient`(기존 `TourApiClient` 패턴 재사용).
+- `client/KakaoLocalCategoryClient.java` — Spring `RestClient`(기존 `TourApiClient` 패턴 재사용).
   - `Authorization: KakaoAK {REST_API_KEY}` 헤더.
   - 카테고리 검색(`/v2/local/search/category.json`, `category_group_code` + `rect`) 우선,
     보조로 키워드 검색(`/v2/local/search/keyword.json`).
