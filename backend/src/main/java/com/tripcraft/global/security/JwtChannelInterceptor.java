@@ -1,7 +1,5 @@
 package com.tripcraft.global.security;
 
-import com.tripcraft.plan.mapper.TripCollaboratorMapper;
-import com.tripcraft.plan.mapper.TripMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -23,8 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtChannelInterceptor implements ChannelInterceptor {
 
-    private final TripMapper tripMapper;
-    private final TripCollaboratorMapper tripCollaboratorMapper;
+    private final TripSubscriptionGuard guard;
     private final TripAccessVersion accessVersion;
 
     /** 공유 링크로 들어온 클라이언트가 SUBSCRIBE 프레임에 싣는 공유 토큰 헤더. */
@@ -43,7 +40,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
             case CONNECT -> handleConnect(accessor);
             case SUBSCRIBE -> handleSubscribe(accessor);
             case SEND -> handleSend(accessor);
-            default -> { /* DISCONNECT 등 */ }
+            case DISCONNECT -> guard.unregister(accessor.getSessionId());
+            default -> { }
         }
         return message;
     }
@@ -85,6 +83,8 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         }
 
         accessor.getSessionAttributes().put(cacheKey, gen);
+        // 권한이 나중에 바뀌면 이 구독을 서버가 끊을 수 있게 자격과 함께 기억해 둔다.
+        guard.register(tripId, accessor.getSessionId(), memberId, presentedShareToken(tripId, accessor));
     }
 
     // ── SEND: /app/trip/{tripId}/... 발행 시 조회 권한 확인 ─────────────────
@@ -119,21 +119,13 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
     // ── helpers ─────────────────────────────────────────────────────────────
 
-    /**
-     * 소유자·협업자는 통과. 그 외(익명 포함)는 일정이 공유 상태(비PRIVATE)이고, 이 세션이 구독 때 제시한
-     * 공유 토큰이 일정의 현재 토큰과 같을 때만 통과 — 일정 id 만 알아서는 실시간 채널을 볼 수 없다.
-     */
     private boolean canAccess(Long tripId, Long memberId, StompHeaderAccessor accessor) {
-        return tripMapper.findById(tripId).map(trip -> {
-            if (memberId != null && (trip.getMemberId().equals(memberId)
-                    || tripCollaboratorMapper.findByTripAndMember(tripId, memberId).isPresent())) return true;
-            if (trip.getShareAccess() == null || "PRIVATE".equals(trip.getShareAccess())) return false;
-            Object presented = accessor.getSessionAttributes().get(shareTokenKey(tripId));
-            return trip.getShareToken() != null && presented instanceof String token
-                    && java.security.MessageDigest.isEqual(
-                            trip.getShareToken().getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                            token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        }).orElse(false);
+        return guard.canAccess(tripId, memberId, presentedShareToken(tripId, accessor));
+    }
+
+    private String presentedShareToken(Long tripId, StompHeaderAccessor accessor) {
+        Object token = accessor.getSessionAttributes().get(shareTokenKey(tripId));
+        return token instanceof String t ? t : null;
     }
 
     private static String shareTokenKey(Long tripId) {
