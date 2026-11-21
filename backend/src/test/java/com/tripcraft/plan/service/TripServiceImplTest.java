@@ -66,6 +66,7 @@ class TripServiceImplTest {
     @Mock SimpMessagingTemplate messaging;
     @Mock TripPresenceController presenceController;
     @Mock TripAccessVersion accessVersion;
+    @Mock com.tripcraft.global.security.TripSubscriptionGuard subscriptionGuard;
     @Mock TripTaskQueue taskQueue;  // 목이라 재계산은 실행되지 않는다(재계산 경로는 통합테스트 몫)
 
     @InjectMocks TripServiceImpl service;

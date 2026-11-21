@@ -101,7 +101,12 @@ export const useCollabStore = defineStore('collab', () => {
         reconnectTimer = setTimeout(() => _doConnect(tripId), collabConfig.reconnectMs)
       },
       onStompError: (frame) => {
+        // 서버가 구독을 거부했거나(권한 없음) 권한 상실로 연결을 끊었다 — 연결 표시를 내린다.
         console.warn('[collab] STOMP error', frame)
+        connected.value = false
+      },
+      onWebSocketClose: () => {
+        connected.value = false
       },
     })
 

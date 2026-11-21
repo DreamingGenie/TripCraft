@@ -42,6 +42,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.server.ResponseStatusException;
 import com.tripcraft.plan.controller.TripPresenceController;
 import com.tripcraft.global.security.TripAccessVersion;
+import com.tripcraft.global.security.TripSubscriptionGuard;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -72,6 +73,7 @@ public class TripServiceImpl implements TripService {
     private final TripPresenceController presenceController;
     private final TripAccessVersion accessVersion;
     private final TripTaskQueue taskQueue;
+    private final TripSubscriptionGuard subscriptionGuard;
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
@@ -176,6 +178,8 @@ public class TripServiceImpl implements TripService {
         if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
         tripMapper.updateShare(tripId, access, token);
         accessVersion.bump(tripId);  // 공유 접근 레벨 변경 → 캐시된 권한 무효화
+        // 이미 구독 중인 링크 참가자도 자격을 잃었으면 끊는다(커밋된 상태로 판정해야 하므로 커밋 뒤).
+        runAfterCommit(() -> subscriptionGuard.revokeStale(tripId));
         log.info("공유 설정 변경 tripId={} access={} requesterId={}", tripId, access, requesterId);
         return token;
     }
@@ -255,7 +259,9 @@ public class TripServiceImpl implements TripService {
     public void removeCollaborator(Long tripId, Long targetMemberId, Long requesterId) {
         assertCanManage(tripId, requesterId);
         collaboratorMapper.delete(tripId, targetMemberId);
-        accessVersion.bump(tripId);  // 협업자 제거 → 캐시된 권한 즉시 무효화(presence 전송 차단)
+        accessVersion.bump(tripId);  // 협업자 제거 → 다음 프레임부터 재검증(발행 차단)
+        // 제거된 협업자가 이미 맺어 둔 구독은 서버가 끊는다(커밋된 상태로 판정해야 하므로 커밋 뒤).
+        runAfterCommit(() -> subscriptionGuard.revokeStale(tripId));
     }
 
     // ── 기존 조회/편집 메서드 ──────────────────────────────────────────────────
@@ -521,7 +527,9 @@ public class TripServiceImpl implements TripService {
     public void updateBlockMemo(Long tripId, Long blockId,
                                 com.tripcraft.plan.dto.BlockMemoUpdateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
-        assertNotGrabbedByOther(tripId, blockId, memberId);  // 서버 게이트: grab 비소유자 편집 거부
+        // grab 게이트는 "다른 사람이 잡고 있을 때"만 막는다 — 아무도 잡지 않았으면 통과하므로
+        // 덮어쓰기 방지는 아래 조건부 갱신(baseMemo)이 맡는다.
+        assertNotGrabbedByOther(tripId, blockId, memberId);
         // 블록이 이 일정 소속인지 확인(다른 일정 블록 id 위조 방어)
         Long ownerTripId = blockMapper.findTripIdByBlockId(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -532,7 +540,13 @@ public class TripServiceImpl implements TripService {
         if (memo != null && memo.codePointCount(0, memo.length()) > 100)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "메모는 100자를 넘을 수 없어요");
 
-        blockMapper.updateMemoById(blockId, memo);  // version 미변경
+        // version 은 올리지 않는다(이동·리사이즈의 낙관적 락과 얽히지 않게). 대신 편집을 시작할 때 본 메모와
+        // 지금 메모가 같을 때만 쓴다 — 그 사이 다른 사람이 고쳤으면 말없이 덮어쓰지 않고 409.
+        if (req.getBaseMemo() == null) {
+            blockMapper.updateMemoById(blockId, memo);  // 구버전 클라이언트: 검사 없이 덮어씀
+        } else if (blockMapper.updateMemoIfUnchanged(blockId, memo, req.getBaseMemo()) == 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 사용자가 먼저 이 메모를 수정했어요");
+        }
         broadcast(tripId, TripEvent.of("BLOCK_MEMO_UPDATED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "memo", memo != null ? memo : "")));
     }
