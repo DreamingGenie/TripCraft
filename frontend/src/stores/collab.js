@@ -18,6 +18,7 @@ export const useCollabStore = defineStore('collab', () => {
   let isReconnecting = false
   let keepaliveTimer = null
   let observer = false   // 익명 관전 모드: 구독만(수신), 전송·keepalive·인증 프리페치 없음
+  let shareToken = null  // 공유 링크로 들어온 경우의 토큰 — 소유자·협업자가 아니면 구독에 필요
 
   // 이벤트 핸들러 콜백 — ScheduleBoard에서 주입
   let onTripEvent = null
@@ -32,6 +33,7 @@ export const useCollabStore = defineStore('collab', () => {
 
   async function connect(tripId, opts = {}) {
     observer = !!opts.observer   // 비로그인 관전: 구독만, 전송·keepalive 없음
+    shareToken = opts.shareToken || null
     // 재호출 방어: 이전 연결이 살아 있으면 정리 후 새로 연결 (클라이언트 누수·중복 구독 방지)
     if (stompClient) {
       stopKeepalive()
@@ -63,10 +65,11 @@ export const useCollabStore = defineStore('collab', () => {
         connected.value = true
         clearTimeout(reconnectTimer)
 
+        const subHeaders = shareToken ? { 'share-token': shareToken } : {}
         stompClient.subscribe(`/topic/trip/${tripId}`, (msg) => {
           const event = JSON.parse(msg.body)
           if (onTripEvent) onTripEvent(event)
-        })
+        }, subHeaders)
 
         stompClient.subscribe(`/topic/trip/${tripId}/presence`, (msg) => {
           const event = JSON.parse(msg.body)

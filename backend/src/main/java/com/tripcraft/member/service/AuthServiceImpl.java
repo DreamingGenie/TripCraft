@@ -207,6 +207,7 @@ public class AuthServiceImpl implements AuthService {
         Cookie cookie = new Cookie("access_token", token);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
+        cookie.setAttribute("SameSite", "Lax");  // 교차 사이트 POST 에 쿠키가 실리지 않게(CSRF 완화)
         cookie.setPath("/");
         cookie.setMaxAge((int) (accessTokenExpiry / 1000));
         response.addCookie(cookie);
@@ -216,6 +217,7 @@ public class AuthServiceImpl implements AuthService {
         Cookie cookie = new Cookie("refresh_token", token);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setPath("/api/auth/refresh");
         cookie.setMaxAge((int) (refreshTokenExpiry / 1000));
         response.addCookie(cookie);
