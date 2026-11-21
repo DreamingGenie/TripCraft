@@ -4,6 +4,12 @@
 작성자: 전진  
 관련 파일: `PostMapper.xml`, `PostLikeMapper.xml`, `PostBookmarkMapper.xml`
 
+> **2026-09-20 정정**: 최초본은 상관 서브쿼리의 반복 실행을 **"DB 왕복 11회"** 라고 적었다. 틀린 표현이다.
+> 상관 서브쿼리는 **한 문장의 SQL**이므로 클라이언트↔DB **왕복은 1회**이고, 11회인 것은 **엔진 내부 실행 횟수**다.
+> 같은 맥락에서 아래 "총 DB 읽기" 표기도 "엔진 내부 실행"으로 고쳤다.
+> 또한 채택안(방법 2)이 기존 서브쿼리의 `LIMIT 1`을 떼어냈다는 점을 §방법 2에 한계로 명시했다.
+> **이 문서의 개선 전후는 측정한 수치가 아니라 실행 구조 비교다** — `EXPLAIN` 실측은 하지 않았다.
+
 ---
 
 ## 문제 정의
@@ -34,7 +40,9 @@ LEFT JOIN member m ON m.id = p.member_id
 총 실행 횟수: 1 (메인 쿼리) + 10 (서브쿼리) = 11
 ```
 
-페이지 크기 `size=10` 기준으로 항상 **11회** DB 왕복이 발생한다.
+페이지 크기 `size=10` 기준으로 **엔진 내부 실행이 11회**가 된다.
+⚠ **왕복(round trip)이 11회라는 뜻이 아니다.** SQL 문장은 하나이므로 클라이언트↔DB 왕복은 1회이고,
+늘어나는 것은 서버 안에서 행마다 반복되는 서브쿼리 실행이다. N+1이라는 이름이 가리키는 비용도 그쪽이다.
 
 ### 현재 환경에서 체감되지 않는 이유
 
@@ -72,6 +80,10 @@ CONCAT('/uploads/images/', pa.name) AS authorProfileImageUrl
 - 장점: attach 테이블을 **한 번만** 읽고 해시 조인으로 매칭
 - 단점: SQL 구조가 두 부분으로 분리됨 (SELECT 컬럼 + FROM/JOIN 절)
 - `pa.name`이 NULL이면 `CONCAT` 결과도 NULL → 프로필 이미지 없음 처리와 동일
+- ⚠ **한계 — 기존 서브쿼리에 있던 `LIMIT 1`이 이 방식에는 없다.** 한 회원에게 `target='profile'` 행이
+  둘 이상 있으면 파생 테이블이 그 회원을 여러 행으로 내보내 **게시글 행이 증식한다**. 아래 방법 3에서
+  비채택 사유로 적은 위험이 **방법 2에도 그대로 남아 있다**(앱 레이어가 중복 삽입 전에 삭제한다는 전제에 기대고 있을 뿐).
+  DB만으로 막으려면 파생 테이블을 `GROUP BY target_id`로 접거나 `attach(target,target_id)`에 UNIQUE를 건다.
 
 ### 방법 3: LEFT JOIN 직접 (비채택)
 
@@ -96,7 +108,7 @@ LEFT JOIN attach a ON a.target = 'profile' AND a.target_id = m.id
 4.  → ...
 11. → 프로필 이미지 서브쿼리 (member_id=10)
 
-총 DB 읽기: 11회
+총 엔진 내부 실행: 11회 (클라이언트↔DB 왕복은 1회)
 ```
 
 ### 개선 후 — 동일 조회
@@ -108,7 +120,7 @@ LEFT JOIN attach a ON a.target = 'profile' AND a.target_id = m.id
              ON pa.target_id = m.id
    →  10행 반환, 프로필 이미지 포함
 
-총 DB 읽기: 1회
+총 엔진 내부 실행: 1회 (왕복도 1회 — 달라진 것은 왕복 수가 아니라 반복 실행이 사라진 것)
 ```
 
 ---
@@ -172,5 +184,7 @@ LEFT JOIN (SELECT post_id, COUNT(*) AS commentCount FROM post_comment GROUP BY p
 ## 참고
 
 - MySQL은 상관 서브쿼리를 자동으로 JOIN으로 최적화하지 않는다 (Dependent Subquery로 처리).
-- `EXPLAIN` 실행 시 기존 방식은 `DEPENDENT SUBQUERY`, 개선 후는 `DERIVED` + `ref`로 변경된다.
+- `EXPLAIN` 실행 시 기존 방식은 `DEPENDENT SUBQUERY`, 개선 후는 `DERIVED` + `ref`로 **바뀔 것으로 본다**.
+  ⚠ **실제로 `EXPLAIN`을 떠 보지 않았다.** 이 문서의 개선 전후는 측정치가 아니라 실행 구조 비교이며,
+  수치로 말하려면 데이터를 채운 뒤 `EXPLAIN` + 응답시간을 먼저 재야 한다.
 - 파생 테이블(`(SELECT ... FROM ...) alias`)은 MySQL 8.0부터 Derived Condition Pushdown 최적화가 적용된다.

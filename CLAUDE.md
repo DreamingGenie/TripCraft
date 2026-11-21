@@ -32,6 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **개발 모델**: 캡스톤(2인) 종료 후 **1인 추가 개발** 단계. `master` 단일 소스(코드+문서)를 기준으로
   **trunk-based** — 작업은 짧은 `feature/*` 브랜치에서 하고 `master`로 병합. (팀 시절 `main←develop` GitFlow 폐기)
 - **버전 경계**: `v1.0-capstone` 태그 = 팀 캡스톤 최종 제출본 = 1인 개발 분기점. 히스토리는 rewrite 금지(기여 이력 보존).
+  예외: 2026-10-06 공개 전환 시 교육 기관 식별 문자열 제거를 위해 1회 재작성(백업 번들 보관).
 
 ## Git 컨벤션
 
