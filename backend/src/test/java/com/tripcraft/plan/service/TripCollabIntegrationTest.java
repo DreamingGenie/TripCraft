@@ -26,8 +26,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -117,8 +119,30 @@ class TripCollabIntegrationTest extends AbstractIntegrationTest {
         long second = place(candidate(), START, LocalTime.of(11, 0), 60);
 
         assertThat(blockCount(START)).isEqualTo(2);
+        org.awaitility.Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                assertThat(lastRecalculatedPayload().get("failedBlockIds")).isEqualTo(List.of(second)));
         assertThat(jdbc.queryForObject(
                 "SELECT transit_duration_minutes FROM trip_block WHERE id = ?", Integer.class, second)).isNull();
+    }
+
+    /** 깨지면: 편집 응답(과 그 요청의 커넥션)이 수 초 걸리는 외부 이동시간 API 를 기다린다. */
+    @Test
+    void 편집_응답은_재계산을_기다리지_않는다() throws Exception {
+        CountDownLatch apiRelease = new CountDownLatch(1);
+        when(transitService.getTransitByCoords(any(), any(), any(), any(), anyInt(), anyString()))
+                .thenAnswer(inv -> {
+                    apiRelease.await(10, TimeUnit.SECONDS);
+                    return Optional.of(TransitResponse.builder().durationMinutes(15).transportMode("BUS").build());
+                });
+        place(candidate(), START, LocalTime.of(9, 0), 60);
+
+        Future<Long> response = pool.submit(() -> place(candidate(), START, LocalTime.of(11, 0), 60));
+        long second = response.get(3, TimeUnit.SECONDS);   // 외부 API 가 막혀 있어도 응답은 돌아온다
+
+        assertThat(jdbc.queryForObject(
+                "SELECT transit_duration_minutes FROM trip_block WHERE id = ?", Integer.class, second)).isNull();
+        apiRelease.countDown();
+        awaitTransit(second, 15);
     }
 
     // ── 일정 행 FOR UPDATE 직렬화 ────────────────────────────────────────────
@@ -271,6 +295,16 @@ class TripCollabIntegrationTest extends AbstractIntegrationTest {
                 (Object) org.mockito.ArgumentMatchers.argThat(o -> o instanceof TripEvent e && e.type().equals(awaited)));
         verify(messaging, atLeastOnce()).convertAndSend(eq("/topic/trip/" + tripId), captor.capture());
         return captor.getAllValues().stream().map(o -> ((TripEvent) o).type()).toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> lastRecalculatedPayload() {
+        awaitEventTypes("TRANSIT_RECALCULATED");
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(messaging, atLeastOnce()).convertAndSend(eq("/topic/trip/" + tripId), captor.capture());
+        List<TripEvent> recalculated = captor.getAllValues().stream().map(o -> (TripEvent) o)
+                .filter(e -> e.type().equals("TRANSIT_RECALCULATED")).toList();
+        return (Map<String, Object>) recalculated.get(recalculated.size() - 1).payload();
     }
 
     private void awaitTransit(long blockId, int expectedMinutes) {

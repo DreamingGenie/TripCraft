@@ -2262,6 +2262,7 @@ function applyMemoUpdate(payload) {
 
 function applyTransitUpdate(payload) {
   if (!payload?.blocks) return
+  if (payload.failedBlockIds?.length) toast.show('일부 구간의 이동시간을 계산하지 못했어요')
   const blockMap = {}
   payload.blocks.forEach(b => { blockMap[b.blockId] = b })
   days.value.forEach(day => {
