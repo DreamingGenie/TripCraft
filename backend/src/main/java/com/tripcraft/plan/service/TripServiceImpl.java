@@ -42,6 +42,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.server.ResponseStatusException;
 import com.tripcraft.plan.controller.TripPresenceController;
 import com.tripcraft.global.security.TripAccessVersion;
+import com.tripcraft.global.security.TripSubscriptionGuard;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -72,6 +73,7 @@ public class TripServiceImpl implements TripService {
     private final TripPresenceController presenceController;
     private final TripAccessVersion accessVersion;
     private final TripTaskQueue taskQueue;
+    private final TripSubscriptionGuard subscriptionGuard;
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
@@ -176,6 +178,8 @@ public class TripServiceImpl implements TripService {
         if (!"PRIVATE".equals(access) && token == null) token = generateShareToken();
         tripMapper.updateShare(tripId, access, token);
         accessVersion.bump(tripId);  // 공유 접근 레벨 변경 → 캐시된 권한 무효화
+        // 이미 구독 중인 링크 참가자도 자격을 잃었으면 끊는다(커밋된 상태로 판정해야 하므로 커밋 뒤).
+        runAfterCommit(() -> subscriptionGuard.revokeStale(tripId));
         log.info("공유 설정 변경 tripId={} access={} requesterId={}", tripId, access, requesterId);
         return token;
     }
@@ -255,7 +259,9 @@ public class TripServiceImpl implements TripService {
     public void removeCollaborator(Long tripId, Long targetMemberId, Long requesterId) {
         assertCanManage(tripId, requesterId);
         collaboratorMapper.delete(tripId, targetMemberId);
-        accessVersion.bump(tripId);  // 협업자 제거 → 캐시된 권한 즉시 무효화(presence 전송 차단)
+        accessVersion.bump(tripId);  // 협업자 제거 → 다음 프레임부터 재검증(발행 차단)
+        // 제거된 협업자가 이미 맺어 둔 구독은 서버가 끊는다(커밋된 상태로 판정해야 하므로 커밋 뒤).
+        runAfterCommit(() -> subscriptionGuard.revokeStale(tripId));
     }
 
     // ── 기존 조회/편집 메서드 ──────────────────────────────────────────────────
