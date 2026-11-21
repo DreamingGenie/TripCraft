@@ -17,6 +17,10 @@ repositories {
 	mavenCentral()
 }
 
+// Spring Boot 의존성 관리가 Testcontainers 를 1.21.0 으로 고정한다(platform BOM 을 선언해도 덮어쓴다).
+// Docker Engine 29+(최소 API 1.44)와 통신하려면 1.21.4 이상이 필요해 관리 버전 자체를 올린다.
+extra["testcontainers.version"] = "1.21.4"
+
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
@@ -43,7 +47,6 @@ dependencies {
 	testImplementation("org.springframework.security:spring-security-test")
 	testImplementation("org.springframework.batch:spring-batch-test")
 	// Testcontainers — 실제 MySQL 8 컨테이너 기반 통합/매퍼 테스트(@Tag("integration"))
-	testImplementation(platform("org.testcontainers:testcontainers-bom:1.21.3"))
 	testImplementation("org.testcontainers:junit-jupiter")
 	testImplementation("org.testcontainers:mysql")
 	testCompileOnly("org.projectlombok:lombok")

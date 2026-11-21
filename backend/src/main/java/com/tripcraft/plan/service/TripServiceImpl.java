@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -95,7 +96,11 @@ public class TripServiceImpl implements TripService {
         }
     }
 
-    /** 외부 API를 포함하는 transit 재계산을 변경 트랜잭션 커밋 후로 미룬다(커넥션 장기 점유 방지). */
+    /**
+     * 작업을 변경 트랜잭션 커밋 뒤로 미룬다(일정 행 FOR UPDATE 잠금을 외부 API 호출 동안 쥐지 않기 위함).
+     * 콜백은 같은 요청 스레드에서 커넥션 반환 전에 동기로 돈다 — 응답·커넥션은 작업이 끝날 때까지 기다린다.
+     * 주의: afterCommit 콜백 안에서 다시 등록한 콜백은 실행되지 않는다(Spring 이 미리 떠 둔 목록으로 호출).
+     */
     private void runAfterCommit(Runnable task) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -187,11 +192,14 @@ public class TripServiceImpl implements TripService {
         // 반드시 커밋 이후에 전송한다. 커밋 전에 보내면 수신측이 즉시 loadTrip()(별도 트랜잭션)으로
         // 재조회할 때 아직 커밋되지 않은 변경을 못 봐서 '한 템포 늦게' 반영되는 문제가 생긴다.
         // seq도 afterCommit 안에서 부여 → seq 순서 == 커밋 순서 == 전송 순서(동시 편집 시 역전 방지).
-        runAfterCommit(() -> {
-            long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
-                               .incrementAndGet();
-            messaging.convertAndSend("/topic/trip/" + tripId, event.withSeq(seq));
-        });
+        runAfterCommit(() -> sendNow(tripId, event));
+    }
+
+    /** seq 를 부여해 즉시 전송한다. 이미 커밋 뒤에 도는 코드(재계산)만 직접 호출한다. */
+    private void sendNow(Long tripId, TripEvent event) {
+        long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
+                           .incrementAndGet();
+        messaging.convertAndSend("/topic/trip/" + tripId, event.withSeq(seq));
     }
 
     // ── 협업자 관리 ────────────────────────────────────────────────────────────
@@ -430,14 +438,17 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)  // lockTripRow 주석 참고
     public Long placeBlock(Long tripId, BlockCreateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
         TripCandidate candidate = candidateMapper.findById(req.getCandidateId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "후보군을 찾을 수 없습니다."));
         if (!candidate.getTripId().equals(tripId))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "다른 일정의 후보군입니다.");
-        tripMapper.lockTripRow(tripId);  // 같은 일정 동시 편집 직렬화(겹침 검사·순서 할당 정합 보장)
+        // 같은 일정 동시 편집 직렬화(겹침 검사·순서 할당 정합 보장).
+        // READ_COMMITTED 가 필요한 이유: 기본 REPEATABLE READ 에서는 위 권한 조회가 뜬 스냅샷을 잠금 대기 뒤에도
+        // 그대로 써서, 먼저 커밋된 상대의 블록을 겹침 검사·순서 할당이 보지 못한다(실 DB 통합테스트로 확인).
+        tripMapper.lockTripRow(tripId);
         int duration = req.getDurationMinutes() != null ? req.getDurationMinutes() : 120;
         assertNoOverlap(tripId, req.getTripDate(), req.getStartTime(), duration, null);
         TripBlock block = new TripBlock();
@@ -456,7 +467,7 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)  // lockTripRow 주석 참고
     public void updateBlock(Long tripId, Long blockId, BlockUpdateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
         assertNotGrabbedByOther(tripId, blockId, memberId);
@@ -737,7 +748,9 @@ public class TripServiceImpl implements TripService {
                     return m;
                 })
                 .toList();
-        broadcast(tripId, TripEvent.of("TRANSIT_RECALCULATED", null, null,
+        // 재계산은 항상 afterCommit 콜백 안에서 돈다. 여기서 broadcast()를 쓰면 콜백을 다시 등록하게 되어
+        // 알림이 나가지 않으므로 즉시 전송한다.
+        sendNow(tripId, TripEvent.of("TRANSIT_RECALCULATED", null, null,
                 Map.of("tripDate", date, "blocks", transitSummary)));
     }
 }
