@@ -11,4 +11,9 @@ import lombok.Getter;
 public class BlockMemoUpdateRequest {
 
     private String memo;
+    /**
+     * 클라이언트가 편집을 시작할 때 보고 있던 메모(없으면 빈 문자열). 서버의 현재 메모가 이것과 다르면
+     * 그 사이 다른 사람이 고친 것이므로 409 로 거부한다. null(구버전 클라이언트)이면 검사 없이 덮어쓴다.
+     */
+    private String baseMemo;
 }

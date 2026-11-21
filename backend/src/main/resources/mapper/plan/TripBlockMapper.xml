@@ -86,6 +86,14 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 메모 조건부 갱신: 편집을 시작할 때 본 값과 같을 때만 쓴다(version 은 건드리지 않는다) -->
+    <update id="updateMemoIfUnchanged">
+        UPDATE trip_block
+        SET memo = #{memo}
+        WHERE id = #{id}
+          AND COALESCE(memo, '') = #{baseMemo}
+    </update>
+
     <!-- transit 전용 갱신: version·위치 컬럼 미변경 (재계산이 사용자 편집을 덮어쓰지 않게) -->
     <update id="updateTransitById">
         UPDATE trip_block

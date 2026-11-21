@@ -26,6 +26,7 @@
 - WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 
 ### 수정
+- **블록 메모 덮어쓰기 방지** — grab 게이트는 다른 사람이 잡고 있을 때만 막아, 아무도 잡지 않은 순간에는 나중 저장이 앞선 저장을 덮어쓸 수 있었다. 편집 시작 때 본 메모(`baseMemo`)와 현재 메모가 다르면 409로 거부하는 조건부 갱신 추가(`version`은 그대로 미변경). blur 시 저장 완료 뒤에 grab을 반납하도록 순서 수정
 - 게시글 수정 제목 길이 검증을 DB 컬럼(`post.title` VARCHAR(100))에 맞춤 — 101~200자 제목이 검증을 통과해 DB 오류로 이어지던 문제. 게시글 이미지 생명주기 통합테스트(`PostImageLifecycleIntegrationTest`) 추가
 - **동시 배치 시 시간대 겹침·순서 중복** — 일정 행 `FOR UPDATE` 뒤의 겹침 검사·순서 할당이 REPEATABLE READ 스냅샷 때문에 먼저 커밋된 블록을 보지 못하던 문제. `placeBlock`·`updateBlock`을 `READ_COMMITTED`로 실행
 - **이동시간 재계산 완료 알림(`TRANSIT_RECALCULATED`) 미발신** — afterCommit 콜백 안에서 콜백을 다시 등록해 전송되지 않던 문제

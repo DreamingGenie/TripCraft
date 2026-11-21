@@ -527,7 +527,9 @@ public class TripServiceImpl implements TripService {
     public void updateBlockMemo(Long tripId, Long blockId,
                                 com.tripcraft.plan.dto.BlockMemoUpdateRequest req, Long memberId) {
         assertCanEdit(tripId, memberId);
-        assertNotGrabbedByOther(tripId, blockId, memberId);  // 서버 게이트: grab 비소유자 편집 거부
+        // grab 게이트는 "다른 사람이 잡고 있을 때"만 막는다 — 아무도 잡지 않았으면 통과하므로
+        // 덮어쓰기 방지는 아래 조건부 갱신(baseMemo)이 맡는다.
+        assertNotGrabbedByOther(tripId, blockId, memberId);
         // 블록이 이 일정 소속인지 확인(다른 일정 블록 id 위조 방어)
         Long ownerTripId = blockMapper.findTripIdByBlockId(blockId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
@@ -538,7 +540,13 @@ public class TripServiceImpl implements TripService {
         if (memo != null && memo.codePointCount(0, memo.length()) > 100)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "메모는 100자를 넘을 수 없어요");
 
-        blockMapper.updateMemoById(blockId, memo);  // version 미변경
+        // version 은 올리지 않는다(이동·리사이즈의 낙관적 락과 얽히지 않게). 대신 편집을 시작할 때 본 메모와
+        // 지금 메모가 같을 때만 쓴다 — 그 사이 다른 사람이 고쳤으면 말없이 덮어쓰지 않고 409.
+        if (req.getBaseMemo() == null) {
+            blockMapper.updateMemoById(blockId, memo);  // 구버전 클라이언트: 검사 없이 덮어씀
+        } else if (blockMapper.updateMemoIfUnchanged(blockId, memo, req.getBaseMemo()) == 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 사용자가 먼저 이 메모를 수정했어요");
+        }
         broadcast(tripId, TripEvent.of("BLOCK_MEMO_UPDATED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "memo", memo != null ? memo : "")));
     }
