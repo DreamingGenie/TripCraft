@@ -236,6 +236,7 @@ class TripCollabIntegrationTest extends AbstractIntegrationTest {
 
         memo(blockId, "첫 줄", "");
         memo(blockId, "첫 줄 둘째 줄", "첫 줄");
+        memo(blockId, "첫 줄 둘째 줄", "첫 줄 둘째 줄");   // 내용이 같아도 거부되지 않는다(갱신 행 수가 아니라 조건 일치로 판정)
 
         assertThat(storedMemo(blockId)).isEqualTo("첫 줄 둘째 줄");
     }
