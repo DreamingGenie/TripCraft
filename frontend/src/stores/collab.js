@@ -12,6 +12,8 @@ export const useCollabStore = defineStore('collab', () => {
   const grabMap = ref({})        // blockId → memberId
   const colorMap = ref({})       // memberId → hex color
   const connected = ref(false)
+  // 서버가 STOMP ERROR 로 연결을 끊었다(구독 거부·권한 상실). 화면이 더 이상 갱신되지 않음을 알리는 데 쓴다.
+  const accessLost = ref(false)
 
   let stompClient = null
   let reconnectTimer = null
@@ -34,6 +36,7 @@ export const useCollabStore = defineStore('collab', () => {
   async function connect(tripId, opts = {}) {
     observer = !!opts.observer   // 비로그인 관전: 구독만, 전송·keepalive 없음
     shareToken = opts.shareToken || null
+    accessLost.value = false
     // 재호출 방어: 이전 연결이 살아 있으면 정리 후 새로 연결 (클라이언트 누수·중복 구독 방지)
     if (stompClient) {
       stopKeepalive()
@@ -104,6 +107,7 @@ export const useCollabStore = defineStore('collab', () => {
         // 서버가 구독을 거부했거나(권한 없음) 권한 상실로 연결을 끊었다 — 연결 표시를 내린다.
         console.warn('[collab] STOMP error', frame)
         connected.value = false
+        accessLost.value = true
       },
       onWebSocketClose: () => {
         connected.value = false
@@ -170,6 +174,7 @@ export const useCollabStore = defineStore('collab', () => {
     grabMap,
     colorMap,
     connected,
+    accessLost,
     connect,
     disconnect,
     sendPointer,
