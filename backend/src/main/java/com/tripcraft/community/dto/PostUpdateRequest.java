@@ -8,7 +8,7 @@ import lombok.Getter;
 public class PostUpdateRequest {
 
     @NotBlank(message = "제목을 입력해주세요.")
-    @Size(max = 200, message = "제목은 200자 이하여야 합니다.")
+    @Size(max = 100, message = "제목은 100자 이하여야 합니다.")  // post.title VARCHAR(100)
     private String title;
 
     @NotBlank(message = "내용을 입력해주세요.")
