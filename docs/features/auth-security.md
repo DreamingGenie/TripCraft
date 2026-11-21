@@ -55,7 +55,9 @@ REST 필터는 WS 프레임에 적용되지 않으므로 별도 2단 방어.
 협업자 제거·역할 변경·공유 설정 변경 시 `bump(tripId)`로 세대를 올리면, 캐시 세대와 어긋난 세션이
 **다음 SUBSCRIBE·SEND 프레임에서 자동 재검증**된다. 같은 세대면 캐시 적중 → DB 조회 생략.
 
-> **알려진 한계**: 재검증은 그 세션이 다음 프레임을 보낼 때만 일어난다. 권한을 잃은 사용자의 **이미 맺은 구독은 끊기지 않아**, 연결을 유지하는 동안 편집 이벤트를 계속 받는다(발행은 다음 SEND에서 차단). 서버가 해당 세션을 강제로 끊는 처리는 아직 없다. 또 REST 조회·편집 API는 공유(비 PRIVATE) 일정을 일정 id만으로 허용한다(`TripServiceImpl.resolveRole`의 링크 공유 폴백) — 실시간 채널과 달리 토큰을 요구하지 않는다.
+**이미 맺은 구독의 차단(2026-11-21)** — 세대 재검증은 그 세션이 다음 프레임을 보낼 때만 일어나므로, 구독만 해 두고 듣기만 하는 세션은 권한을 잃어도 계속 이벤트를 받는다. 그래서 `TripSubscriptionGuard`가 구독을 허용할 때 세션의 자격(회원 id·공유 토큰)을 기억해 두고, 협업자 제거·공유 설정 변경이 **커밋된 뒤** 그 일정의 구독 세션을 다시 판정해 자격을 잃은 세션에 STOMP `ERROR`를 보내 연결을 끊는다. 자격이 남은 세션은 건드리지 않는다. 단위테스트와 실제 WebSocket 연결 통합테스트(`TripSubscriptionRevokeIntegrationTest`)로 확인한다.
+
+> **알려진 한계**: 구독 기록은 서버 메모리에 있어 단일 인스턴스 전제다(브로커도 in-memory라 같은 전제). REST 조회·편집 API는 공유(비 PRIVATE) 일정을 일정 id만으로 허용한다(`TripServiceImpl.resolveRole`의 링크 공유 폴백) — 실시간 채널과 달리 토큰을 요구하지 않는다.
 
 ## 5. 관련 코드
 `global/security/`: `JwtTokenProvider` · `JwtAuthenticationFilter` · `SecurityConfig` · `AuthEntryPoint` ·

@@ -7,7 +7,7 @@ import com.tripcraft.plan.mapper.TripMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.Message;
@@ -20,9 +20,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -42,9 +45,12 @@ class JwtChannelInterceptorTest {
     @Mock TripCollaboratorMapper collaboratorMapper;
     @Mock TripAccessVersion accessVersion;
 
-    @InjectMocks JwtChannelInterceptor interceptor;
+    @Mock org.springframework.messaging.MessageChannel clientOutboundChannel;
+
+    JwtChannelInterceptor interceptor;
 
     Trip trip;
+    TripSubscriptionGuard guard;
     Map<String, Object> session;
 
     @BeforeEach
@@ -55,6 +61,8 @@ class JwtChannelInterceptorTest {
         trip.setShareAccess("VIEW");
         trip.setShareToken(TOKEN);
         session = new HashMap<>();
+        guard = new TripSubscriptionGuard(tripMapper, collaboratorMapper, clientOutboundChannel);
+        interceptor = new JwtChannelInterceptor(guard, accessVersion);
         lenient().when(tripMapper.findById(TRIP_ID)).thenReturn(Optional.of(trip));
         lenient().when(collaboratorMapper.findByTripAndMember(TRIP_ID, COLLABORATOR_ID))
                 .thenReturn(Optional.of(new TripCollaborator()));
@@ -108,6 +116,36 @@ class JwtChannelInterceptorTest {
         when(accessVersion.current(TRIP_ID)).thenReturn(2);
         trip.setShareAccess("PRIVATE");
         assertThatThrownBy(() -> send(STRANGER_ID)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    /** 깨지면: 협업자에서 빠진 사람이 열어 둔 연결로 편집 이벤트를 계속 받는다. */
+    @Test
+    void 권한을_잃은_구독_세션만_끊는다() {
+        subscribe("owner-session", OWNER_ID, null);
+        subscribe("collab-session", COLLABORATOR_ID, null);
+        subscribe("link-session", null, TOKEN);
+
+        when(collaboratorMapper.findByTripAndMember(TRIP_ID, COLLABORATOR_ID)).thenReturn(Optional.empty());
+        trip.setShareAccess("PRIVATE");
+
+        assertThat(guard.revokeStale(TRIP_ID)).isEqualTo(2);
+
+        ArgumentCaptor<Message<?>> sent = ArgumentCaptor.forClass(Message.class);
+        verify(clientOutboundChannel, times(2)).send(sent.capture());
+        assertThat(sent.getAllValues()).allSatisfy(m ->
+                assertThat(StompHeaderAccessor.wrap(m).getCommand()).isEqualTo(StompCommand.ERROR));
+        assertThat(sent.getAllValues().stream().map(m -> StompHeaderAccessor.wrap(m).getSessionId()))
+                .containsExactlyInAnyOrder("collab-session", "link-session");
+        assertThat(guard.revokeStale(TRIP_ID)).isZero();   // 이미 끊은 세션을 다시 끊지 않는다
+    }
+
+    private void subscribe(String sessionId, Long memberId, String shareToken) {
+        session = new HashMap<>();
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setSessionId(sessionId);
+        accessor.setDestination("/topic/trip/" + TRIP_ID);
+        if (shareToken != null) accessor.setNativeHeader(JwtChannelInterceptor.SHARE_TOKEN_HEADER, shareToken);
+        preSend(accessor, memberId);
     }
 
     private void subscribe(Long memberId, String shareToken) {

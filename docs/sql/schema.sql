@@ -545,6 +545,9 @@ CREATE TABLE post (
     PRIMARY KEY (id),
     INDEX idx_post_member (member_id),
     INDEX idx_post_trip   (trip_id),
+    -- 글 목록 정렬용(migration_post_list_index_v1). 없으면 목록 조회마다 전체 행을 정렬한다.
+    INDEX idx_post_created_at (created_at),
+    INDEX idx_post_popular    (like_count, created_at),
     -- 일정 삭제 시 게시글 보존 (trip_id = NULL)
     FOREIGN KEY fk_post_member (member_id) REFERENCES member(id) ON DELETE SET NULL,
     FOREIGN KEY fk_post_trip   (trip_id)   REFERENCES trip(id)   ON DELETE SET NULL

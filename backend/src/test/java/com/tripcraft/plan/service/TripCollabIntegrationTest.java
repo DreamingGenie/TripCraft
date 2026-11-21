@@ -213,7 +213,46 @@ class TripCollabIntegrationTest extends AbstractIntegrationTest {
         assertThat(version(blockId)).isEqualTo(1);
     }
 
+    // ── 메모 조건부 갱신 ─────────────────────────────────────────────────────
+
+    /** 깨지면: 같은 메모를 보고 시작한 두 사람의 저장 중 나중 것이 앞선 것을 말없이 덮어쓴다. */
+    @Test
+    void 편집_시작_때_본_메모가_바뀌었으면_저장을_409로_거부한다() {
+        long blockId = place(candidate(), START, LocalTime.of(9, 0), 60);
+
+        memo(blockId, "먼저 저장", "");
+        assertThatThrownBy(() -> memo(blockId, "나중 저장", ""))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+
+        assertThat(storedMemo(blockId)).isEqualTo("먼저 저장");
+        assertThat(version(blockId)).isZero();   // 메모는 version 을 올리지 않는다
+    }
+
+    /** 깨지면: 방금 내가 저장한 내용을 기준으로 이어서 저장하는 정상 흐름이 막힌다. */
+    @Test
+    void 직전_저장_내용을_기준으로_이어서_저장할_수_있다() {
+        long blockId = place(candidate(), START, LocalTime.of(9, 0), 60);
+
+        memo(blockId, "첫 줄", "");
+        memo(blockId, "첫 줄 둘째 줄", "첫 줄");
+        memo(blockId, "첫 줄 둘째 줄", "첫 줄 둘째 줄");   // 내용이 같아도 거부되지 않는다(갱신 행 수가 아니라 조건 일치로 판정)
+
+        assertThat(storedMemo(blockId)).isEqualTo("첫 줄 둘째 줄");
+    }
+
     // ── 헬퍼 ─────────────────────────────────────────────────────────────────
+
+    private void memo(long blockId, String memo, String baseMemo) {
+        com.tripcraft.plan.dto.BlockMemoUpdateRequest req = new com.tripcraft.plan.dto.BlockMemoUpdateRequest();
+        ReflectionTestUtils.setField(req, "memo", memo);
+        ReflectionTestUtils.setField(req, "baseMemo", baseMemo);
+        tripService.updateBlockMemo(tripId, blockId, req, ownerId);
+    }
+
+    private String storedMemo(long blockId) {
+        return jdbc.queryForObject("SELECT memo FROM trip_block WHERE id = ?", String.class, blockId);
+    }
 
     /** 두 작업을 같은 순간에 출발시키고, 각각 성공(true)·409(false) 여부를 돌려준다. 그 외 예외는 그대로 던진다. */
     private List<Boolean> race(Runnable first, Runnable second) throws Exception {

@@ -784,6 +784,8 @@ let grabbedBlockId = null  // 드래그 중인 블록 id — 종료 시 서버 g
 
 // ── 블록 메모 실시간 편집 상태 ──
 // persist(PATCH)와 broadcast는 서버가 처리. 프론트는 저장 트리거만 통제: idle(≈600ms) + blur flush.
+const memoBase = {}               // blockId → 편집 시작 시점(또는 마지막 저장 성공 시점)의 메모
+let memoSaveChain = Promise.resolve()
 let memoEditingBlockId = null   // 현재 내가 편집 중인 블록 id(수신 이벤트가 내 입력을 덮지 않게)
 let memoDebounceTimer = null    // idle 디바운스 타이머
 let memoPending = null          // { blockId, memo } — 아직 서버에 안 보낸 마지막 값(flush 대상)
@@ -2182,6 +2184,7 @@ function grabberColor(blockId) {
 // 포커스 = 해당 블록 grab(서버 게이트) → 다른 사용자는 읽기전용. blur = 해제 + flush.
 function onMemoFocus(ev) {
   memoEditingBlockId = ev.id
+  memoBase[ev.id] = ev.memo ?? ''   // 편집을 시작할 때 본 메모 — 저장 시 서버가 이 값과 대조한다
   if (activeTripId.value) {
     grabbedBlockId = ev.id  // blur/드래그 종료 경로에서 명시 해제되도록 공유
     collab.sendPointer(activeTripId.value, {
@@ -2199,8 +2202,8 @@ function onMemoInput(ev, e) {
   memoDebounceTimer = setTimeout(flushMemo, MEMO_IDLE_MS)
 }
 
-function onMemoBlur(ev) {
-  flushMemo()               // 남은 변경 즉시 저장
+async function onMemoBlur(ev) {
+  await flushMemo()         // 남은 변경을 저장한 뒤에 잠금을 반납한다(먼저 풀면 그 틈에 저장이 거부될 수 있다)
   memoEditingBlockId = null
   if (activeTripId.value) { // grab 해제(잠금 즉시 반납)
     collab.sendPointer(activeTripId.value, {
@@ -2211,16 +2214,29 @@ function onMemoBlur(ev) {
   grabbedBlockId = null
 }
 
-async function flushMemo() {
+// 저장은 한 번에 하나씩 순서대로 보낸다 — 앞 저장이 끝나야 다음 저장의 기준 메모(base)가 맞는다.
+function flushMemo() {
   clearTimeout(memoDebounceTimer)
   const pending = memoPending
-  if (!pending || !activeTripId.value) return
+  const tripId = activeTripId.value
+  if (!pending || !tripId) return memoSaveChain
   memoPending = null
-  try {
-    await tripApi.updateBlockMemo(activeTripId.value, pending.blockId, pending.memo)
-  } catch (e) {
-    console.warn('[memo] 저장 실패', e)
-  }
+  memoSaveChain = memoSaveChain.then(async () => {
+    try {
+      await tripApi.updateBlockMemo(tripId, pending.blockId, pending.memo, memoBase[pending.blockId] ?? '')
+      memoBase[pending.blockId] = pending.memo
+    } catch (e) {
+      if (isConflict(e)) {
+        toast.show('다른 사용자가 먼저 메모를 수정했어요. 최신 내용으로 갱신합니다')
+        await loadTrip()
+        const latest = days.value.flatMap(d => d.events ?? []).find(x => x.id === pending.blockId)
+        memoBase[pending.blockId] = latest?.memo ?? ''
+      } else {
+        console.warn('[memo] 저장 실패', e)
+      }
+    }
+  })
+  return memoSaveChain
 }
 
 // ── 실시간 협업 이벤트 핸들러 ──
