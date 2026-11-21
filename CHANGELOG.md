@@ -19,6 +19,7 @@
 - 공개 전환 전 저장소 이력 1회 재작성(2026-10-06) — 교육 기관 식별 문자열 정리. 작성자·날짜는 보존, 이전 커밋 SHA는 모두 변경됨
 
 ### 수정
+- 게시글 수정 제목 길이 검증을 DB 컬럼(`post.title` VARCHAR(100))에 맞춤 — 101~200자 제목이 검증을 통과해 DB 오류로 이어지던 문제. 게시글 이미지 생명주기 통합테스트(`PostImageLifecycleIntegrationTest`) 추가
 - **동시 배치 시 시간대 겹침·순서 중복** — 일정 행 `FOR UPDATE` 뒤의 겹침 검사·순서 할당이 REPEATABLE READ 스냅샷 때문에 먼저 커밋된 블록을 보지 못하던 문제. `placeBlock`·`updateBlock`을 `READ_COMMITTED`로 실행
 - **이동시간 재계산 완료 알림(`TRANSIT_RECALCULATED`) 미발신** — afterCommit 콜백 안에서 콜백을 다시 등록해 전송되지 않던 문제
 - Testcontainers 통합테스트가 Docker Engine 29에서 `400 BadRequest`로 기동 실패하던 문제 — Spring Boot가 고정한 관리 버전(1.21.0)을 1.21.4로 올림. 실 MySQL 통합테스트 `TripCollabIntegrationTest`(동시 배치·낙관적 락·afterCommit 알림) 추가
