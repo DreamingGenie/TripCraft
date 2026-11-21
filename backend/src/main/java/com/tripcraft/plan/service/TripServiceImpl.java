@@ -71,6 +71,7 @@ public class TripServiceImpl implements TripService {
     private final SimpMessagingTemplate messaging;
     private final TripPresenceController presenceController;
     private final TripAccessVersion accessVersion;
+    private final TripTaskQueue taskQueue;
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
@@ -97,8 +98,8 @@ public class TripServiceImpl implements TripService {
     }
 
     /**
-     * 작업을 변경 트랜잭션 커밋 뒤로 미룬다(일정 행 FOR UPDATE 잠금을 외부 API 호출 동안 쥐지 않기 위함).
-     * 콜백은 같은 요청 스레드에서 커넥션 반환 전에 동기로 돈다 — 응답·커넥션은 작업이 끝날 때까지 기다린다.
+     * 작업을 변경 트랜잭션 커밋 뒤로 미룬다. 콜백은 같은 요청 스레드에서 커넥션 반환 전에 동기로 돌므로
+     * 가벼운 작업(알림 전송, 큐 제출)만 넣는다.
      * 주의: afterCommit 콜백 안에서 다시 등록한 콜백은 실행되지 않는다(Spring 이 미리 떠 둔 목록으로 호출).
      */
     private void runAfterCommit(Runnable task) {
@@ -109,6 +110,15 @@ public class TripServiceImpl implements TripService {
         } else {
             task.run();
         }
+    }
+
+    /**
+     * 이동시간 재계산을 커밋 뒤에 요청 스레드 밖(일정별 순서 큐)으로 넘긴다.
+     * 외부 API 가 수 초 걸려도 편집 응답·DB 커넥션·일정 행 잠금은 기다리지 않는다.
+     * 결과는 TRANSIT_RECALCULATED 이벤트로 편집자 본인을 포함한 모든 참가자에게 전달된다.
+     */
+    private void recalculateAfterCommit(Long tripId, LocalDate date) {
+        runAfterCommit(() -> taskQueue.submit(tripId, () -> recalculateTransitForDate(tripId, date)));
     }
 
     // ── 권한 헬퍼 ──────────────────────────────────────────────────────────────
@@ -195,7 +205,7 @@ public class TripServiceImpl implements TripService {
         runAfterCommit(() -> sendNow(tripId, event));
     }
 
-    /** seq 를 부여해 즉시 전송한다. 이미 커밋 뒤에 도는 코드(재계산)만 직접 호출한다. */
+    /** seq 를 부여해 즉시 전송한다. 트랜잭션 밖에서 도는 코드(재계산)만 직접 호출한다. */
     private void sendNow(Long tripId, TripEvent event) {
         long seq = eventSeq.computeIfAbsent(tripId, k -> new java.util.concurrent.atomic.AtomicLong())
                            .incrementAndGet();
@@ -459,7 +469,7 @@ public class TripServiceImpl implements TripService {
         // display_order는 클라이언트 값을 믿지 않고 서버가 권위적으로 할당(동시 배치 시 순서 충돌 완화)
         block.setDisplayOrder(blockMapper.nextDisplayOrder(tripId, req.getTripDate()));
         blockMapper.insert(block);
-        runAfterCommit(() -> recalculateTransitForDate(tripId, req.getTripDate()));
+        recalculateAfterCommit(tripId, req.getTripDate());
         broadcast(tripId, TripEvent.of("BLOCK_ADDED", memberId, nickname(memberId),
                 Map.of("blockId", block.getId(), "candidateId", req.getCandidateId(),
                        "tripDate", req.getTripDate(), "displayOrder", block.getDisplayOrder())));
@@ -496,9 +506,9 @@ public class TripServiceImpl implements TripService {
             if (affected == 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 사용자가 먼저 이 블록을 수정했어요");
             }
-            runAfterCommit(() -> recalculateTransitForDate(tripId, req.getTripDate()));
+            recalculateAfterCommit(tripId, req.getTripDate());
             if (!oldDate.equals(req.getTripDate())) {
-                runAfterCommit(() -> recalculateTransitForDate(tripId, oldDate));
+                recalculateAfterCommit(tripId, oldDate);
             }
         }
         broadcast(tripId, TripEvent.of("BLOCK_MOVED", memberId, nickname(memberId),
@@ -536,7 +546,7 @@ public class TripServiceImpl implements TripService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         LocalDate date = block.getTripDate();
         blockMapper.deleteById(blockId);
-        runAfterCommit(() -> recalculateTransitForDate(tripId, date));
+        recalculateAfterCommit(tripId, date);
         broadcast(tripId, TripEvent.of("BLOCK_DELETED", memberId, nickname(memberId),
                 Map.of("blockId", blockId, "tripDate", date)));
     }
@@ -684,6 +694,7 @@ public class TripServiceImpl implements TripService {
             log.warn("Transit 재계산 실패 (block 조회): tripId={}, date={}: {}", tripId, date, e.getMessage());
             return;
         }
+        List<Long> failedBlockIds = new ArrayList<>();
         blocks.sort(Comparator.comparing(
                 b -> Optional.ofNullable(((TripBlock) b).getStartTime()).orElse(java.time.LocalTime.MAX)));
         for (int i = 0; i < blocks.size(); i++) {
@@ -733,6 +744,7 @@ public class TripServiceImpl implements TripService {
                 blockMapper.updateTransitById(block.getId(), block.getTransitDurationMinutes(),
                         block.getTransitMode(), block.getTransitOptionIndex());
             } catch (Exception e) {
+                failedBlockIds.add(block.getId());
                 log.warn("Transit 재계산 실패 (blockId={}): tripId={}, date={}: {}",
                         block.getId(), tripId, date, e.getMessage());
             }
@@ -748,9 +760,9 @@ public class TripServiceImpl implements TripService {
                     return m;
                 })
                 .toList();
-        // 재계산은 항상 afterCommit 콜백 안에서 돈다. 여기서 broadcast()를 쓰면 콜백을 다시 등록하게 되어
-        // 알림이 나가지 않으므로 즉시 전송한다.
+        // 재계산은 트랜잭션 밖(TripTaskQueue 스레드)에서 돌므로 즉시 전송한다.
+        // 실패한 블록은 옛 이동시간이 남는다 — 어느 블록인지 알리고, 해당 날짜의 다음 편집 때 다시 계산된다.
         sendNow(tripId, TripEvent.of("TRANSIT_RECALCULATED", null, null,
-                Map.of("tripDate", date, "blocks", transitSummary)));
+                Map.of("tripDate", date, "blocks", transitSummary, "failedBlockIds", failedBlockIds)));
     }
 }

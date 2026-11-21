@@ -114,8 +114,8 @@ private void assertNotGrabbedByOther(Long tripId, Long blockId, Long memberId) {
 // transit 컬럼만 갱신 — version·위치 미변경 (오탐 방지)
 blockMapper.updateTransitById(id, durationMin, mode, optionIndex);
 
-// 외부 API 포함 재계산을 변경 트랜잭션 "커밋 후"로 이동 (커넥션 장기 점유 해소)
-runAfterCommit(() -> recalculateTransitForDate(tripId, date));
+// 외부 API 포함 재계산을 변경 트랜잭션 "커밋 후", 요청 스레드 밖(일정별 순서 큐)으로 넘긴다
+runAfterCommit(() -> taskQueue.submit(tripId, () -> recalculateTransitForDate(tripId, date)));
 ```
 ```java
 private void runAfterCommit(Runnable task) {
@@ -125,7 +125,9 @@ private void runAfterCommit(Runnable task) {
     else task.run();
 }
 ```
-- 편집 트랜잭션은 블록 변경만 하고 **즉시 커밋** → 외부 API는 트랜잭션 밖에서 호출 → DB 커넥션을 외부 지연만큼 잡지 않는다.
+- 편집 트랜잭션은 블록 변경만 하고 **즉시 커밋** → 재계산은 `TripTaskQueue` 스레드에서 실행 → 편집 응답·DB 커넥션·일정 행 잠금이 외부 지연을 기다리지 않는다.
+- **2026-11-21 정정**: 캡스톤 당시 구현은 `afterCommit` 콜백에서 재계산을 **동기로** 돌렸다. 콜백은 같은 요청 스레드에서 커넥션 반환 전에 실행되므로, 줄어든 것은 일정 행 잠금 대기뿐이고 응답과 커넥션은 외부 API를 그대로 기다렸다("커넥션 점유 해소"는 사실이 아니었다). 큐로 분리한 뒤에야 위 서술이 성립한다.
+- 같은 일정의 재계산은 제출 순서대로 하나씩 실행한다(엇갈린 재계산이 옛 결과로 덮어쓰지 않게). 결과는 `TRANSIT_RECALCULATED`로 편집자 본인에게도 전달되고, 실패한 블록은 `failedBlockIds`에 담긴다. 큐는 메모리에만 있어 프로세스가 내려가면 대기 중인 재계산은 사라지며, 해당 날짜의 다음 편집 때 다시 계산된다.
 
 ### (4) 시간대 겹침 금지 + `trip` 행 잠금 (cross-row 제약)
 ```xml
@@ -193,7 +195,7 @@ tripMapper.lockTripRow(tripId);  // 같은 일정 동시 편집 직렬화(겹침
 version(같은 row)으로는 못 막는 영역이라, 처음엔 커서 인지에 맡기고 서버 권위 정규화를 후속 과제로 미뤘다. 이후 `trip` 행 잠금 + 겹침 검사로 **하드 차단으로 승격**했다(§5-(4)). 남은 후속 과제는 이미 어긋난 `display_order`를 되돌리는 정규화뿐이다. 판단 기준은 그대로였다 — **영속 데이터가 어긋나는 것은 지금 막고, 표시·성능 문제는 나중으로.** 겹침은 저장되고 나면 사용자가 직접 지워야 하는 데이터라 앞쪽에 속했다.
 
 **Q. 외부 API를 트랜잭션에서 왜 빼야 하나?**
-ODsay/TMap 호출이 수 초 걸릴 수 있는데, `@Transactional` 안에 있으면 그동안 DB 커넥션을 점유한다. 동시 편집이 늘면 커넥션 풀 고갈·락 대기로 번진다. `afterCommit`으로 빼서 트랜잭션은 즉시 커밋하고 외부 호출은 밖에서 하게 했다.
+ODsay/TMap 호출이 수 초 걸릴 수 있는데, `@Transactional` 안에 있으면 그동안 DB 커넥션을 점유한다. 동시 편집이 늘면 커넥션 풀 고갈·락 대기로 번진다. `afterCommit`으로 빼서 트랜잭션은 즉시 커밋하게 했다. 다만 `afterCommit` 콜백 자체는 같은 요청 스레드에서 커넥션 반환 전에 돌기 때문에, 그것만으로는 잠금 대기만 줄고 응답·커넥션은 여전히 외부 API를 기다린다. 그래서 콜백에서는 일정별 순서 큐에 넘기기만 하고 실제 호출은 별도 스레드에서 한다(2026-11-21).
 
 **Q. 충돌이 났을 때 사용자 경험은?**
 자동 병합은 하지 않는다. 진 쪽은 "다른 사용자가 먼저 수정했어요" 토스트와 함께 최신 상태로 자동 재조회되고, 보고 다시 시도한다. 2인 협업에선 이 정도 정책이 단순하고 예측 가능하다.
