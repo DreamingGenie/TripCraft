@@ -19,6 +19,9 @@
 - 공개 전환 전 저장소 이력 1회 재작성(2026-10-06) — 교육 기관 식별 문자열 정리. 작성자·날짜는 보존, 이전 커밋 SHA는 모두 변경됨
 
 ### 수정
+- **동시 배치 시 시간대 겹침·순서 중복** — 일정 행 `FOR UPDATE` 뒤의 겹침 검사·순서 할당이 REPEATABLE READ 스냅샷 때문에 먼저 커밋된 블록을 보지 못하던 문제. `placeBlock`·`updateBlock`을 `READ_COMMITTED`로 실행
+- **이동시간 재계산 완료 알림(`TRANSIT_RECALCULATED`) 미발신** — afterCommit 콜백 안에서 콜백을 다시 등록해 전송되지 않던 문제
+- Testcontainers 통합테스트가 Docker Engine 29에서 `400 BadRequest`로 기동 실패하던 문제 — Spring Boot가 고정한 관리 버전(1.21.0)을 1.21.4로 올림. 실 MySQL 통합테스트 `TripCollabIntegrationTest`(동시 배치·낙관적 락·afterCommit 알림) 추가
 - deploy 자산의 스키마 경로 교정 — `docs/02_design/schema.sql`(구 문서 구조) → `docs/sql/schema.sql`. `deploy/docker-compose.yml`·`deploy/local/mysql.Dockerfile`의 mysql initdb 가 스키마를 찾지 못하던 문제 해결
 - `JWT_SECRET` 예시값을 유효한 base64 로 교정 — `JwtTokenProvider`가 `Decoders.BASE64.decode`로 해석하는데 기존 예시(`-` 포함)가 base64 파싱에 실패해 백엔드가 기동 crash-loop 하던 문제. 예시 파일 2종 + 테스트 프로파일 반영
 
