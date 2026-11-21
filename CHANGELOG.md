@@ -25,6 +25,8 @@
 - WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 
 ### 수정
+- **글 목록·협업자 목록의 프로필 이미지 조인이 행을 늘리던 문제** — 프로필 이미지 행이 둘 이상이면 같은 글·협업자가 그 수만큼 나왔다. 회원당 최신 1장만 붙이도록 조인 조건 수정
+- **글 목록 정렬 인덱스 추가**(`idx_post_created_at`, `idx_post_popular`) — 목록 조회마다 전체 행을 정렬하던 것을 인덱스 스캔으로. 게시글 50,000건 기준 최신순 13.1ms → 0.06ms(`docs/features/perf-profile-image.md` 2026-11-21 실측). 기존 DB는 `docs/sql/migration_post_list_index_v1.sql` 적용 필요
 - 게시글 수정 제목 길이 검증을 DB 컬럼(`post.title` VARCHAR(100))에 맞춤 — 101~200자 제목이 검증을 통과해 DB 오류로 이어지던 문제. 게시글 이미지 생명주기 통합테스트(`PostImageLifecycleIntegrationTest`) 추가
 - **동시 배치 시 시간대 겹침·순서 중복** — 일정 행 `FOR UPDATE` 뒤의 겹침 검사·순서 할당이 REPEATABLE READ 스냅샷 때문에 먼저 커밋된 블록을 보지 못하던 문제. `placeBlock`·`updateBlock`을 `READ_COMMITTED`로 실행
 - **이동시간 재계산 완료 알림(`TRANSIT_RECALCULATED`) 미발신** — afterCommit 콜백 안에서 콜백을 다시 등록해 전송되지 않던 문제
