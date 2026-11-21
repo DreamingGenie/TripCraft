@@ -66,6 +66,7 @@ class TripServiceImplTest {
     @Mock SimpMessagingTemplate messaging;
     @Mock TripPresenceController presenceController;
     @Mock TripAccessVersion accessVersion;
+    @Mock TripTaskQueue taskQueue;  // 목이라 재계산은 실행되지 않는다(재계산 경로는 통합테스트 몫)
 
     @InjectMocks TripServiceImpl service;
 
@@ -98,7 +99,7 @@ class TripServiceImplTest {
         when(presenceController.getGrabOwner(TRIP_ID, BLOCK_ID)).thenReturn(null);
     }
 
-    /** 이 일정 편집 토픽으로 나간 모든 브로드캐스트(placeBlock 등은 TRANSIT_RECALCULATED 도 함께 나감). */
+    /** 이 일정 편집 토픽으로 나간 모든 브로드캐스트(재계산 완료 알림은 큐가 목이라 나가지 않음). */
     private void assertBroadcast(String type) {
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
         verify(messaging, org.mockito.Mockito.atLeastOnce())

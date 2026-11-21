@@ -63,11 +63,10 @@ cd backend
 ./gradlew integrationTest  # Testcontainers(MySQL 8) 통합테스트 — Docker 필요, @Tag("integration")
 ```
 - 기본 `test`는 `integration` 태그를 제외하므로 Docker 없이도 green. 회귀 검증은 이걸 쓴다.
-- `integrationTest`(컨테이너 기반)는 **Docker 설정에 의존**한다. Docker Desktop 최신 엔진(API 1.5x)에서는
-  Testcontainers가 쓰는 docker-java가 named pipe 통신에 실패(`400 BadRequest`)할 수 있다. 이 경우
-  **Settings → General → "Expose daemon on tcp://localhost:2375 without TLS"** 를 켜고
-  `DOCKER_HOST=tcp://localhost:2375 ./gradlew integrationTest` 로 우회한다(로컬 개발 PC 한정).
-  docker CLI(`docker compose`)는 이 이슈의 영향을 받지 않는다.
+- `integrationTest`(컨테이너 기반)는 Docker가 떠 있어야 한다. Docker Engine 29 이상(최소 API 1.44)은
+  Testcontainers **1.21.4 이상**이 필요하다. Spring Boot 의존성 관리가 Testcontainers 버전을 고정하므로
+  (3.5.0 기준 1.21.0) `build.gradle.kts`의 `extra["testcontainers.version"]`으로 올린다 — platform BOM만
+  선언하면 적용되지 않는다. 실제 해석된 버전은 `./gradlew dependencies --configuration testRuntimeClasspath`로 확인한다.
 
 ---
 

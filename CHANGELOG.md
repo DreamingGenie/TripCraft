@@ -18,8 +18,18 @@
 - 저장소 GitHub 단일화(Public), 1인 trunk-based 개발 모델로 전환
 - AI 챗봇 엔드포인트를 환경변수 `GMS_BASE_URL`로 분리 — `application.yml`의 base-url 하드코딩 제거. 기존 환경은 `.env`·`backend-secrets.env`에 값 추가 필요
 - 공개 전환 전 저장소 이력 1회 재작성(2026-10-06) — 교육 기관 식별 문자열 정리. 작성자·날짜는 보존, 이전 커밋 SHA는 모두 변경됨
+- **이동시간 재계산을 요청 스레드 밖으로 분리** — 편집 응답·DB 커넥션이 외부 이동시간 API를 기다리지 않는다. 일정별 순서 큐(`TripTaskQueue`)에서 실행하고 결과는 `TRANSIT_RECALCULATED`로 편집자 본인을 포함한 참가자에게 전달. 계산에 실패한 블록은 `failedBlockIds`로 알린다
+
+### 보안
+- 실시간 채널 구독에 공유 링크 토큰 요구 — 소유자·협업자가 아니면(익명 포함) 공유 일정이라도 `share-token` 헤더가 일정의 토큰과 일치해야 구독된다. 이전에는 일정 id만으로 구독 가능했다
+- 인증 쿠키에 `SameSite=Lax` 지정
+- WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 
 ### 수정
+- 게시글 수정 제목 길이 검증을 DB 컬럼(`post.title` VARCHAR(100))에 맞춤 — 101~200자 제목이 검증을 통과해 DB 오류로 이어지던 문제. 게시글 이미지 생명주기 통합테스트(`PostImageLifecycleIntegrationTest`) 추가
+- **동시 배치 시 시간대 겹침·순서 중복** — 일정 행 `FOR UPDATE` 뒤의 겹침 검사·순서 할당이 REPEATABLE READ 스냅샷 때문에 먼저 커밋된 블록을 보지 못하던 문제. `placeBlock`·`updateBlock`을 `READ_COMMITTED`로 실행
+- **이동시간 재계산 완료 알림(`TRANSIT_RECALCULATED`) 미발신** — afterCommit 콜백 안에서 콜백을 다시 등록해 전송되지 않던 문제
+- Testcontainers 통합테스트가 Docker Engine 29에서 `400 BadRequest`로 기동 실패하던 문제 — Spring Boot가 고정한 관리 버전(1.21.0)을 1.21.4로 올림. 실 MySQL 통합테스트 `TripCollabIntegrationTest`(동시 배치·낙관적 락·afterCommit 알림) 추가
 - deploy 자산의 스키마 경로 교정 — `docs/02_design/schema.sql`(구 문서 구조) → `docs/sql/schema.sql`. `deploy/docker-compose.yml`·`deploy/local/mysql.Dockerfile`의 mysql initdb 가 스키마를 찾지 못하던 문제 해결
 - `JWT_SECRET` 예시값을 유효한 base64 로 교정 — `JwtTokenProvider`가 `Decoders.BASE64.decode`로 해석하는데 기존 예시(`-` 포함)가 base64 파싱에 실패해 백엔드가 기동 crash-loop 하던 문제. 예시 파일 2종 + 테스트 프로파일 반영
 
