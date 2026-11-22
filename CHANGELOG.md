@@ -27,6 +27,7 @@
 - WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 
 ### 수정
+- **이동시간 API 호출 실패가 "경로 없음"으로 굳던 문제** — ODsay·TMap 호출이 실패해도(키 오류·한도·네트워크) 결과를 NONE으로 돌려주고, 관광지 간 구간은 그 NONE을 `transit_cache`에 저장해 장애가 끝나도 계속 "경로 없음"이었다. 재계산도 실패를 알지 못해 `failedBlockIds`가 비었다. ODsay 오류 코드 중 문서상 "경로 없음"(3·4·5·6·-98·-99)만 NONE으로, 나머지와 TMap 실패는 `TransitLookupException`으로 구분해 캐시하지 않고 재계산 실패 블록으로 알린다. REST `/api/transit`·`/by-coords` 응답은 예전처럼 NONE. 이미 저장된 NONE 캐시 행은 그대로 남는다
 - **관광지 동기화 배치가 저장 실패 한 건으로 중단되던 문제** — 청크 UPSERT가 DB 오류로 실패하면 Step 전체가 FAILED로 끝나 그 뒤 지역이 수집되지 않았다. 쓰기 실패는 문제 행만 건너뛰도록 fault tolerant skip 적용(한도 100건). Processor javadoc의 "Skip" 표기를 실제 동작(filter)으로 정정
 - **글 목록·협업자 목록의 프로필 이미지 조인이 행을 늘리던 문제** — 프로필 이미지 행이 둘 이상이면 같은 글·협업자가 그 수만큼 나왔다. 회원당 최신 1장만 붙이도록 조인 조건 수정
 - **글 목록 정렬 인덱스 추가**(`idx_post_created_at`, `idx_post_popular`) — 목록 조회마다 전체 행을 정렬하던 것을 인덱스 스캔으로. 게시글 50,000건 기준 최신순 13.1ms → 0.06ms(`docs/features/perf-profile-image.md` 2026-11-21 실측). 기존 DB는 `docs/sql/migration_post_list_index_v1.sql` 적용 필요

@@ -2,6 +2,7 @@ package com.tripcraft.plan.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tripcraft.global.response.ApiResponse;
+import com.tripcraft.plan.client.TransitLookupException;
 import com.tripcraft.plan.dto.TransitResponse;
 import com.tripcraft.plan.service.TransitService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,9 +30,17 @@ public class TransitController {
             @RequestParam(name = "hour", defaultValue = "9") int hour,
             @RequestParam(name = "mode", defaultValue = "PUBLIC_TRANSIT") String mode) {
 
-        return transitService.getTransitTime(fromId, toId, hour, mode)
-                .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
-                .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+        try {
+            return transitService.getTransitTime(fromId, toId, hour, mode)
+                    .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
+                    .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+        } catch (TransitLookupException e) {
+            return ResponseEntity.ok(ApiResponse.ok(noneResponse()));   // 응답 형식은 예전과 같다(NONE)
+        }
+    }
+
+    private static TransitResponse noneResponse() {
+        return TransitResponse.builder().transportMode("NONE").transferCount(0).fare(0).totalWalkM(0).build();
     }
 
     // 좌표 기반 이동시간(커스텀 장소). 한쪽이라도 attraction id 가 없을 때 사용.
@@ -42,11 +51,15 @@ public class TransitController {
             @RequestParam("toLat") double toLat, @RequestParam("toLng") double toLng,
             @RequestParam(name = "hour", defaultValue = "9") int hour,
             @RequestParam(name = "mode", defaultValue = "PUBLIC_TRANSIT") String mode) {
-        return transitService.getTransitByCoords(
-                        java.math.BigDecimal.valueOf(fromLat), java.math.BigDecimal.valueOf(fromLng),
-                        java.math.BigDecimal.valueOf(toLat), java.math.BigDecimal.valueOf(toLng), hour, mode)
-                .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
-                .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+        try {
+            return transitService.getTransitByCoords(
+                            java.math.BigDecimal.valueOf(fromLat), java.math.BigDecimal.valueOf(fromLng),
+                            java.math.BigDecimal.valueOf(toLat), java.math.BigDecimal.valueOf(toLng), hour, mode)
+                    .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
+                    .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+        } catch (TransitLookupException e) {
+            return ResponseEntity.ok(ApiResponse.ok(noneResponse()));
+        }
     }
 
     // 좌표 기반 대중교통 경로 단계(커스텀 장소). attraction /detail 과 동일 응답 구조.

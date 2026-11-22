@@ -9,6 +9,7 @@ import com.tripcraft.attraction.domain.Attraction;
 import com.tripcraft.attraction.mapper.AttractionMapper;
 import com.tripcraft.plan.client.OdsayClient;
 import com.tripcraft.plan.client.TMapClient;
+import com.tripcraft.plan.client.TransitLookupException;
 import com.tripcraft.plan.domain.LanePolyline;
 import com.tripcraft.plan.domain.TransitCache;
 import com.tripcraft.plan.dto.TransitResponse;
@@ -244,7 +245,7 @@ public class TransitServiceImpl implements TransitService {
             TMapClient.TMapDrivingResult result = isTaxi
                     ? tMapClient.fetchTaxiRoute(fromLat, fromLng, toLat, toLng, "00", departureHour)
                     : tMapClient.fetchWalkingRoute(fromLat, fromLng, toLat, toLng);
-            if (result == null) return Optional.of(noneTransit());   // 실패는 캐시 안 함(재시도)
+            if (result == null) throw new TransitLookupException("TMap " + resolvedMode + " 호출 실패(좌표)");   // 실패는 캐시 안 함(재시도)
             String roadSummary = buildRoadSummary(result.segments());
             String segJson;
             try { segJson = objectMapper.writeValueAsString(result.segments()); }
@@ -282,7 +283,9 @@ public class TransitServiceImpl implements TransitService {
     public Optional<JsonNode> getTransitDetailByCoords(BigDecimal fromLat, BigDecimal fromLng,
                                                        BigDecimal toLat, BigDecimal toLng, int departureHour) {
         if (fromLat == null || fromLng == null || toLat == null || toLng == null) return Optional.empty();
-        List<RouteEnrichment> enriched = enrichPublicTransit(fromLat, fromLng, toLat, toLng);
+        List<RouteEnrichment> enriched;
+        try { enriched = enrichPublicTransit(fromLat, fromLng, toLat, toLng); }
+        catch (TransitLookupException e) { return Optional.empty(); }   // 상세 조회는 예전처럼 빈 결과
         if (enriched.isEmpty()) return Optional.empty();
         try {
             return Optional.of(objectMapper.readTree(buildPathDetail(enriched)));
@@ -345,14 +348,9 @@ public class TransitServiceImpl implements TransitService {
 
         String resolvedMode = isTaxi ? MODE_DRIVING : MODE_WALKING;
 
+        // TMapClient 는 호출 실패에만 null 을 준다 — NONE 으로 캐시하면 일시 장애가 영구 "경로 없음"이 된다
         if (result == null) {
-            saveNoneCache(fromId, toId, departureHour, resolvedMode);
-            return Optional.of(TransitResponse.builder()
-                    .transportMode("NONE")
-                    .transferCount(0)
-                    .fare(0)
-                    .totalWalkM(0)
-                    .build());
+            throw new TransitLookupException("TMap " + resolvedMode + " 호출 실패: from=" + fromId + ", to=" + toId);
         }
 
         String roadSummary = buildRoadSummary(result.segments());
@@ -751,7 +749,9 @@ public class TransitServiceImpl implements TransitService {
 
     private List<Map<String, Object>> routeSegmentsForCoords(BigDecimal fromLat, BigDecimal fromLng,
                                                              BigDecimal toLat, BigDecimal toLng) {
-        List<RouteEnrichment> enriched = enrichPublicTransit(fromLat, fromLng, toLat, toLng);
+        List<RouteEnrichment> enriched;
+        try { enriched = enrichPublicTransit(fromLat, fromLng, toLat, toLng); }
+        catch (TransitLookupException e) { return List.of(); }   // 구간 표시는 예전처럼 빈 결과
         if (enriched.isEmpty()) return List.of();
         return buildRouteSegments(enriched.get(0), fromLat, fromLng, toLat, toLng);
     }

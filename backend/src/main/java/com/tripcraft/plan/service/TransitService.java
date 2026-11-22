@@ -8,6 +8,11 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface TransitService {
+    /**
+     * 두 관광지 간 이동시간(transit_cache 우선). 경로가 없으면 NONE(캐시함).
+     * 외부 API 호출이 실패하면 {@link com.tripcraft.plan.client.TransitLookupException} — 캐시하지 않는다.
+     * {@link #getTransitByCoords}도 같은 규칙이다.
+     */
     Optional<TransitResponse> getTransitTime(Long fromAttractionId, Long toAttractionId, int departureHour, String mode);
 
     /** 좌표 기반 이동시간(커스텀 장소용, 무캐시 라이브). 대중교통=ODsay best, 운전/도보=TMap. */
