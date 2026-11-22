@@ -40,7 +40,16 @@ public class OdsayClient {
         return String.format("%.5f,%.5f>%.5f,%.5f", a.doubleValue(), b.doubleValue(), c.doubleValue(), d.doubleValue());
     }
 
-    /** ODsay 응답의 모든 경로를 파싱해 반환. 도보 전용 경로는 제외. 오류 시 빈 리스트 반환. */
+    /**
+     * "경로 없음"으로 확정되는 ODsay 오류 코드 — 3·4·5 정류장 없음, 6 서비스 지역 아님, -98 700m 이내, -99 검색결과 없음
+     * (lab.odsay.com 대중교통 길찾기 가이드의 에러 코드 표). 그 밖의 코드(500·-8·-9, 문서에 없는 키 인증·한도 오류)는 호출 실패로 본다.
+     */
+    private static final java.util.Set<Integer> NO_ROUTE_CODES = java.util.Set.of(3, 4, 5, 6, -98, -99);
+
+    /**
+     * ODsay 응답의 모든 경로를 파싱해 반환. 도보 전용 경로는 제외.
+     * 경로가 없으면 빈 리스트, 호출 자체가 실패하면 {@link TransitLookupException}.
+     */
     public List<OdsayResult> findTransitPath(BigDecimal fromLat, BigDecimal fromLng,
                                               BigDecimal toLat, BigDecimal toLng) {
         String encodedKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
@@ -55,14 +64,32 @@ public class OdsayClient {
                     .body(String.class);
 
             log.debug("ODsay 응답: {}", body);
+            return parseTransitPathResponse(body);
+
+        } catch (TransitLookupException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("ODsay 호출 실패: {}", e.getMessage());
+            throw new TransitLookupException("ODsay 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** searchPubTransPathT 응답 본문 해석 — 경로 없음은 빈 리스트, 그 밖의 오류는 {@link TransitLookupException}. */
+    List<OdsayResult> parseTransitPathResponse(String body) {
+        try {
             JsonNode root = objectMapper.readTree(body);
 
             if (root.has("error")) {
                 JsonNode err = root.path("error");
-                String msg = err.isArray() ? err.get(0).path("message").asText()
-                                           : err.path("msg").asText(err.path("message").asText());
-                log.warn("ODsay 오류: {}", msg);
-                return List.of();
+                JsonNode first = err.isArray() ? err.path(0) : err;
+                String msg = first.path("msg").asText(first.path("message").asText());
+                int code = first.path("code").asInt(Integer.MIN_VALUE);   // 숫자·숫자 문자열 모두 읽힌다
+                if (NO_ROUTE_CODES.contains(code)) {
+                    log.debug("ODsay 경로 없음: code={}, {}", code, msg);
+                    return List.of();
+                }
+                log.warn("ODsay 오류: code={}, {}", code, msg);
+                throw new TransitLookupException("ODsay 오류: code=" + code + ", " + msg);
             }
 
             JsonNode paths = root.path("result").path("path");
@@ -76,10 +103,8 @@ public class OdsayClient {
             }
             log.debug("ODsay 유효 경로 {}개 파싱 완료 (전체 {}개)", results.size(), paths.size());
             return results;
-
-        } catch (Exception e) {
-            log.warn("ODsay 호출 실패: {}", e.getMessage());
-            return List.of();
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new TransitLookupException("ODsay 응답 해석 실패: " + e.getMessage(), e);
         }
     }
 

@@ -680,20 +680,33 @@ public class TripServiceImpl implements TripService {
         if (custom) {
             java.math.BigDecimal[] f = candidateCoords(from), t = candidateCoords(to);
             if (f == null || t == null) return Optional.empty();
+            // 외부 API 호출 실패(TransitLookupException)는 위로 올려 재계산 실패 블록으로 집계한다
             transit = transitService.getTransitByCoords(f[0], f[1], t[0], t[1], 9, effectiveMode);
             if ("PUBLIC_TRANSIT".equals(effectiveMode) && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
-                Optional<TransitResponse> fb = transitService.getTransitByCoords(f[0], f[1], t[0], t[1], 9, "DRIVING");
+                Optional<TransitResponse> fb = drivingFallback(
+                        () -> transitService.getTransitByCoords(f[0], f[1], t[0], t[1], 9, "DRIVING"));
                 if (fb.isPresent() && !"NONE".equals(fb.get().getTransportMode())) transit = fb;
             }
         } else {
             long fromAttrId = from.getAttractionId(), toAttrId = to.getAttractionId();
             transit = transitService.getTransitTime(fromAttrId, toAttrId, 9, effectiveMode);
             if ("PUBLIC_TRANSIT".equals(effectiveMode) && transit.isPresent() && "NONE".equals(transit.get().getTransportMode())) {
-                Optional<TransitResponse> fb = transitService.getTransitTime(fromAttrId, toAttrId, 9, "DRIVING");
+                Optional<TransitResponse> fb = drivingFallback(
+                        () -> transitService.getTransitTime(fromAttrId, toAttrId, 9, "DRIVING"));
                 if (fb.isPresent() && !"NONE".equals(fb.get().getTransportMode())) transit = fb;
             }
         }
         return transit;
+    }
+
+    /** 대중교통 경로 없음(NONE)이 확정된 뒤의 자동차 대체 — 대체가 실패하면 NONE 결과를 그대로 쓴다. */
+    private Optional<TransitResponse> drivingFallback(java.util.function.Supplier<Optional<TransitResponse>> call) {
+        try {
+            return call.get();
+        } catch (com.tripcraft.plan.client.TransitLookupException e) {
+            log.warn("자동차 대체 경로 실패 — 대중교통 NONE 유지: {}", e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private void recalculateTransitForDate(Long tripId, LocalDate date) {
