@@ -1,6 +1,31 @@
 # 개선 02 — 대량 장소 확보 + 대용량 데이터 처리 연습
 
-> 상태: 📝 계획중 · 최종 갱신: 2026-07-08
+> 상태: 🔨 구현중 (Phase A 완료) · 최종 갱신: 2026-07-29
+
+## 진행 현황
+
+| Phase | 범위 | 상태 |
+|---|---|---|
+| **A** | 카카오 로컬 API 수집(§2.1·2.4) + 최소 스키마 확장(§2.3 컬럼분) | 🟡 구현 완료 · **실 수집 미실행**(아래 2026-11-21 기록) |
+| B | 중단·재개 체크포인트 `crawl_progress`(§2.2) | ⏸ 후속 |
+| C | 좌표·상호명 중복 병합 정책(§2.3 병합분) | ⏸ 후속 |
+| D | 네이버맵 크롤링 학습 부록(§3) | ⏸ 후속 |
+| E | 3레벨 성능 벤치마크(§4) | ⏸ 후속 |
+
+**Phase A 구현물**: `attraction`에 `source`(TOURAPI|KAKAO)·`external_id` 추가, `content_id` NULL 허용,
+`UNIQUE(source, external_id)` (`docs/sql/migration_kakao_source.sql`, 스키마 v0.6).
+`KakaoLocalCategoryClient`(헤더 인증 전용 RestClient) · `KakaoLocalCallLimiter`(쿼터) ·
+`KakaoRegionResolver`(address_name→시도/시군구 코드) · `KakaoLocalSyncServiceImpl`(rect 격자+quadtree).
+트리거: `POST /api/admin/attractions/sync/kakao`, `/sync/kakao/partial?categoryGroupCode=`.
+
+**2026-11-21 첫 실행 기록** — 구현 뒤 처음으로 격리된 로컬 MySQL(스키마 + 관광지 시드 25,897행)에 붙여 `partial?categoryGroupCode=AT4`를 돌렸다. 결과와 드러난 것:
+
+- **수집 0건.** 카카오가 모든 호출을 `403 NotAuthorizedError — App(TripCraft) disabled OPEN_MAP_AND_LOCAL service`로 거부했다. 카카오 개발자 콘솔에서 앱의 카카오맵(로컬) 사용이 꺼져 있다. 켠 뒤 다시 돌려야 한다 — **실제 수집 건수·호출 수는 아직 없다.**
+- **거부를 "데이터 없음"으로 삼키던 결함**: 클라이언트가 모든 예외를 빈 페이지로 바꿔, 전국 격자 180칸을 끝까지 호출하고 `saved=0`인 **성공(200)** 으로 끝났다(6.9초, 호출 180회 소모). 인증·권한 거부(401/403)는 `KakaoLocalApiDeniedException`으로 올려 첫 호출에서 멈추고 `502`로 원인을 알리게 고쳤다. 고친 뒤 같은 요청은 호출 1회·0.4초에 502.
+- **기동 실패**: `place.client.KakaoLocalClient`와 클래스명이 같아 빈 이름이 겹쳤다 → `KakaoLocalCategoryClient`로 변경.
+- **로컬 DB 이미지 적재 실패**: 관광지 시드(`deploy/seed/02-attraction-seed.sql.gz`)가 컬럼 목록 없는 `INSERT … VALUES`라, `attraction`에 컬럼 2개를 추가하자 `Column count doesn't match`로 초기화가 죽었다. 시드의 `attraction` INSERT에 컬럼 목록을 넣어 다시 만들었다(값은 그대로).
+- 최대 깊이에서도 45건 상한에 걸린 칸 수(`cappedCells`)를 종료 로그에 남기게 했다 — 누락 규모를 실행 결과로 볼 수 있게.
+- 수집 로직 단위테스트 3건 추가(거부 시 즉시 중단 / 상한 칸 4분할 / 지역 미해석 건너뜀).
 
 ## 1. 목표 / 데이터 소스 평가
 
@@ -23,7 +48,7 @@
 
 ### 2.1 수집 컴포넌트
 
-- `client/KakaoLocalClient.java` — Spring `RestClient`(기존 `TourApiClient` 패턴 재사용).
+- `client/KakaoLocalCategoryClient.java` — Spring `RestClient`(기존 `TourApiClient` 패턴 재사용).
   - `Authorization: KakaoAK {REST_API_KEY}` 헤더.
   - 카테고리 검색(`/v2/local/search/category.json`, `category_group_code` + `rect`) 우선,
     보조로 키워드 검색(`/v2/local/search/keyword.json`).
@@ -82,7 +107,8 @@ TourAPI가 Spring Batch로 재시작 가능하듯, 카카오 수집도 **진행 
 5. **매너**: 레이트리밋(요청 간 지연), User-Agent, 차단 회피의 **정당한 범위**와 넘지 말아야 할 선.
 6. **중단·재개 실습**: 마지막 처리 페이지/셀을 JSON 파일 또는 DB에 기록 → 재실행 시 resume.
    §2.2 카카오 체크포인트 개념을 크롤링에서도 동일하게 연습한다.
-7. **마무리**: 소량 샘플만 수집·파싱 확인. 산출물은 학습 노트(`docs/improvements/notes/` 등)로만 남긴다.
+7. **마무리**: 소량 샘플만 수집·파싱 확인. 커밋할 기술 정리는 [`docs/tech-notes/`](../tech-notes/)에,
+   커밋하지 않는 개인 스크래치 메모는 `.gitignore`로 제외되는 루트 `notes/`에 남긴다(둘을 구분).
 
 ## 4. 대용량 처리 & 성능 벤치마크
 

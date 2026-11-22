@@ -6,6 +6,8 @@
 
     <resultMap id="attractionMap" type="com.tripcraft.attraction.domain.Attraction">
         <id column="id" property="id"/>
+        <result column="source" property="source"/>
+        <result column="external_id" property="externalId"/>
         <result column="content_id" property="contentId"/>
         <result column="content_type_id" property="contentTypeId"/>
         <result column="title" property="title"/>
@@ -90,7 +92,7 @@
     </select>
 
     <insert id="insertAll" parameterType="list">
-        INSERT INTO attraction (content_id, content_type_id, title, sido_code, sigungu_code,
+        INSERT INTO attraction (source, external_id, content_id, content_type_id, title, sido_code, sigungu_code,
                                 addr1, addr2, zipcode, latitude, longitude, tel,
                                 first_image, first_image2, mlevel,
                                 cat1, cat2, cat3,
@@ -99,7 +101,7 @@
                                 api_created_at, api_modified_at)
         VALUES
         <foreach item="a" collection="list" separator=",">
-            (#{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.sidoCode}, #{a.sigunguCode},
+            (#{a.source}, #{a.externalId}, #{a.contentId}, #{a.contentTypeId}, #{a.title}, #{a.sidoCode}, #{a.sigunguCode},
              #{a.addr1}, #{a.addr2}, #{a.zipcode}, #{a.latitude}, #{a.longitude}, #{a.tel},
              #{a.firstImage}, #{a.firstImage2}, #{a.mlevel},
              #{a.cat1}, #{a.cat2}, #{a.cat3},
@@ -108,7 +110,8 @@
              #{a.apiCreatedAt}, #{a.apiModifiedAt})
         </foreach>
         ON DUPLICATE KEY UPDATE
-            title = VALUES(title), addr1 = VALUES(addr1),
+            title = VALUES(title), addr1 = VALUES(addr1), tel = VALUES(tel),
+            latitude = VALUES(latitude), longitude = VALUES(longitude),
             api_modified_at = VALUES(api_modified_at), synced_at = CURRENT_TIMESTAMP
     </insert>
 
