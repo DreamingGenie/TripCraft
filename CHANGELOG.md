@@ -24,6 +24,7 @@
 - HTTP API의 CORS 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 이전에는 임의 origin + 자격증명 허용으로 고정돼 있었다. 미설정 시 기존처럼 전체 허용이므로 **운영 환경에는 값을 넣어야 한다**
 - 권한을 잃은 세션의 실시간 구독을 서버가 끊음 — 협업자 제거·공유 해제 뒤에도 이미 맺은 구독으로 편집 이벤트를 계속 받던 문제. 구독 자격을 기억해 두었다가 변경이 커밋되면 다시 판정해 STOMP `ERROR`로 연결 종료(`TripSubscriptionGuard`)
 - 실시간 채널 구독에 공유 링크 토큰 요구 — 소유자·협업자가 아니면(익명 포함) 공유 일정이라도 `share-token` 헤더가 일정의 토큰과 일치해야 구독된다. 이전에는 일정 id만으로 구독 가능했다
+- 실시간 구독 경로를 허용 목록으로 제한 — `/topic/trip/{id}`·`/topic/trip/{id}/presence` 외의 구독은 거부. 이전에는 검사 밖 경로를 그대로 통과시켜, `/topic/**` 같은 와일드카드 구독으로 토큰·권한 없이 모든 일정의 편집 이벤트를 받을 수 있었다
 - 인증 쿠키에 `SameSite=Lax` 지정
 - WebSocket 엔드포인트 허용 origin을 설정값(`cors.allowed-origins`, 환경변수 `CORS_ALLOWED_ORIGINS`)으로 변경 — 미설정 시 기존처럼 전체 허용
 

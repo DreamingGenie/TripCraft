@@ -26,6 +26,9 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
     /** 공유 링크로 들어온 클라이언트가 SUBSCRIBE 프레임에 싣는 공유 토큰 헤더. */
     public static final String SHARE_TOKEN_HEADER = "share-token";
+    /** 구독 허용 경로 — 일정 이벤트(/topic/trip/{id})와 참가자 표시(/topic/trip/{id}/presence)뿐. */
+    private static final java.util.regex.Pattern SUBSCRIBE_DESTINATION =
+            java.util.regex.Pattern.compile("/topic/trip/(\\d{1,18})(?:/presence)?");
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -58,11 +61,15 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
 
     // ── SUBSCRIBE: /topic/trip/{tripId} 구독 시 조회 권한 확인 ──────────────
     private void handleSubscribe(StompHeaderAccessor accessor) {
+        // 허용 목록: 클라이언트가 쓰는 두 경로만 받는다. SimpleBroker 는 구독 경로를 Ant 패턴으로 맞추므로
+        // "/topic/**" 같은 와일드카드나 검사 밖 경로를 통과시키면 남의 일정 이벤트까지 받는다.
         String destination = accessor.getDestination();
-        if (destination == null || !destination.startsWith("/topic/trip/")) return;
-
-        Long tripId = parseTripId(destination, 3);
-        if (tripId == null) return;
+        java.util.regex.Matcher m = destination == null ? null : SUBSCRIBE_DESTINATION.matcher(destination);
+        if (m == null || !m.matches()) {
+            log.warn("협업 WS 구독 거부(허용되지 않은 경로) destination={}", destination);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Subscription destination not allowed");
+        }
+        Long tripId = Long.parseLong(m.group(1));
 
         // 소유자·협업자가 아니면(익명 포함) 공유 일정이라도 공유 링크 토큰을 제시해야 구독할 수 있다.
         String presented = accessor.getFirstNativeHeader(SHARE_TOKEN_HEADER);
