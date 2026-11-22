@@ -619,6 +619,7 @@ import { useActiveTripStore } from '@/stores/activeTrip'
 import { useCollabStore } from '@/stores/collab'
 import { searchAttractions, fetchRegions, fetchAttractionDetail } from '@/api/attraction'
 import { tripApi } from '@/api/trip'
+import { setShareToken } from '@/api/http'
 import AttractionChat from '@/components/AttractionChat.vue'
 import ScheduleBoard from '@/components/ScheduleBoard.vue'
 import ShareModal from '@/components/ShareModal.vue'
@@ -657,6 +658,8 @@ const mode = ref('explore') // 'explore' | 'organize'
 // 공유 링크 조회(?s=token): 비로그인 read-only. EDIT 링크 + 로그인이면 myRole=EDITOR 로 편집 허용
 const shareToken = ref(route.query.s || null)
 const isSharedView = computed(() => !!shareToken.value)
+// 공유 보기 동안 REST 요청에 토큰을 싣는다(서버가 링크 공유 권한을 토큰으로만 준다). 화면을 떠나면 해제.
+watch(shareToken, (t) => setShareToken(t), { immediate: true })
 const readOnly = computed(() =>
   isSharedView.value && !['OWNER', 'EDITOR'].includes(activeTripDetail.value?.myRole))
 // 편집 링크인데 비로그인 → 로그인하면 편집 가능 안내
@@ -1822,5 +1825,6 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onTripMenuKey)
   if (scrollRafId) cancelAnimationFrame(scrollRafId)
   clearTimeout(checkTimer)
+  setShareToken(null)
 })
 </script>

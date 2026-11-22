@@ -68,6 +68,7 @@ class TripServiceImplTest {
     @Mock TripAccessVersion accessVersion;
     @Mock com.tripcraft.global.security.TripSubscriptionGuard subscriptionGuard;
     @Mock TripTaskQueue taskQueue;  // 목이라 재계산은 실행되지 않는다(재계산 경로는 통합테스트 몫)
+    @Mock com.tripcraft.global.security.RequestShareToken requestShareToken;  // 기본: 요청에 공유 토큰 없음(null)
 
     @InjectMocks TripServiceImpl service;
 
@@ -345,5 +346,59 @@ class TripServiceImplTest {
         assertThatThrownBy(() -> service.deleteTrip(TRIP_ID, OTHER_ID))
                 .isInstanceOf(ResponseStatusException.class);
         verify(tripMapper, never()).deleteById(anyLong());
+    }
+
+    // ── 링크 공유는 토큰으로만 (일정 id 는 순번이라 id 만으로 열리면 남의 공유 일정을 훑을 수 있다) ──
+
+    @Nested
+    @DisplayName("링크 공유 권한")
+    class LinkShare {
+        static final String TOKEN = "share-token-abc";
+
+        private void shared(String access) {
+            ownerTrip.setShareAccess(access);
+            ownerTrip.setShareToken(TOKEN);
+            when(tripMapper.findById(TRIP_ID)).thenReturn(Optional.of(ownerTrip));
+            org.mockito.Mockito.lenient()   // 비로그인(memberId null) 경우엔 협업자 조회를 하지 않는다
+                    .when(collaboratorMapper.findByTripAndMember(TRIP_ID, OTHER_ID)).thenReturn(Optional.empty());
+        }
+
+        @Test
+        @DisplayName("VIEW 공유 — 토큰 없이 일정 id만으로는 조회 403")
+        void viewWithoutToken() {
+            shared("VIEW");
+            assertThatThrownBy(() -> service.getTripDetail(TRIP_ID, OTHER_ID))
+                    .isInstanceOf(ResponseStatusException.class);
+        }
+
+        @Test
+        @DisplayName("VIEW 공유 — 맞는 토큰이면 VIEWER로 조회")
+        void viewWithToken() {
+            shared("VIEW");
+            when(requestShareToken.current()).thenReturn(TOKEN);
+            assertThat(service.getTripDetail(TRIP_ID, OTHER_ID).getMyRole()).isEqualTo("VIEWER");
+        }
+
+        @Test
+        @DisplayName("EDIT 공유 — 로그인했어도 토큰이 없거나 틀리면 편집 403")
+        void editWithoutToken() {
+            shared("EDIT");
+            BlockMemoUpdateRequest r = new BlockMemoUpdateRequest();
+            org.springframework.test.util.ReflectionTestUtils.setField(r, "memo", "x");
+            assertThatThrownBy(() -> service.updateBlockMemo(TRIP_ID, BLOCK_ID, r, OTHER_ID))
+                    .isInstanceOf(ResponseStatusException.class);
+            when(requestShareToken.current()).thenReturn("wrong");
+            assertThatThrownBy(() -> service.updateBlockMemo(TRIP_ID, BLOCK_ID, r, OTHER_ID))
+                    .isInstanceOf(ResponseStatusException.class);
+            verify(blockMapper, never()).updateMemoById(anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("공유 링크 진입(getSharedTrip)은 URL 토큰으로 통과 — 헤더 없어도 됨")
+        void sharedEntryUsesUrlToken() {
+            shared("VIEW");
+            when(tripMapper.findByShareToken(TOKEN)).thenReturn(Optional.of(ownerTrip));
+            assertThat(service.getSharedTrip(TOKEN, null).getMyRole()).isEqualTo("VIEWER");
+        }
     }
 }
