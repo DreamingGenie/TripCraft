@@ -139,6 +139,23 @@ class JwtChannelInterceptorTest {
         assertThat(guard.revokeStale(TRIP_ID)).isZero();   // 이미 끊은 세션을 다시 끊지 않는다
     }
 
+    // SimpleBroker 는 구독 경로를 Ant 패턴으로 맞춘다 — 와일드카드가 통과하면 토큰·id 없이 모든 일정 이벤트를 받는다(2026-11-22 반증에서 실측)
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "/topic/**", "/topic/trip/**", "/topic/trip/*", "/topic/trip/*/presence", "/topic/other", "/queue/x", "/topic/trip/abc"})
+    void 허용_목록_밖의_구독_경로는_거부한다(String destination) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination(destination);
+        assertThatThrownBy(() -> preSend(accessor, OWNER_ID)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void 참가자_표시_채널도_같은_권한_검사를_거친다() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/topic/trip/" + TRIP_ID + "/presence");
+        assertThatThrownBy(() -> preSend(accessor, null)).isInstanceOf(ResponseStatusException.class);
+    }
+
     private void subscribe(String sessionId, Long memberId, String shareToken) {
         session = new HashMap<>();
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
