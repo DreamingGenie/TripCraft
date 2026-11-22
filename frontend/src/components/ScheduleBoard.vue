@@ -69,6 +69,12 @@
       </div>
     </Transition>
 
+    <!-- 서버가 실시간 연결을 끊었을 때(공유 해제·협업자 제외 등) — 화면이 멈춘 것을 알린다 -->
+    <div v-if="collab.accessLost" class="collab-lost-banner" role="alert">
+      <span>실시간 연결이 끊겼어요. 이 일정의 공유 설정이나 내 권한이 바뀌었을 수 있어요. 지금 보이는 내용은 최신이 아닐 수 있습니다.</span>
+      <button type="button" class="collab-lost-reload" @click="reloadPage">새로고침</button>
+    </div>
+
     <!-- BODY: 사이드바 + 시간표 + 지도 패널 -->
     <div class="schedule-body" @mousemove="onPointerMove" @mouseleave="onBoardLeave">
       <!-- 후보군 사이드바 -->
@@ -2306,6 +2312,10 @@ function applyAdaptiveSmooth() {
   document.documentElement.style.setProperty('--collab-smooth', Math.round(smooth) + 'ms')
 }
 
+function reloadPage() {
+  window.location.reload()
+}
+
 function connectCollab(tripId) {
   prevGrabbers = new Set()
   lastEventSeq = -1
@@ -2464,6 +2474,21 @@ onMounted(async () => {
   transition: background 0.3s;
 }
 .collab-status-dot.connected { background: #22c55e; }
+
+.collab-lost-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px;
+  background: #fef3c7; color: #78350f;
+  border-bottom: 1px solid #fcd34d;
+  font-size: 13px; line-height: 1.5;
+}
+.collab-lost-reload {
+  flex-shrink: 0;
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid #b45309; background: #fff; color: #78350f;
+  font-size: 13px; cursor: pointer;
+}
+.collab-lost-reload:hover { background: #fffbeb; }
 
 .collab-panel-overlay {
   position: absolute;
