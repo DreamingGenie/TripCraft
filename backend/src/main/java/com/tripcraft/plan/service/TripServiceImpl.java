@@ -43,6 +43,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.tripcraft.plan.controller.TripPresenceController;
 import com.tripcraft.global.security.TripAccessVersion;
 import com.tripcraft.global.security.TripSubscriptionGuard;
+import com.tripcraft.global.security.RequestShareToken;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -74,6 +75,7 @@ public class TripServiceImpl implements TripService {
     private final TripAccessVersion accessVersion;
     private final TripTaskQueue taskQueue;
     private final TripSubscriptionGuard subscriptionGuard;
+    private final RequestShareToken requestShareToken;
 
     // ── 동시성 헬퍼 ────────────────────────────────────────────────────────────
 
@@ -126,6 +128,14 @@ public class TripServiceImpl implements TripService {
     // ── 권한 헬퍼 ──────────────────────────────────────────────────────────────
 
     private TripRole resolveRole(Long tripId, Long memberId) {
+        return resolveRole(tripId, memberId, requestShareToken.current());
+    }
+
+    /**
+     * 소유자·협업자 → 그 역할. 그 밖에는 링크 공유 폴백 — 단, 요청이 일정의 공유 토큰을 제시해야 한다.
+     * (이전에는 공유 설정만 보고 일정 id만으로 VIEW·EDIT 권한을 줬다. 일정 id는 순번이다.)
+     */
+    private TripRole resolveRole(Long tripId, Long memberId, String presentedShareToken) {
         Trip trip = tripMapper.findById(tripId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (memberId != null && trip.getMemberId().equals(memberId)) return TripRole.OWNER;
@@ -135,7 +145,8 @@ public class TripServiceImpl implements TripService {
                 .orElse(null);
             if (r != null) return r;
         }
-        // 링크 공유 폴백: VIEW=조회 / EDIT=로그인 시 편집·비로그인 조회 / PRIVATE=없음
+        // 링크 공유 폴백: VIEW=조회 / EDIT=로그인 시 편집·비로그인 조회 / PRIVATE=없음 — 토큰이 맞을 때만
+        if (!RequestShareToken.matches(trip.getShareToken(), presentedShareToken)) return null;
         String access = trip.getShareAccess();
         if ("EDIT".equals(access)) return memberId != null ? TripRole.EDITOR : TripRole.VIEWER;
         if ("VIEW".equals(access)) return TripRole.VIEWER;
@@ -190,8 +201,8 @@ public class TripServiceImpl implements TripService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (trip.getShareAccess() == null || "PRIVATE".equals(trip.getShareAccess()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        // assertCanView 는 share_access 폴백으로 통과 (비로그인 포함)
-        return getTripDetail(trip.getId(), memberId);
+        // URL 의 토큰으로 링크 공유 폴백을 통과한다(비로그인 포함)
+        return buildTripDetail(trip.getId(), memberId, token);
     }
 
     private String nickname(Long memberId) {
@@ -279,7 +290,12 @@ public class TripServiceImpl implements TripService {
 
     @Override
     public TripDetailResponse getTripDetail(Long tripId, Long memberId) {
-        assertCanView(tripId, memberId);
+        return buildTripDetail(tripId, memberId, requestShareToken.current());
+    }
+
+    private TripDetailResponse buildTripDetail(Long tripId, Long memberId, String shareToken) {
+        TripRole role = resolveRole(tripId, memberId, shareToken);
+        if (role == null) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         Trip trip = tripMapper.findById(tripId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
@@ -321,7 +337,7 @@ public class TripServiceImpl implements TripService {
 
         String ownerNickname = memberMapper.findById(trip.getMemberId())
             .map(Member::getNickname).orElse("");
-        String myRole = resolveRole(tripId, memberId).name();
+        String myRole = role.name();
 
         return new TripDetailResponse(trip.getId(), trip.getTitle(),
             trip.getStartDate(), trip.getEndDate(), trip.getMemberCount(),

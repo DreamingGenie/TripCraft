@@ -1,8 +1,19 @@
+// 공유 링크(?s=)로 일정을 보는 동안 모든 API 요청에 공유 토큰을 싣는다.
+// 서버는 소유자·협업자가 아니면 이 토큰이 맞을 때만 링크 공유 권한을 준다(일정 id만으로는 열리지 않음).
+let shareToken = null
+export function setShareToken(token) {
+  shareToken = token || null
+}
+
+function withShareToken(headers) {
+  return shareToken ? { ...headers, 'X-Share-Token': shareToken } : headers
+}
+
 async function doFetch(method, url, body) {
   const opts = {
     method,
     credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers: withShareToken(body ? { 'Content-Type': 'application/json' } : {}),
   }
   if (body) opts.body = JSON.stringify(body)
   const res = await fetch(url, opts)
@@ -31,7 +42,7 @@ async function request(method, url, body) {
 }
 
 async function requestForm(method, url, formData) {
-  const opts = { method, credentials: 'include', body: formData }
+  const opts = { method, credentials: 'include', body: formData, headers: withShareToken({}) }
   let res = await fetch(url, opts)
   let json = await res.json().catch(() => null)
 
